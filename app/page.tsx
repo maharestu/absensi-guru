@@ -2,21 +2,37 @@ import LoginForm from "../components/LoginForm";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto w-full max-w-full px-5 py-12">
+    <main
+      className="
+        min-h-screen
+        bg-[#F4F8FD]
+        md:flex
+        md:items-center
+        md:justify-center
+        md:px-6
+        md:py-10
+      "
+    >
+      <div
+        className="
+          mx-auto
+          w-full
+          max-w-full
+          px-5
+          py-12
 
-        <div className="mb-16">
-          <h1 className="text-[22px] font-bold text-slate-900">
-            Masuk ke Absensi
-          </h1>
-
-          <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            Gunakan NIP dan password Anda untuk melakukan absensi.
-          </p>
-        </div>
-
+          md:mx-0
+          md:max-w-[440px]
+          md:rounded-2xl
+          md:border
+          md:border-slate-100
+          md:bg-white
+          md:px-10
+          md:py-10
+          md:shadow-sm
+        "
+      >
         <LoginForm />
-
       </div>
     </main>
   );
