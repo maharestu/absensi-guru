@@ -15,7 +15,7 @@ export default function InputField({
 }: InputFieldProps) {
   return (
     <div>
-      <label className="mb-2 block text-[10px] font-semibold text-slate-800 md:text-xs">
+      <label className="mb-2 block text-[12px] font-semibold text-slate-800 md:text-xs">
         {label}
       </label>
 
@@ -32,7 +32,10 @@ export default function InputField({
           border-slate-200
           bg-white
           px-3
-          text-[11px]
+          text-[14px]
+          font-medium
+          text-slate-500
+          placeholder:text-slate-500
           outline-none
           focus:border-blue-500
           focus:ring-1
