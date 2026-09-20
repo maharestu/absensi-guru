@@ -59,12 +59,11 @@ export default function DashboardGuruPage() {
   const router = useRouter();
 
   const handleSelect = (statusId: string) => {
-    // Nanti akan diarahkan ke halaman absensi sesuai status
     router.push(`/absensi/${statusId}`);
   };
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-[#EEF2F7] px-6 pt-14 pb-10">
+    <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-14 pb-10">
       {/* Header */}
       <header className="mb-10">
         <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
@@ -92,12 +91,8 @@ export default function DashboardGuruPage() {
 
             {/* Text */}
             <div>
-              <p className="text-base font-bold text-slate-900">
-                {option.label}
-              </p>
-              <p className="text-sm text-slate-500 mt-0.5">
-                {option.description}
-              </p>
+              <p className="text-base font-bold text-slate-900">{option.label}</p>
+              <p className="text-sm text-slate-500 mt-0.5">{option.description}</p>
             </div>
           </button>
         ))}
