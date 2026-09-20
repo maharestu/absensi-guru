@@ -41,12 +41,12 @@ const menuItems = [
     description: "Catat aktivitas mengajar sesuai jadwal kelas.",
     tag: "Jadwal mengajar",
     tagColor: "text-blue-600 bg-blue-50",
-    iconBg: "bg-slate-100",
+    iconBg: "bg-blue-50",
     icon: (
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
         <path
           d="M4 6h16M4 10h16M4 14h10"
-          stroke="#64748b"
+          stroke="#2563eb"
           strokeWidth="2"
           strokeLinecap="round"
         />
@@ -79,15 +79,13 @@ export default function DashboardGuruPage() {
       {/* ── Kartu Info Guru ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 mb-8">
         <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-          {/* Avatar — kotak biru rounded-xl sesuai Figma */}
-          <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="8" r="4" fill="#3b82f6" />
+          {/* Avatar — lingkaran penuh (rounded-full) sesuai Figma */}
+          <div className="w-12 h-12 rounded-full bg-[#e0e7ff] flex items-center justify-center flex-shrink-0">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="4" fill="#2563eb" />
               <path
                 d="M4 20c0-4 3.582-7 8-7s8 3 8 7"
-                stroke="#3b82f6"
-                strokeWidth="1.5"
-                strokeLinecap="round"
+                fill="#2563eb"
               />
             </svg>
           </div>
@@ -113,9 +111,9 @@ export default function DashboardGuruPage() {
             onClick={() => router.push(item.href)}
             className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 flex items-start gap-4 active:scale-[0.98] hover:shadow-md transition-all duration-150 text-left"
           >
-            {/* Icon — rounded-xl (ubah di sini untuk sesuaikan sudut) */}
+            {/* Icon — rounded-2xl (UBAH DI SINI UNTUK MENGGANTI SUDUT: ganti 'rounded-2xl' menjadi 'rounded-xl' atau 'rounded-lg') */}
             <div
-              className={`w-11 h-11 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}
+              className={`w-14 h-14 rounded-2xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}
             >
               {item.icon}
             </div>
