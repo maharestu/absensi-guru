@@ -22,8 +22,9 @@ const STATUS_LABELS: Record<string, string> = {
   izin: "Izin",
 };
 
+/** Peta status → URL back (kembali ke halaman upload surat) */
 const BACK_HREF: Record<string, string> = {
-  hadir: "/absensi/hadir",
+  hadir: "/pilih-status",
   sakit: "/absensi/sakit",
   izin: "/absensi/izin",
 };

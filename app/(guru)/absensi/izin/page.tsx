@@ -31,7 +31,7 @@ export default function IzinPage() {
     <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
 
       <PageHeader
-        backHref="/dashboard"
+        backHref="/pilih-status"
         title="Bukti Keterangan Izin"
         subtitle="Unggah foto surat izin yang jelas dan terbaca"
       />
