@@ -24,7 +24,7 @@ export default function LokasiPage() {
   };
 
   const handleContinue = () => {
-    router.push("/absensi/hadir/berhasil");
+    router.push("/absensi/verifikasi?status=hadir");
   };
 
   return (
@@ -63,8 +63,8 @@ export default function LokasiPage() {
               ) : (
                 <div className="text-blue-600">
                   <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2" />
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
               )}
@@ -94,11 +94,11 @@ export default function LokasiPage() {
           <div className="-mt-2 w-[354px] h-[230px] bg-white border border-slate-100 rounded-[20px] shadow-sm flex flex-col items-center justify-center gap-3 text-center px-6">
             <div className="w-14 h-14 bg-[#16a34a] rounded-full flex items-center justify-center shadow-md shadow-green-200">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <h2 className="text-[20px] font-bold text-slate-900 leading-tight">
-              Anda Sudah Berada Di<br/>Area Sekolah
+              Anda Sudah Berada Di<br />Area Sekolah
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed">
               Lokasi berhasil diverifikasi dan berada di dalam jangkauan area absensi sekolah.
@@ -124,7 +124,7 @@ export default function LokasiPage() {
               <span className="text-white font-bold text-2xl leading-none">!</span>
             </div>
             <h2 className="text-[20px] font-bold text-slate-900 leading-tight">
-              Anda Berada Di Luar<br/>Area Sekolah
+              Anda Berada Di Luar<br />Area Sekolah
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed">
               Pastikan Anda berada di area sekitar sekolah.

@@ -22,9 +22,9 @@ const STATUS_LABELS: Record<string, string> = {
   izin: "Izin",
 };
 
-/** Peta status → URL back (kembali ke halaman upload surat) */
+/** Peta status → URL back */
 const BACK_HREF: Record<string, string> = {
-  hadir: "/pilih-status",
+  hadir: "/absensi/hadir/lokasi",
   sakit: "/absensi/sakit",
   izin: "/absensi/izin",
 };
@@ -49,8 +49,12 @@ function VerifikasiContent() {
 
   const handleSubmit = () => {
     // TODO: Kirim data absensi ke server
-    alert(`Absensi "${statusLabel}" berhasil dicatat!`);
-    router.push("/dashboard");
+    if (status === "hadir") {
+      router.push("/absensi/hadir/berhasil");
+    } else {
+      alert(`Absensi "${statusLabel}" berhasil dicatat!`);
+      router.push("/dashboard");
+    }
   };
 
   return (

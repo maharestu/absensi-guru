@@ -21,6 +21,9 @@ export default function BerhasilPage() {
   const formattedDateTime = `${dayName}, ${date} ${month} ${year} • ${hours}:${minutes} WIB`;
 
   const handleSelesai = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("absensi_captured_photo");
+    }
     router.push("/dashboard");
   };
 
@@ -58,7 +61,7 @@ export default function BerhasilPage() {
       <div className="flex-1" />
 
       {/* ── TOMBOL SELESAI: 354x54 ── */}
-      <div className="w-[354px] mb-12 ">
+      <div className="w-[354px] mb-60  ">
         <button
           onClick={handleSelesai}
           className="w-full h-[54px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-semibold text-base transition-all duration-200 shadow-md shadow-blue-200"

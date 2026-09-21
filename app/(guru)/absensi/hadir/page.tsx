@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import CameraCapture from "@/components/absensi/camera-capture";
+
+const PHOTO_STORAGE_KEY = "absensi_captured_photo";
 
 export default function HadirPage() {
   const router = useRouter();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
+  // Ambil foto tersimpan jika user kembali dari halaman lokasi
+  useEffect(() => {
+    const saved = sessionStorage.getItem(PHOTO_STORAGE_KEY);
+    if (saved) {
+      setCapturedImage(saved);
+    }
+  }, []);
+
   const handleCapture = (imageSrc: string) => {
     setCapturedImage(imageSrc);
+    sessionStorage.setItem(PHOTO_STORAGE_KEY, imageSrc);
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    sessionStorage.removeItem(PHOTO_STORAGE_KEY);
   };
 
   const handleContinue = () => {
@@ -22,11 +34,22 @@ export default function HadirPage() {
     router.push("/absensi/hadir/lokasi");
   };
 
+  const handleBack = () => {
+    if (capturedImage) {
+      // Kembali ke mode ambil gambar (kamera)
+      handleRetake();
+    } else {
+      // Kembali ke halaman pemilihan status absensi
+      sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+      router.push("/pilih-status");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
 
       <PageHeader
-        backHref="/pilih-status"
+        onBack={handleBack}
         title={capturedImage ? "Ambil Foto Absensi" : "Ambil Foto Kehadiran"}
         subtitle="Pastikan wajah Anda terlihat jelas dan pencahayaan cukup."
       />

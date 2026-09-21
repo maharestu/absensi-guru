@@ -44,9 +44,12 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   }, []);
 
   const handleCapture = () => {
-    // Mode Simulasi jika kamera tidak ada
+    // Mode Simulasi jika kamera tidak tersedia / izin tidak diberikan
     if (hasPermission === false) {
-      onCapture("data:image/jpeg;base64,mock_kamera_tidak_ada");
+      // Gambar simulasi guru dari Unsplash
+      onCapture(
+        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop"
+      );
       return;
     }
 
