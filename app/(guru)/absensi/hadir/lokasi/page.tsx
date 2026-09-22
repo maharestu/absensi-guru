@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
+import Button from "@/components/ui/button";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -77,13 +78,12 @@ export default function LokasiPage() {
 
           {/* Tombol Scan Lokasi: 354x54, jarak 42px dari bawah box */}
           <div className="mt-[42px] w-[354px]">
-            <button
+            <Button
               onClick={handleScan}
               disabled={scanState === "SCANNING"}
-              className="w-full h-[54px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-semibold text-base transition-all duration-200 shadow-md shadow-blue-200 disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {scanState === "SCANNING" ? "Memindai..." : "Scan Lokasi"}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -106,12 +106,9 @@ export default function LokasiPage() {
           </div>
 
           <div className="mt-[42px] w-[354px]">
-            <button
-              onClick={handleContinue}
-              className="w-full h-[54px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-semibold text-base transition-all duration-200 shadow-md shadow-blue-200"
-            >
+            <Button onClick={handleContinue}>
               Lanjutkan
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -132,12 +129,9 @@ export default function LokasiPage() {
           </div>
 
           <div className="mt-[42px] w-[354px]">
-            <button
-              onClick={handleRetake}
-              className="w-full h-[54px] bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-slate-700 rounded-2xl font-semibold text-base transition-all duration-200"
-            >
+            <Button variant="outline" onClick={handleRetake}>
               Scan Ulang Lokasi
-            </button>
+            </Button>
           </div>
         </>
       )}

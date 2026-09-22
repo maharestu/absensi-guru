@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import CameraCapture from "@/components/absensi/camera-capture";
+import Button from "@/components/ui/button";
 
 const PHOTO_STORAGE_KEY = "absensi_captured_photo";
 
@@ -74,19 +75,13 @@ export default function HadirPage() {
 
             {/* Tombol Aksi */}
             <div className="flex flex-col gap-3 mt-6 flex-shrink-0">
-              <button
-                onClick={handleContinue}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-semibold text-base transition-all duration-200 shadow-md shadow-blue-200"
-              >
+              <Button onClick={handleContinue}>
                 Lanjutkan
-              </button>
+              </Button>
 
-              <button
-                onClick={handleRetake}
-                className="w-full py-4 bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-slate-700 rounded-2xl font-semibold text-base transition-all duration-200"
-              >
+              <Button variant="outline" onClick={handleRetake}>
                 Ulangi
-              </button>
+              </Button>
             </div>
           </div>
         )}

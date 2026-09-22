@@ -44,12 +44,12 @@ const statusOptions = [
     bgColor: "bg-orange-400",
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="7" r="1.5" fill="white" />
         <path
-          d="M12 8V12M12 16H12.01"
+          d="M12 11V17"
           stroke="white"
           strokeWidth="2.5"
           strokeLinecap="round"
-          strokeLinejoin="round"
         />
       </svg>
     ),

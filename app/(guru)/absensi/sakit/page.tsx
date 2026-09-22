@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import ImageUploader from "@/components/ui/image-uploader";
+import Button from "@/components/ui/button";
 
 export default function SakitPage() {
   const router = useRouter();
@@ -51,18 +52,12 @@ export default function SakitPage() {
 
       {/* mt-8 → tombol tepat di bawah kotak upload */}
       <div className="mt-8">
-        <button
+        <Button
           onClick={handleUpload}
           disabled={!hasImage || isUploading}
-          className={`w-full py-4 rounded-2xl font-semibold text-base transition-all duration-200
-            ${hasImage
-              ? "bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white shadow-md shadow-blue-200"
-              : "bg-blue-600/40 text-white/70 cursor-not-allowed"
-            }
-          `}
         >
           {isUploading ? "Mengunggah..." : "Upload Surat"}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import PageHeader from "@/components/ui/page-header";
 import VerificationCard from "@/components/absensi/verification-card";
+import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 
 /** Format tanggal ke "Senin, 7 September 2026" */
@@ -48,13 +49,8 @@ function VerifikasiContent() {
   ];
 
   const handleSubmit = () => {
-    // TODO: Kirim data absensi ke server
-    if (status === "hadir") {
-      router.push("/absensi/hadir/berhasil");
-    } else {
-      alert(`Absensi "${statusLabel}" berhasil dicatat!`);
-      router.push("/dashboard");
-    }
+    // Navigasi ke halaman berhasil untuk semua status absensi
+    router.push(`/absensi/berhasil?status=${status}`);
   };
 
   return (
@@ -72,12 +68,9 @@ function VerifikasiContent() {
 
       {/* mt-12 → tombol di bawah kartu dengan jarak proporsional */}
       <div className="mt-40">
-        <button
-          onClick={handleSubmit}
-          className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-base transition-all duration-150 shadow-md shadow-blue-200"
-        >
+        <Button onClick={handleSubmit}>
           Submit
-        </button>
+        </Button>
       </div>
     </div>
   );

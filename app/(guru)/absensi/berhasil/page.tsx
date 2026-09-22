@@ -1,9 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+import Button from "@/components/ui/button";
 
-export default function BerhasilPage() {
+const STATUS_TITLES: Record<string, string> = {
+  hadir: "Absensi Kehadiran",
+  izin: "Absensi Izin",
+  sakit: "Absensi Sakit",
+};
+
+function BerhasilContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status") ?? "hadir";
+  const title = STATUS_TITLES[status] ?? "Absensi";
 
   // Format tanggal & waktu saat ini dalam bahasa Indonesia
   const now = new Date();
@@ -23,6 +34,8 @@ export default function BerhasilPage() {
   const handleSelesai = () => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("absensi_captured_photo");
+      sessionStorage.setItem("absensi_completed", "true");
+      sessionStorage.setItem("absensi_status", status);
     }
     router.push("/dashboard");
   };
@@ -39,7 +52,7 @@ export default function BerhasilPage() {
 
       {/* Judul */}
       <h1 className="text-[28px] font-bold text-slate-900 leading-tight text-center mb-3">
-        Absensi Kehadiran<br />Berhasil
+        {title}<br />Berhasil
       </h1>
 
       {/* Sub-judul */}
@@ -61,15 +74,21 @@ export default function BerhasilPage() {
       <div className="flex-1" />
 
       {/* ── TOMBOL SELESAI: 354x54 ── */}
-      <div className="w-[354px] mb-60  ">
-        <button
-          onClick={handleSelesai}
-          className="w-full h-[54px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-2xl font-semibold text-base transition-all duration-200 shadow-md shadow-blue-200"
-        >
+      <div className="w-[354px] mb-60">
+        <Button onClick={handleSelesai}>
           Selesai
-        </button>
+        </Button>
       </div>
 
     </div>
+  );
+}
+
+// Suspense wajib karena useSearchParams() butuh Suspense boundary di Next.js
+export default function BerhasilPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#EEF2F7]" />}>
+      <BerhasilContent />
+    </Suspense>
   );
 }
