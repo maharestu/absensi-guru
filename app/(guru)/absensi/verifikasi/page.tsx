@@ -66,8 +66,8 @@ function VerifikasiContent() {
       {/* Kartu Data — tinggi natural */}
       <VerificationCard rows={rows} />
 
-      {/* mt-12 → tombol di bawah kartu dengan jarak proporsional */}
-      <div className="mt-40">
+      {/* Tombol di bawah kartu dengan mt-auto */}
+      <div className="mt-auto pt-8">
         <Button onClick={handleSubmit}>
           Submit
         </Button>

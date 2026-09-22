@@ -147,6 +147,24 @@ export default function DashboardGuruPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Tombol Dev Reset (untuk Testing) ── */}
+      <div className="mt-auto pt-8 flex justify-center">
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              sessionStorage.removeItem("absensi_completed");
+              sessionStorage.removeItem("absensi_status");
+              sessionStorage.removeItem("absensi_time");
+              sessionStorage.removeItem("absensi_date");
+              alert("Status absensi telah di-reset! Anda dapat mencoba alur absensi dari awal lagi.");
+            }
+          }}
+          className="text-xs text-slate-400 hover:text-blue-600 underline font-medium transition-colors"
+        >
+          Reset Status Absensi (Dev Testing)
+        </button>
+      </div>
     </div>
   );
 }

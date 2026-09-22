@@ -6,9 +6,9 @@ export default function GuruLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-100 flex justify-center items-start sm:items-center py-0 sm:py-8">
-      {/* Mobile Wrapper */}
-      <div className="w-full max-w-md bg-white min-h-screen sm:min-h-[800px] sm:max-h-[850px] relative shadow-2xl sm:rounded-3xl overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-white flex justify-center items-center py-0 sm:py-6 px-0 sm:px-4">
+      {/* Mobile Wrapper Container */}
+      <div className="w-full max-w-md bg-[#EEF2F7] min-h-screen sm:min-h-[844px] sm:max-h-[92vh] relative shadow-2xl sm:rounded-[36px] overflow-y-auto overflow-x-hidden flex flex-col">
         {children}
       </div>
     </div>
