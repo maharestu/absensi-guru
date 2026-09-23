@@ -8,6 +8,7 @@ const STATUS_TITLES: Record<string, string> = {
   hadir: "Absensi Kehadiran",
   izin: "Absensi Izin",
   sakit: "Absensi Sakit",
+  mengajar: "Absensi Mengajar",
 };
 
 function BerhasilContent() {
@@ -46,7 +47,7 @@ function BerhasilContent() {
     <div className="flex flex-col items-center min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
 
       {/* Ikon Centang Hijau */}
-      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-8">
+      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-30">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -72,11 +73,8 @@ function BerhasilContent() {
         </div>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1 min-h-[40px]" />
-
       {/* ── TOMBOL SELESAI: 354x54 ── */}
-      <div className="w-full max-w-[354px] mt-6">
+      <div className="w-full max-w-[354px] mt-20">
         <Button onClick={handleSelesai}>
           Selesai
         </Button>

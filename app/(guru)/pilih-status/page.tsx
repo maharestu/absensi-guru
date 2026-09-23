@@ -8,8 +8,8 @@ import { useAuth } from "@/context/AuthContext";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
-  sakit: { label: "Sakit", color: "text-[#ef4444]" },
-  izin: { label: "Izin", color: "text-[#f97316]" },
+  sakit: { label: "Sakit", color: "text-[#16a34a]" },
+  izin: { label: "Izin", color: "text-[#16a34a]" },
 };
 
 const statusOptions = [
@@ -180,7 +180,7 @@ export default function PilihStatusPage() {
         </div>
 
         {/* Tombol Selesai */}
-        <div className="mt-auto pt-8">
+        <div className="mt-60">
           <Button onClick={() => router.push("/dashboard")}>
             Selesai
           </Button>

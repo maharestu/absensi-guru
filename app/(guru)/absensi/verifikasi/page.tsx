@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   hadir: "Hadir",
   sakit: "Sakit",
   izin: "Izin",
+  mengajar: "Mengajar",
 };
 
 /** Peta status → URL back */
@@ -28,6 +29,7 @@ const BACK_HREF: Record<string, string> = {
   hadir: "/absensi/hadir/lokasi",
   sakit: "/absensi/sakit",
   izin: "/absensi/izin",
+  mengajar: "/absensi-mengajar",
 };
 
 function VerifikasiContent() {
@@ -66,8 +68,8 @@ function VerifikasiContent() {
       {/* Kartu Data — tinggi natural */}
       <VerificationCard rows={rows} />
 
-      {/* Tombol di bawah kartu dengan mt-auto */}
-      <div className="mt-auto pt-8">
+      {/* Tombol langsung di bawah kartu */}
+      <div className="mt-40">
         <Button onClick={handleSubmit}>
           Submit
         </Button>
