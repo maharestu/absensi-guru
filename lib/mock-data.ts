@@ -1,4 +1,4 @@
-import { Akun, Kelas, Jadwal } from "@/types/schema";
+import { Akun, Kelas, Jadwal, Guru } from "@/types/schema";
 
 export const MOCK_USERS: Akun[] = [
   {
@@ -16,7 +16,7 @@ export const MOCK_USERS: Akun[] = [
     username: "admin",
     password_hash: "admin123",
     role: "ADMIN",
-    nama: "Administrator Sekolah",
+    nama: "Admin Sekolah",
     status: "AKTIF",
     guru_id: null,
     created_at: new Date().toISOString(),
@@ -103,3 +103,196 @@ export const MOCK_JADWAL: Jadwal[] = [
     created_at: new Date().toISOString(),
   },
 ];
+
+export const MOCK_ADMIN_STATS = {
+  totalGuru: 48,
+  totalJadwal: 126,
+  totalAkun: 45,
+};
+
+export interface AdminActivity {
+  id: string;
+  aktivitas: string;
+  pengguna: string;
+  waktu: string;
+  status: "Berhasil" | "Gagal" | "Pending";
+}
+
+export const MOCK_ADMIN_ACTIVITIES: AdminActivity[] = [
+  { id: "act-1", aktivitas: "Data guru diperbarui", pengguna: "Admin Sekolah", waktu: "10:24", status: "Berhasil" },
+  { id: "act-2", aktivitas: "Akun guru diaktifkan", pengguna: "Admin Sekolah", waktu: "09:15", status: "Berhasil" },
+  { id: "act-3", aktivitas: "Data guru ditambahkan", pengguna: "Admin Sekolah", waktu: "09:00", status: "Berhasil" },
+  { id: "act-4", aktivitas: "Jadwal diperbarui", pengguna: "Admin Sekolah", waktu: "08:00", status: "Berhasil" },
+  { id: "act-5", aktivitas: "Akun guru diperbarui", pengguna: "Admin Sekolah", waktu: "07:40", status: "Berhasil" },
+  { id: "act-6", aktivitas: "Data guru diperbarui", pengguna: "Admin Sekolah", waktu: "07:20", status: "Berhasil" },
+  { id: "act-7", aktivitas: "Jadwal baru ditambahkan", pengguna: "Admin Sekolah", waktu: "07:10", status: "Berhasil" },
+  { id: "act-8", aktivitas: "Data guru diperbarui", pengguna: "Admin Sekolah", waktu: "07:00", status: "Berhasil" },
+  { id: "act-9", aktivitas: "Akun guru diaktifkan", pengguna: "Admin Sekolah", waktu: "06:40", status: "Berhasil" },
+  { id: "act-10", aktivitas: "Data guru ditambahkan", pengguna: "Admin Sekolah", waktu: "06:30", status: "Berhasil" },
+];
+
+export const MOCK_GURU_LIST: Guru[] = [
+  {
+    id: "guru-1",
+    nama: "Ahmad Fauzan, S.Pd.",
+    nip: "1987011201",
+    jabatan: "Guru Matematika",
+    no_telepon: "0812 3344 5566",
+    alamat: "Jl. Pendidikan No. 10, Bandung",
+    jenis_kelamin: "Laki-Laki",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-2",
+    nama: "Siti Rahmawati, S.Pd.",
+    nip: "1990022103",
+    jabatan: "Guru Bahasa",
+    no_telepon: "0813 7788 9911",
+    alamat: "Jl. Merdeka No. 45, Karawang",
+    jenis_kelamin: "Perempuan",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-3",
+    nama: "Dimas Pratama, S.Pd.",
+    nip: "1989111405",
+    jabatan: "Guru Produktif",
+    no_telepon: "0821 4455 6677",
+    alamat: "Jl. Sudirman No. 12, Bandung",
+    jenis_kelamin: "Laki-Laki",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-4",
+    nama: "Nadia Kusuma, S.Pd.",
+    nip: "1993061708",
+    jabatan: "Wali Kelas",
+    no_telepon: "0857 3322 1144",
+    alamat: "Jl. Mawar No. 8, Karawang",
+    jenis_kelamin: "Perempuan",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-5",
+    nama: "Rudi Hartono, S.Pd.",
+    nip: "1985020409",
+    jabatan: "Guru Olahraga",
+    no_telepon: "0819 9012 4567",
+    alamat: "Jl. Pemuda No. 22, Bandung",
+    jenis_kelamin: "Laki-Laki",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-6",
+    nama: "Lina Marlina, S.Pd.",
+    nip: "1991082111",
+    jabatan: "Guru IPA",
+    no_telepon: "0812 7700 3322",
+    alamat: "Jl. Anggrek No. 15, Karawang",
+    jenis_kelamin: "Perempuan",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-7",
+    nama: "Ahmad Fauzan, S.Pd.",
+    nip: "1987011201",
+    jabatan: "Guru Matematika",
+    no_telepon: "0812 3344 5566",
+    alamat: "Jl. Pendidikan No. 10, Bandung",
+    jenis_kelamin: "Laki-Laki",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-8",
+    nama: "Siti Rahmawati, S.Pd.",
+    nip: "1990022103",
+    jabatan: "Guru Bahasa",
+    no_telepon: "0813 7788 9911",
+    alamat: "Jl. Merdeka No. 45, Karawang",
+    jenis_kelamin: "Perempuan",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-9",
+    nama: "Dimas Pratama, S.Pd.",
+    nip: "1989111405",
+    jabatan: "Guru Produktif",
+    no_telepon: "0821 4455 6677",
+    alamat: "Jl. Sudirman No. 12, Bandung",
+    jenis_kelamin: "Laki-Laki",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "guru-10",
+    nama: "Nadia Kusuma, S.Pd.",
+    nip: "1993061708",
+    jabatan: "Wali Kelas",
+    no_telepon: "0857 3322 1144",
+    alamat: "Jl. Mawar No. 8, Karawang",
+    jenis_kelamin: "Perempuan",
+    status: "AKTIF",
+    created_at: new Date().toISOString(),
+  },
+];
+
+export interface AdminJadwalItem {
+  id: string;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  mata_pelajaran: string;
+  kelas: string;
+  guru: string;
+}
+
+export const MOCK_ADMIN_JADWAL_LIST: AdminJadwalItem[] = [
+  { id: "jadwal-adm-1", hari: "Senin", jam_mulai: "07:00", jam_selesai: "08:30", mata_pelajaran: "Matematika", kelas: "VII A", guru: "Ahmad Fauzan S.Pd." },
+  { id: "jadwal-adm-2", hari: "Senin", jam_mulai: "08:30", jam_selesai: "10:00", mata_pelajaran: "Bahasa Indonesia", kelas: "VIII C", guru: "Siti Rahmawati S.Pd." },
+  { id: "jadwal-adm-3", hari: "Selasa", jam_mulai: "07:00", jam_selesai: "09:15", mata_pelajaran: "Seni Budaya", kelas: "IX A", guru: "Dimas Pratama S.Pd." },
+  { id: "jadwal-adm-4", hari: "Rabu", jam_mulai: "10:15", jam_selesai: "11:45", mata_pelajaran: "IPA", kelas: "VII D", guru: "Lina Marlina S.Pd." },
+  { id: "jadwal-adm-5", hari: "Kamis", jam_mulai: "07:00", jam_selesai: "08:30", mata_pelajaran: "Olahraga", kelas: "IX C", guru: "Rudi Hartono S.Pd." },
+  { id: "jadwal-adm-6", hari: "Jumat", jam_mulai: "08:00", jam_selesai: "09:30", mata_pelajaran: "Kimia", kelas: "VIII B", guru: "Dimas Pratama S.Pd." },
+  { id: "jadwal-adm-7", hari: "Senin", jam_mulai: "07:00", jam_selesai: "08:30", mata_pelajaran: "Matematika", kelas: "VII A", guru: "Ahmad Fauzan S.Pd." },
+  { id: "jadwal-adm-8", hari: "Senin", jam_mulai: "08:30", jam_selesai: "10:00", mata_pelajaran: "Bahasa Indonesia", kelas: "VIII C", guru: "Siti Rahmawati S.Pd." },
+  { id: "jadwal-adm-9", hari: "Selasa", jam_mulai: "07:00", jam_selesai: "09:15", mata_pelajaran: "Seni Budaya", kelas: "IX A", guru: "Dimas Pratama S.Pd." },
+  { id: "jadwal-adm-10", hari: "Rabu", jam_mulai: "10:15", jam_selesai: "11:45", mata_pelajaran: "IPA", kelas: "VII D", guru: "Lina Marlina S.Pd." },
+];
+
+// ─── KELOLA AKUN ────────────────────────────────────────────────────────────
+
+export interface AdminAkunItem {
+  id: string;
+  nama: string;
+  username: string;
+  nip?: string;
+  password?: string; // plain text for mock/demo purposes
+  role: "ADMIN" | "GURU" | "KEPSEK";
+  status: "AKTIF" | "NONAKTIF";
+  terakhir_dilihat: string; // e.g. "Hari ini, 10:24" | "Kemarin, 15:41" | "16 Sep 2026"
+  created_at: string;
+}
+
+export const MOCK_ADMIN_AKUN_LIST: AdminAkunItem[] = [
+  { id: "akun-1",  nama: "Admin Sekolah",              username: "admin.sekolah",  nip: "1980010101", password: "admin123",   role: "ADMIN",  status: "AKTIF",    terakhir_dilihat: "Hari ini, 10:24",  created_at: "2026-01-01" },
+  { id: "akun-2",  nama: "Drs. Budi Santoso",           username: "kepala.sekolah", nip: "1975031201", password: "kepsek123",  role: "KEPSEK", status: "AKTIF",    terakhir_dilihat: "Hari ini, 08:10",  created_at: "2026-01-01" },
+  { id: "akun-3",  nama: "Ahmad Fauzan, S.Pd.",         username: "ahmad.f",        nip: "1987011201", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 15:41",   created_at: "2026-01-10" },
+  { id: "akun-4",  nama: "Siti Rahmawati, S.Pd.",       username: "siti.r",         nip: "1990022103", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 14:20",   created_at: "2026-01-11" },
+  { id: "akun-5",  nama: "Dimas Pratama, S.Pd.",        username: "dimas.p",        nip: "1989111405", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "16 Sep 2026",      created_at: "2026-01-12" },
+  { id: "akun-6",  nama: "Rudi Hartono, S.Pd.",         username: "rudi.h",         nip: "1985020409", password: "guru1234",   role: "GURU",   status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026",      created_at: "2026-01-14" },
+  { id: "akun-7",  nama: "Ahmad Fauzan, S.Pd.",         username: "ahmad.f",        nip: "1987011201", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 15:41",   created_at: "2026-02-01" },
+  { id: "akun-8",  nama: "Siti Rahmawati, S.Pd.",       username: "siti.r",         nip: "1990022103", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 14:20",   created_at: "2026-02-02" },
+  { id: "akun-9",  nama: "Dimas Pratama, S.Pd.",        username: "dimas.p",        nip: "1989111405", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "16 Sep 2026",      created_at: "2026-02-03" },
+  { id: "akun-10", nama: "Rudi Hartono, S.Pd.",         username: "rudi.h",         nip: "1985020409", password: "guru1234",   role: "GURU",   status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026",      created_at: "2026-02-05" },
+];
+
+
+

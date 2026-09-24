@@ -31,6 +31,8 @@ export interface Guru {
   nama: string;
   jabatan?: string | null;
   no_telepon?: string | null;
+  alamat?: string | null;
+  jenis_kelamin?: "Laki-Laki" | "Perempuan" | string | null;
   status: StatusAktif;
   created_at: Date | string;
 }

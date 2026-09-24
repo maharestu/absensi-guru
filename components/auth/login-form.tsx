@@ -48,23 +48,22 @@ export default function LoginForm() {
 
   return (
     <div className="w-full">
-      {/* Header - berubah teks subtitle saat error */}
-      <header className="mb-8">
-        <h1 className="text-[26px] font-bold tracking-tight text-slate-900">
-          Masuk ke Absensi
+      {/* Header - Rata tengah sesuai Figma */}
+      <header className="mb-8 text-center">
+        <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
+          Selamat Datang
         </h1>
-        <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
+        <p className="mt-2 text-sm text-slate-500 leading-relaxed max-w-xs sm:max-w-sm mx-auto">
           {hasError
             ? "Periksa kembali data yang Anda masukkan."
-            : "Gunakan NIP dan password Anda untuk melakukan absensi."}
+            : "Gunakan username dan password untuk mengakses dashboard sekolah."}
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="w-full space-y-5">
-        {/* Error Alert - sesuai Figma */}
+        {/* Error Alert */}
         {hasError && (
           <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
-            {/* Red circle exclamation icon */}
             <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-500 flex items-center justify-center">
               <svg
                 width="18"
@@ -88,19 +87,19 @@ export default function LoginForm() {
           </div>
         )}
 
-        {/* NIP / Username */}
+        {/* Username */}
         <div className="space-y-2">
           <label
             htmlFor="nip"
             className="block text-sm font-semibold text-slate-800"
           >
-            NIP / Username
+            Username
           </label>
           <input
             id="nip"
             name="nip"
             type="text"
-            placeholder="Masukkan NIP / Username"
+            placeholder="Masukkan username"
             value={nip}
             onChange={(e) => {
               setNip(e.target.value);
@@ -108,8 +107,8 @@ export default function LoginForm() {
             }}
             required
             autoComplete="username"
-            className={`w-full px-4 py-3.5 rounded-2xl border bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-all
-              ${hasError ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}
+            className={`w-full px-4 py-3.5 rounded-xl border bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-all
+              ${hasError ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"}
             `}
           />
         </div>
@@ -134,18 +133,18 @@ export default function LoginForm() {
             }}
             required
             autoComplete="current-password"
-            className={`w-full px-4 py-3.5 rounded-2xl border bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-all
-              ${hasError ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"}
+            className={`w-full px-4 py-3.5 rounded-xl border bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none transition-all
+              ${hasError ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"}
             `}
           />
         </div>
 
         {/* Tombol Masuk */}
-        <div className="pt-5">
+        <div className="pt-3">
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-base transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
           >
             {isLoading ? "Memproses..." : "Masuk"}
           </button>
