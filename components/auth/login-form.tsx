@@ -32,9 +32,9 @@ export default function LoginForm() {
         login(user);
         // Arahkan sesuai Role
         if (user.role === "GURU") {
-          router.push("/dashboard");
+          router.push("/guru");
         } else {
-          router.push("/admin/dashboard");
+          router.push("/admin");
         }
       } else {
         setHasError(true);
