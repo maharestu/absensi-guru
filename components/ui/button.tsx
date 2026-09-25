@@ -43,7 +43,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon: "h-10 w-10 rounded-xl p-0",
     };
 
-    const widthStyles = fullWidth ? "w-full" : "";
+    const hasExplicitWidth = /\bw-(auto|full|\d+|\[[^\]]+\])/.test(className) || className.includes("w-");
+    const widthStyles = fullWidth && !hasExplicitWidth ? "w-full" : "";
 
     return (
       <button

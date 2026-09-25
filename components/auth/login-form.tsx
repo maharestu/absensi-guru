@@ -33,6 +33,8 @@ export default function LoginForm() {
         // Arahkan sesuai Role
         if (user.role === "GURU") {
           router.push("/guru");
+        } else if (user.role === "KEPSEK") {
+          router.push("/kepsek");
         } else {
           router.push("/admin");
         }

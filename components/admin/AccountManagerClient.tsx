@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  AdminAkunItem,
   MOCK_ADMIN_AKUN_LIST,
   MOCK_GURU_LIST,
 } from "@/lib/mock-data";
+import type { AdminAkunItem } from "@/types/admin";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2, Eye, EyeOff } from "lucide-react";

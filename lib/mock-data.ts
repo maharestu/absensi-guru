@@ -1,4 +1,9 @@
 import { Akun, Kelas, Jadwal, Guru } from "@/types/schema";
+import type { AdminActivity, AdminJadwalItem, AdminAkunItem } from "@/types/admin";
+import type { KepsekStats, KehadiranHariIni, MengajarHariIni } from "@/types/kepsek";
+
+// Re-export admin types untuk backward compatibility
+export type { AdminActivity, AdminJadwalItem, AdminAkunItem };
 
 export const MOCK_USERS: Akun[] = [
   {
@@ -109,14 +114,6 @@ export const MOCK_ADMIN_STATS = {
   totalJadwal: 126,
   totalAkun: 45,
 };
-
-export interface AdminActivity {
-  id: string;
-  aktivitas: string;
-  pengguna: string;
-  waktu: string;
-  status: "Berhasil" | "Gagal" | "Pending";
-}
 
 export const MOCK_ADMIN_ACTIVITIES: AdminActivity[] = [
   { id: "act-1", aktivitas: "Data guru diperbarui", pengguna: "Admin Sekolah", waktu: "10:24", status: "Berhasil" },
@@ -244,16 +241,6 @@ export const MOCK_GURU_LIST: Guru[] = [
   },
 ];
 
-export interface AdminJadwalItem {
-  id: string;
-  hari: string;
-  jam_mulai: string;
-  jam_selesai: string;
-  mata_pelajaran: string;
-  kelas: string;
-  guru: string;
-}
-
 export const MOCK_ADMIN_JADWAL_LIST: AdminJadwalItem[] = [
   { id: "jadwal-adm-1", hari: "Senin", jam_mulai: "07:00", jam_selesai: "08:30", mata_pelajaran: "Matematika", kelas: "VII A", guru: "Ahmad Fauzan S.Pd." },
   { id: "jadwal-adm-2", hari: "Senin", jam_mulai: "08:30", jam_selesai: "10:00", mata_pelajaran: "Bahasa Indonesia", kelas: "VIII C", guru: "Siti Rahmawati S.Pd." },
@@ -269,30 +256,38 @@ export const MOCK_ADMIN_JADWAL_LIST: AdminJadwalItem[] = [
 
 // ─── KELOLA AKUN ────────────────────────────────────────────────────────────
 
-export interface AdminAkunItem {
-  id: string;
-  nama: string;
-  username: string;
-  nip?: string;
-  password?: string; // plain text for mock/demo purposes
-  role: "ADMIN" | "GURU" | "KEPSEK";
-  status: "AKTIF" | "NONAKTIF";
-  terakhir_dilihat: string; // e.g. "Hari ini, 10:24" | "Kemarin, 15:41" | "16 Sep 2026"
-  created_at: string;
-}
-
 export const MOCK_ADMIN_AKUN_LIST: AdminAkunItem[] = [
-  { id: "akun-1",  nama: "Admin Sekolah",              username: "admin.sekolah",  nip: "1980010101", password: "admin123",   role: "ADMIN",  status: "AKTIF",    terakhir_dilihat: "Hari ini, 10:24",  created_at: "2026-01-01" },
-  { id: "akun-2",  nama: "Drs. Budi Santoso",           username: "kepala.sekolah", nip: "1975031201", password: "kepsek123",  role: "KEPSEK", status: "AKTIF",    terakhir_dilihat: "Hari ini, 08:10",  created_at: "2026-01-01" },
-  { id: "akun-3",  nama: "Ahmad Fauzan, S.Pd.",         username: "ahmad.f",        nip: "1987011201", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 15:41",   created_at: "2026-01-10" },
-  { id: "akun-4",  nama: "Siti Rahmawati, S.Pd.",       username: "siti.r",         nip: "1990022103", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 14:20",   created_at: "2026-01-11" },
-  { id: "akun-5",  nama: "Dimas Pratama, S.Pd.",        username: "dimas.p",        nip: "1989111405", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "16 Sep 2026",      created_at: "2026-01-12" },
-  { id: "akun-6",  nama: "Rudi Hartono, S.Pd.",         username: "rudi.h",         nip: "1985020409", password: "guru1234",   role: "GURU",   status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026",      created_at: "2026-01-14" },
-  { id: "akun-7",  nama: "Ahmad Fauzan, S.Pd.",         username: "ahmad.f",        nip: "1987011201", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 15:41",   created_at: "2026-02-01" },
-  { id: "akun-8",  nama: "Siti Rahmawati, S.Pd.",       username: "siti.r",         nip: "1990022103", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "Kemarin, 14:20",   created_at: "2026-02-02" },
-  { id: "akun-9",  nama: "Dimas Pratama, S.Pd.",        username: "dimas.p",        nip: "1989111405", password: "guru1234",   role: "GURU",   status: "AKTIF",    terakhir_dilihat: "16 Sep 2026",      created_at: "2026-02-03" },
-  { id: "akun-10", nama: "Rudi Hartono, S.Pd.",         username: "rudi.h",         nip: "1985020409", password: "guru1234",   role: "GURU",   status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026",      created_at: "2026-02-05" },
+  { id: "akun-1", nama: "Admin Sekolah", username: "admin.sekolah", nip: "1980010101", password: "admin123", role: "ADMIN", status: "AKTIF", terakhir_dilihat: "Hari ini, 10:24", created_at: "2026-01-01" },
+  { id: "akun-2", nama: "Drs. Budi Santoso", username: "kepala.sekolah", nip: "1975031201", password: "kepsek123", role: "KEPSEK", status: "AKTIF", terakhir_dilihat: "Hari ini, 08:10", created_at: "2026-01-01" },
+  { id: "akun-3", nama: "Ahmad Fauzan, S.Pd.", username: "ahmad.f", nip: "1987011201", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "Kemarin, 15:41", created_at: "2026-01-10" },
+  { id: "akun-4", nama: "Siti Rahmawati, S.Pd.", username: "siti.r", nip: "1990022103", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "Kemarin, 14:20", created_at: "2026-01-11" },
+  { id: "akun-5", nama: "Dimas Pratama, S.Pd.", username: "dimas.p", nip: "1989111405", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "16 Sep 2026", created_at: "2026-01-12" },
+  { id: "akun-6", nama: "Rudi Hartono, S.Pd.", username: "rudi.h", nip: "1985020409", password: "guru1234", role: "GURU", status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026", created_at: "2026-01-14" },
+  { id: "akun-7", nama: "Ahmad Fauzan, S.Pd.", username: "ahmad.f", nip: "1987011201", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "Kemarin, 15:41", created_at: "2026-02-01" },
+  { id: "akun-8", nama: "Siti Rahmawati, S.Pd.", username: "siti.r", nip: "1990022103", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "Kemarin, 14:20", created_at: "2026-02-02" },
+  { id: "akun-9", nama: "Dimas Pratama, S.Pd.", username: "dimas.p", nip: "1989111405", password: "guru1234", role: "GURU", status: "AKTIF", terakhir_dilihat: "16 Sep 2026", created_at: "2026-02-03" },
+  { id: "akun-10", nama: "Rudi Hartono, S.Pd.", username: "rudi.h", nip: "1985020409", password: "guru1234", role: "GURU", status: "NONAKTIF", terakhir_dilihat: "14 Sep 2026", created_at: "2026-02-05" },
 ];
 
+// ─── KEPSEK (KEPALA SEKOLAH) ────────────────────────────────────────────────
 
+export const MOCK_KEPSEK_STATS: KepsekStats = {
+  guruHadir: 44,
+  izin: 2,
+  sakit: 1,
+  belumAbsen: 1,
+};
 
+export const MOCK_KEHADIRAN_HARI_INI: KehadiranHariIni[] = [
+  { id: "kh-1", nama_guru: "Ahmad Fauzan, S.Pd.", waktu_masuk: "06:52", status: "Hadir" },
+  { id: "kh-2", nama_guru: "Siti Rahmawati, S.Pd.", waktu_masuk: "06:58", status: "Hadir" },
+  { id: "kh-3", nama_guru: "Dimas Pratama, S.Pd.", waktu_masuk: null, status: "Izin" },
+  { id: "kh-4", nama_guru: "Nadia Kusuma, S.Pd.", waktu_masuk: "07:06", status: "Hadir" },
+];
+
+export const MOCK_MENGAJAR_HARI_INI: MengajarHariIni[] = [
+  { id: "mh-1", nama_guru: "Ahmad Fauzan, S.Pd.", mata_pelajaran: "Matematika", kelas: "VII A", jam_mengajar: "07:00 - 08:30", status: "Mengajar" },
+  { id: "mh-2", nama_guru: "Siti Rahmawati, S.Pd.", mata_pelajaran: "IPA", kelas: "VIII B", jam_mengajar: "08:30 - 10:00", status: "Mengajar" },
+  { id: "mh-3", nama_guru: "Dimas Pratama, S.Pd.", mata_pelajaran: "Seni Budaya", kelas: "VII D", jam_mengajar: "08:30 - 10:00", status: "Mengajar" },
+  { id: "mh-4", nama_guru: "Nadia Kusuma, S.Pd.", mata_pelajaran: "Olahraga", kelas: "IX A", jam_mengajar: "10:00 - 11:30", status: "Mengajar" },
+];

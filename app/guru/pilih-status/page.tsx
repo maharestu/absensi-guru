@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { getDynamicDateTime } from "@/lib/format";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
@@ -64,27 +65,6 @@ const statusOptions = [
     ),
   },
 ];
-
-/** Format tanggal & waktu dinamis hari ini dalam bahasa Indonesia */
-function getDynamicDateTime() {
-  const now = new Date();
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-  ];
-  const dayName = days[now.getDay()];
-  const date = now.getDate();
-  const month = months[now.getMonth()];
-  const year = now.getFullYear();
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-
-  return {
-    date: `${dayName}, ${date} ${month} ${year}`,
-    time: `${hours}:${minutes} WIB`,
-  };
-}
 
 export default function PilihStatusPage() {
   const router = useRouter();

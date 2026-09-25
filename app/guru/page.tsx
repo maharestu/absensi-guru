@@ -2,16 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-
-/** Format tanggal ke "Senin, 7 September 2026" */
-function formatTanggal(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+import { formatTanggalLengkap } from "@/lib/format";
 
 const menuItems = [
   {
@@ -59,7 +50,7 @@ export default function DashboardGuruPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const today = formatTanggal(new Date());
+  const today = formatTanggalLengkap(new Date());
   const namaGuru = user?.nama ?? "Nama Guru";
   const nipGuru = user?.username ?? "-";
 

@@ -1,37 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { MOCK_ADMIN_STATS, MOCK_ADMIN_ACTIVITIES } from "@/lib/mock-data";
-
-function formatTanggalIndo(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatJamIndo(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
+import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 
 export default function AdminDashboardPage() {
-  const [timeString, setTimeString] = useState<string>("06:30");
-  const [dateString, setDateString] = useState<string>("17 September 2026");
-
-  useEffect(() => {
-    const updateRealtime = () => {
-      const now = new Date();
-      setTimeString(formatJamIndo(now));
-      setDateString(formatTanggalIndo(now));
-    };
-
-    updateRealtime();
-    const interval = setInterval(updateRealtime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { timeString, dateString } = useRealtimeClock();
 
   return (
     <div className="space-y-8">

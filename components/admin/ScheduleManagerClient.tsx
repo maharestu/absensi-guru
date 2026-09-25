@@ -1,27 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AdminJadwalItem, MOCK_ADMIN_JADWAL_LIST, MOCK_GURU_LIST } from "@/lib/mock-data";
+import { MOCK_ADMIN_JADWAL_LIST, MOCK_GURU_LIST } from "@/lib/mock-data";
+import type { AdminJadwalItem } from "@/types/admin";
+import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 
 const STORAGE_KEY = "admin_jadwal_list";
 
 const HARI_OPTIONS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const KELAS_OPTIONS = ["VII A", "VII B", "VII C", "VII D", "VIII A", "VIII B", "VIII C", "VIII D", "IX A", "IX B", "IX C", "IX D", "X RPL 1", "X RPL 2"];
 const MATPEL_OPTIONS = ["Matematika", "Bahasa Indonesia", "Seni Budaya", "IPA", "IPS", "Olahraga", "Kimia", "Fisika", "Biologi", "Bahasa Inggris", "Pendidikan Agama"];
-
-function formatTanggalIndo(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatJamIndo(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
 
 export default function ScheduleManagerClient() {
   const [schedules, setSchedules] = useState<AdminJadwalItem[]>([]);
@@ -56,20 +44,7 @@ export default function ScheduleManagerClient() {
   });
 
   // Realtime clock & date
-  const [timeString, setTimeString] = useState<string>("06:30");
-  const [dateString, setDateString] = useState<string>("17 September 2026");
-
-  useEffect(() => {
-    const updateRealtime = () => {
-      const now = new Date();
-      setTimeString(formatJamIndo(now));
-      setDateString(formatTanggalIndo(now));
-    };
-
-    updateRealtime();
-    const interval = setInterval(updateRealtime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { timeString, dateString } = useRealtimeClock();
 
   // Load schedules from localStorage or fallback to MOCK_ADMIN_JADWAL_LIST
   useEffect(() => {
