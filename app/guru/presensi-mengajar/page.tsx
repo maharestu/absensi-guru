@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
-import { MOCK_TINGKATAN_KELAS } from "@/lib/mock-data";
+
+// Tingkatan kelas bersifat statis (tidak perlu dari DB)
+const TINGKATAN_KELAS = [
+  { id: "7", label: "Kelas 7" },
+  { id: "8", label: "Kelas 8" },
+  { id: "9", label: "Kelas 9" },
+];
 
 export default function PresensiMengajarPage() {
   const router = useRouter();
@@ -75,7 +81,7 @@ export default function PresensiMengajarPage() {
       <h2 className="text-sm font-bold text-slate-900 -mt-6 mb-6">Daftar Kelas</h2>
 
       <div className="flex flex-col gap-10">
-        {MOCK_TINGKATAN_KELAS.map((tingkat) => (
+        {TINGKATAN_KELAS.map((tingkat) => (
           <button
             key={tingkat.id}
             onClick={() => handleSelectTingkat(tingkat.id)}

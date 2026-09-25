@@ -42,7 +42,7 @@ function VerifikasiContent() {
   const backHref = BACK_HREF[status] ?? "/guru";
 
   const today = formatTanggal(new Date());
-  const nip = user?.username ?? "-";
+  const nip = user?.nip ?? "-";
 
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },

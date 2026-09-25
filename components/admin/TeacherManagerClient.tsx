@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import { Guru } from "@/types/schema";
-import { MOCK_GURU_LIST } from "@/lib/mock-data";
+import { getGuruList, createGuru, updateGuru, deleteGuru } from "@/actions/guru";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2 } from "lucide-react";
-
-const STORAGE_KEY = "admin_guru_list";
 
 export default function TeacherManagerClient() {
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [viewMode, setViewMode] = useState<"list" | "create">("list");
   const [editingTeacher, setEditingTeacher] = useState<Guru | null>(null);
@@ -24,7 +23,7 @@ export default function TeacherManagerClient() {
     jabatan: "",
     no_telepon: "",
     alamat: "",
-    status: "AKTIF" as "AKTIF" | "NONAKTIF",
+    status: "aktif" as "aktif" | "nonaktif",
     jenis_kelamin: "Laki-Laki",
   });
 
@@ -34,49 +33,50 @@ export default function TeacherManagerClient() {
     jabatan: "",
     no_telepon: "",
     alamat: "",
-    status: "AKTIF" as "AKTIF" | "NONAKTIF",
+    status: "aktif" as "aktif" | "nonaktif",
     jenis_kelamin: "Laki-Laki",
   });
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          setTeachers(JSON.parse(stored));
-        } catch (e) {
-          console.error("Gagal parse local storage teachers:", e);
-          setTeachers(MOCK_GURU_LIST);
-        }
-      } else {
-        setTeachers(MOCK_GURU_LIST);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_GURU_LIST));
-      }
+  const loadTeachers = async () => {
+    try {
+      const data = await getGuruList();
+      setTeachers(data);
+    } catch (e) {
+      console.error("Gagal mengambil data guru dari database:", e);
+    } finally {
       setIsLoaded(true);
     }
-  }, []);
-
-  const saveTeachersToStorage = (updatedList: Guru[]) => {
-    setTeachers(updatedList);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-    }
   };
+
+  useEffect(() => {
+    loadTeachers();
+  }, []);
 
   const filteredTeachers = teachers.filter((t) => {
     const q = searchQuery.toLowerCase();
     return (
-      t.nama.toLowerCase().includes(q) ||
-      t.nip.toLowerCase().includes(q) ||
+      (t.nama || "").toLowerCase().includes(q) ||
+      (t.nip || "").toLowerCase().includes(q) ||
       (t.jabatan && t.jabatan.toLowerCase().includes(q))
     );
   });
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingTeacher) return;
-    const updated = teachers.filter((t) => t.id !== deletingTeacher.id);
-    saveTeachersToStorage(updated);
-    setDeletingTeacher(null);
+    try {
+      setSubmitting(true);
+      const res = await deleteGuru(deletingTeacher.id);
+      if (res.success) {
+        setTeachers((prev) => prev.filter((t) => t.id !== deletingTeacher.id));
+        setDeletingTeacher(null);
+      } else {
+        alert("Gagal menghapus guru: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOpenEdit = (guru: Guru) => {
@@ -87,67 +87,82 @@ export default function TeacherManagerClient() {
       jabatan: guru.jabatan || "",
       no_telepon: guru.no_telepon || "",
       alamat: guru.alamat || "Jl. Pendidikan No. 10, Bandung",
-      status: guru.status || "AKTIF",
+      status: (guru.status?.toLowerCase() === "nonaktif" ? "nonaktif" : "aktif") as "aktif" | "nonaktif",
       jenis_kelamin: (guru.jenis_kelamin as string) || "Laki-Laki",
     });
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTeacher) return;
 
-    const updated = teachers.map((t) => {
-      if (t.id === editingTeacher.id) {
-        return {
-          ...t,
-          nama: editForm.nama,
-          nip: editForm.nip,
-          jabatan: editForm.jabatan,
-          no_telepon: editForm.no_telepon,
-          alamat: editForm.alamat,
-          status: editForm.status,
-          jenis_kelamin: editForm.jenis_kelamin,
-        };
-      }
-      return t;
-    });
+    try {
+      setSubmitting(true);
+      const updateData = {
+        nama: editForm.nama,
+        nip: editForm.nip,
+        jabatan: editForm.jabatan,
+        no_telepon: editForm.no_telepon,
+        alamat: editForm.alamat,
+        status: editForm.status,
+        jenis_kelamin: editForm.jenis_kelamin,
+      };
 
-    saveTeachersToStorage(updated);
-    setEditingTeacher(null);
+      const res = await updateGuru(editingTeacher.id, updateData);
+      if (res.success) {
+        setTeachers((prev) =>
+          prev.map((t) => (t.id === editingTeacher.id ? { ...t, ...updateData } : t))
+        );
+        setEditingTeacher(null);
+      } else {
+        alert("Gagal mengupdate guru: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.nama || !createForm.nip) return;
 
-    const newGuru: Guru = {
-      id: `guru-${Date.now()}`,
-      nama: createForm.nama,
-      nip: createForm.nip,
-      jabatan: createForm.jabatan || "Guru Pengampu",
-      no_telepon: createForm.no_telepon || "-",
-      alamat: createForm.alamat || "-",
-      status: createForm.status,
-      jenis_kelamin: createForm.jenis_kelamin,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      setSubmitting(true);
+      const res = await createGuru({
+        nama: createForm.nama,
+        nip: createForm.nip,
+        jabatan: createForm.jabatan || "Guru Pengampu",
+        no_telepon: createForm.no_telepon || "-",
+        alamat: createForm.alamat || "-",
+        status: createForm.status,
+        jenis_kelamin: createForm.jenis_kelamin,
+      });
 
-    const updated = [newGuru, ...teachers];
-    saveTeachersToStorage(updated);
-
-    setCreateForm({
-      nama: "",
-      nip: "",
-      jabatan: "",
-      no_telepon: "",
-      alamat: "",
-      status: "AKTIF",
-      jenis_kelamin: "Laki-Laki",
-    });
-    setViewMode("list");
+      if (res.success) {
+        await loadTeachers();
+        setCreateForm({
+          nama: "",
+          nip: "",
+          jabatan: "",
+          no_telepon: "",
+          alamat: "",
+          status: "aktif",
+          jenis_kelamin: "Laki-Laki",
+        });
+        setViewMode("list");
+      } else {
+        alert("Gagal menambah guru: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (!isLoaded) return <div className="min-h-[400px]" />;
+  if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data guru...</div>;
 
   if (viewMode === "create") {
     return (
@@ -227,11 +242,11 @@ export default function TeacherManagerClient() {
                 <div className="relative">
                   <select
                     value={createForm.status}
-                    onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as "AKTIF" | "NONAKTIF" })}
+                    onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as "aktif" | "nonaktif" })}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
                   >
-                    <option value="AKTIF">Aktif</option>
-                    <option value="NONAKTIF">Nonaktif</option>
+                    <option value="aktif">Aktif</option>
+                    <option value="nonaktif">Nonaktif</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
@@ -254,11 +269,20 @@ export default function TeacherManagerClient() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => setViewMode("list")} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
                 Batal
               </button>
-              <button type="submit" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-                + Tambah Data
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+              >
+                {submitting ? "Menyimpan..." : "+ Tambah Data"}
               </button>
             </div>
           </form>
@@ -287,7 +311,10 @@ export default function TeacherManagerClient() {
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
-        <button onClick={() => setViewMode("create")} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto">
+        <button
+          onClick={() => setViewMode("create")}
+          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
+        >
           <span>+</span>
           <span>Tambah Guru</span>
         </button>
@@ -307,7 +334,11 @@ export default function TeacherManagerClient() {
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {filteredTeachers.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-slate-400 font-medium">Tidak ada data guru yang sesuai dengan pencarian.</td></tr>
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400 font-medium">
+                  Tidak ada data guru yang sesuai dengan pencarian.
+                </td>
+              </tr>
             ) : (
               filteredTeachers.map((guru) => (
                 <tr key={guru.id} className="hover:bg-slate-50/60 transition-colors">
@@ -315,13 +346,23 @@ export default function TeacherManagerClient() {
                   <td className="py-4 text-slate-500 font-medium">{guru.nip}</td>
                   <td className="py-4 text-slate-500 font-medium">{guru.jabatan || "-"}</td>
                   <td className="py-4 text-slate-500 font-medium">{guru.no_telepon || "-"}</td>
-                  <td className="py-4 font-medium text-slate-600">{guru.status === "AKTIF" ? "Aktif" : "Nonaktif"}</td>
+                  <td className="py-4 font-medium text-slate-600">
+                    {guru.status?.toLowerCase() === "aktif" ? "Aktif" : "Nonaktif"}
+                  </td>
                   <td className="py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
-                      <button onClick={() => handleOpenEdit(guru)} className="text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer" title="Edit Guru">
+                      <button
+                        onClick={() => handleOpenEdit(guru)}
+                        className="text-slate-400 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+                        title="Edit Guru"
+                      >
                         <Edit2 className="w-[18px] h-[18px]" />
                       </button>
-                      <button onClick={() => setDeletingTeacher(guru)} className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer" title="Hapus Guru">
+                      <button
+                        onClick={() => setDeletingTeacher(guru)}
+                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                        title="Hapus Guru"
+                      >
                         <Trash2 className="w-[18px] h-[18px]" />
                       </button>
                     </div>
@@ -347,11 +388,21 @@ export default function TeacherManagerClient() {
           <p className="text-sm font-bold text-slate-900 mt-0.5">{deletingTeacher?.nama}</p>
         </div>
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setDeletingTeacher(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => setDeletingTeacher(null)}
+            className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
             Batal
           </button>
-          <button type="button" onClick={handleConfirmDelete} className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-            Hapus Data
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleConfirmDelete}
+            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+          >
+            {submitting ? "Menghapus..." : "Hapus Data"}
           </button>
         </div>
       </Modal>
@@ -365,38 +416,73 @@ export default function TeacherManagerClient() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Nama lengkap</label>
-              <input type="text" value={editForm.nama} onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.nama}
+                onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">NIP</label>
-              <input type="text" value={editForm.nip} onChange={(e) => setEditForm({ ...editForm, nip: e.target.value })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.nip}
+                onChange={(e) => setEditForm({ ...editForm, nip: e.target.value })}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Jabatan</label>
-              <input type="text" value={editForm.jabatan} onChange={(e) => setEditForm({ ...editForm, jabatan: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.jabatan}
+                onChange={(e) => setEditForm({ ...editForm, jabatan: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Nomor telepon</label>
-              <input type="text" value={editForm.no_telepon} onChange={(e) => setEditForm({ ...editForm, no_telepon: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.no_telepon}
+                onChange={(e) => setEditForm({ ...editForm, no_telepon: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-800">Alamat</label>
-              <input type="text" value={editForm.alamat} onChange={(e) => setEditForm({ ...editForm, alamat: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.alamat}
+                onChange={(e) => setEditForm({ ...editForm, alamat: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Status</label>
               <div className="relative">
-                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "AKTIF" | "NONAKTIF" })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer">
-                  <option value="AKTIF">Aktif</option>
-                  <option value="NONAKTIF">Nonaktif</option>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "aktif" | "nonaktif" })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Jenis Kelamin</label>
+              <label className="block text-xs font-semibold text-slate-800">Jenis kelamin</label>
               <div className="relative">
-                <select value={editForm.jenis_kelamin} onChange={(e) => setEditForm({ ...editForm, jenis_kelamin: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer">
+                <select
+                  value={editForm.jenis_kelamin}
+                  onChange={(e) => setEditForm({ ...editForm, jenis_kelamin: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
                   <option value="Laki-Laki">Laki-Laki</option>
                   <option value="Perempuan">Perempuan</option>
                 </select>
@@ -405,11 +491,20 @@ export default function TeacherManagerClient() {
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <button type="button" onClick={() => setEditingTeacher(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setEditingTeacher(null)}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
               Batal
             </button>
-            <button type="submit" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-              Simpan Perubahan
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {submitting ? "Menyimpan..." : "Update Data"}
             </button>
           </div>
         </form>

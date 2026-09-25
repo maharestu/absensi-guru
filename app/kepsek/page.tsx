@@ -1,15 +1,47 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import {
-  MOCK_KEPSEK_STATS,
-  MOCK_KEHADIRAN_HARI_INI,
-  MOCK_MENGAJAR_HARI_INI,
-} from "@/lib/mock-data";
+  getKepsekStats,
+  getKehadiranHariIni,
+  getMengajarHariIni,
+  KepsekStats,
+  KehadiranHariIni,
+  MengajarHariIni,
+} from "@/actions/dashboard";
 
 export default function KepsekDashboardPage() {
   const { timeString, dateString } = useRealtimeClock();
+  const [stats, setStats] = useState<KepsekStats>({
+    guruHadir: 0,
+    izin: 0,
+    sakit: 0,
+    belumAbsen: 0,
+  });
+  const [kehadiran, setKehadiran] = useState<KehadiranHariIni[]>([]);
+  const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [statsData, hadirData, mengajarData] = await Promise.all([
+          getKepsekStats(),
+          getKehadiranHariIni(),
+          getMengajarHariIni(),
+        ]);
+        setStats(statsData);
+        setKehadiran(hadirData);
+        setMengajar(mengajarData);
+      } catch (err) {
+        console.error("Gagal memuat data dashboard kepsek:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -60,7 +92,7 @@ export default function KepsekDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Guru Hadir</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_KEPSEK_STATS.guruHadir}
+              {loading ? "..." : stats.guruHadir}
             </h2>
           </div>
         </div>
@@ -78,7 +110,7 @@ export default function KepsekDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Izin</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_KEPSEK_STATS.izin}
+              {loading ? "..." : stats.izin}
             </h2>
           </div>
         </div>
@@ -98,7 +130,7 @@ export default function KepsekDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_KEPSEK_STATS.sakit}
+              {loading ? "..." : stats.sakit}
             </h2>
           </div>
         </div>
@@ -116,7 +148,7 @@ export default function KepsekDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Belum Absen</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_KEPSEK_STATS.belumAbsen}
+              {loading ? "..." : stats.belumAbsen}
             </h2>
           </div>
         </div>
@@ -136,19 +168,27 @@ export default function KepsekDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {MOCK_KEHADIRAN_HARI_INI.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-semibold text-slate-800">
-                    {row.nama_guru}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {row.waktu_masuk ?? "—"}
-                  </td>
-                  <td className="py-4 font-medium text-slate-600">
-                    {row.status}
+              {kehadiran.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-6 text-center text-slate-400 font-medium">
+                    {loading ? "Memuat kehadiran..." : "Belum ada catatan presensi hari ini."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                kehadiran.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-4 font-semibold text-slate-800">
+                      {row.nama_guru}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {row.waktu_masuk ?? "—"}
+                    </td>
+                    <td className="py-4 font-medium text-slate-600">
+                      {row.status}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -170,25 +210,33 @@ export default function KepsekDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {MOCK_MENGAJAR_HARI_INI.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-semibold text-slate-800">
-                    {row.nama_guru}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {row.mata_pelajaran}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {row.kelas}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {row.jam_mengajar}
-                  </td>
-                  <td className="py-4 font-medium text-slate-600">
-                    {row.status}
+              {mengajar.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                    {loading ? "Memuat absensi mengajar..." : "Belum ada catatan absensi mengajar hari ini."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                mengajar.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-4 font-semibold text-slate-800">
+                      {row.nama_guru}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {row.mata_pelajaran}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {row.kelas}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {row.jam_mengajar}
+                    </td>
+                    <td className="py-4 font-medium text-emerald-600">
+                      {row.status}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

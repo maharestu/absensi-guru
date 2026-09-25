@@ -1,15 +1,15 @@
 /**
- * SUPABASE CLIENT CONFIGURATION (Placeholder Backend)
- * 
+ * SUPABASE CLIENT — Browser / Client Components
+ *
  * Digunakan untuk inisialisasi Supabase Client pada komponen Client Side React.
- * 
- * Referensi: https://github.com/naenmad/absensi-guru
+ * Menggunakan Publishable Key (aman di browser, tunduk pada Row Level Security).
  */
 
-// import { createBrowserClient } from '@supabase/ssr'
-// export function createClient() {
-//   return createBrowserClient(
-//     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-//     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-//   )
-// }
+import { createClient } from "@supabase/supabase-js";
+
+export function createBrowserClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  );
+}

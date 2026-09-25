@@ -17,15 +17,15 @@ export default function AdminLayout({
     if (!isLoading) {
       if (!isAuthenticated) {
         router.push("/login");
-      } else if (user?.role === "GURU") {
+      } else if (user?.role === "guru") {
         router.push("/guru");
-      } else if (user?.role === "KEPSEK") {
+      } else if (user?.role === "kepala_sekolah") {
         router.push("/kepsek");
       }
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated || user?.role === "GURU" || user?.role === "KEPSEK") {
+  if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "kepala_sekolah") {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />

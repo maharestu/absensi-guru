@@ -1,11 +1,36 @@
 "use client";
 
-import React from "react";
-import { MOCK_ADMIN_STATS, MOCK_ADMIN_ACTIVITIES } from "@/lib/mock-data";
+import React, { useState, useEffect } from "react";
+import { getAdminStats, getRecentActivities, AdminStats, ActivityItem } from "@/actions/dashboard";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 
 export default function AdminDashboardPage() {
   const { timeString, dateString } = useRealtimeClock();
+  const [stats, setStats] = useState<AdminStats>({
+    totalGuru: 0,
+    totalJadwal: 0,
+    totalAkun: 0,
+  });
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const [statsData, actData] = await Promise.all([
+          getAdminStats(),
+          getRecentActivities(),
+        ]);
+        setStats(statsData);
+        setActivities(actData);
+      } catch (err) {
+        console.error("Gagal memuat data dashboard admin:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -57,7 +82,7 @@ export default function AdminDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Total Guru Terdaftar</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_ADMIN_STATS.totalGuru}
+              {loading ? "..." : stats.totalGuru}
             </h2>
           </div>
         </div>
@@ -74,7 +99,7 @@ export default function AdminDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Total Jadwal Terdaftar</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_ADMIN_STATS.totalJadwal}
+              {loading ? "..." : stats.totalJadwal}
             </h2>
           </div>
         </div>
@@ -91,7 +116,7 @@ export default function AdminDashboardPage() {
           <div>
             <p className="text-[11px] font-semibold text-slate-400">Total Akun Terdaftar</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {MOCK_ADMIN_STATS.totalAkun}
+              {loading ? "..." : stats.totalAkun}
             </h2>
           </div>
         </div>
@@ -112,22 +137,30 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {MOCK_ADMIN_ACTIVITIES.map((act) => (
-                <tr key={act.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-semibold text-slate-800">
-                    {act.aktivitas}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {act.pengguna}
-                  </td>
-                  <td className="py-4 text-slate-500 font-medium">
-                    {act.waktu}
-                  </td>
-                  <td className="py-4 font-medium text-slate-600">
-                    {act.status}
+              {activities.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-slate-400 font-medium">
+                    {loading ? "Memuat aktivitas..." : "Belum ada aktivitas tercatat hari ini."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                activities.map((act) => (
+                  <tr key={act.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-4 font-semibold text-slate-800">
+                      {act.aktivitas}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {act.pengguna}
+                    </td>
+                    <td className="py-4 text-slate-500 font-medium">
+                      {act.waktu}
+                    </td>
+                    <td className="py-4 font-medium text-emerald-600">
+                      {act.status}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -135,4 +168,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-

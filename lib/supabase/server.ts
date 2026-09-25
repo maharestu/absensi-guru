@@ -1,16 +1,23 @@
 /**
- * SUPABASE SERVER CONFIGURATION (Placeholder Backend)
- * 
- * Digunakan untuk inisialisasi Supabase Client pada Server Components, 
- * Server Actions, dan Route Handlers.
- * 
- * Referensi: https://github.com/naenmad/absensi-guru
+ * SUPABASE ADMIN CLIENT — Server Actions / Route Handlers
+ *
+ * Digunakan untuk operasi server-side yang membutuhkan akses penuh ke database
+ * (bypass Row Level Security). Menggunakan Service Role Key.
+ *
+ * ⚠️  JANGAN import file ini di komponen client / "use client"
  */
 
-// import { createServerClient } from '@supabase/ssr'
-// import { cookies } from 'next/headers'
+import { createClient } from "@supabase/supabase-js";
 
-// export async function createClient() {
-//   const cookieStore = await cookies()
-//   return createServerClient(...)
-// }
+export function createServerAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}

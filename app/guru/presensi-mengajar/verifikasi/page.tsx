@@ -4,7 +4,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
-import { MOCK_KELAS } from "@/lib/mock-data";
+import { getKelasById } from "@/actions/kelas";
+import { Kelas } from "@/types/schema";
 
 /** Format tanggal ke "Senin, 7 September 2026" */
 function formatTanggal(date: Date): string {
@@ -21,11 +22,18 @@ function VerifikasiMengajarContent() {
   const searchParams = useSearchParams();
 
   const tingkat = searchParams.get("tingkat") || "7";
-  const kelasId = searchParams.get("kelas_id") || "k-7a";
+  const kelasId = searchParams.get("kelas_id") || "";
   const hari = searchParams.get("hari") || "senin";
 
-  const targetKelas = MOCK_KELAS.find((k) => k.id === kelasId);
-  const namaKelas = targetKelas ? targetKelas.nama_kelas : `Kelas ${tingkat}A`;
+  const [kelas, setKelas] = useState<Kelas | null>(null);
+
+  useEffect(() => {
+    if (kelasId) {
+      getKelasById(kelasId).then(setKelas).catch(console.error);
+    }
+  }, [kelasId]);
+
+  const namaKelas = kelas ? kelas.nama_kelas : `Kelas ${tingkat}`;
 
   const todayFormatted = formatTanggal(new Date());
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);

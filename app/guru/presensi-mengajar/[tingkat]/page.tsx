@@ -1,17 +1,32 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
-import { MOCK_KELAS } from "@/lib/mock-data";
+import { getKelasByTingkat } from "@/actions/kelas";
+import { Kelas } from "@/types/schema";
 
 export default function SubKelasPage() {
   const router = useRouter();
   const params = useParams();
   const tingkat = (params.tingkat as string) || "7";
+  const [subKelasList, setSubKelasList] = useState<Kelas[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const subKelasList = MOCK_KELAS.filter((k) =>
-    k.nama_kelas.startsWith(`Kelas ${tingkat}`)
-  );
+  useEffect(() => {
+    async function loadKelas() {
+      try {
+        setLoading(true);
+        const data = await getKelasByTingkat(tingkat);
+        setSubKelasList(data);
+      } catch (err) {
+        console.error("Gagal mengambil data kelas:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadKelas();
+  }, [tingkat]);
 
   const handleSelectSubKelas = (kelasId: string) => {
     router.push(`/guru/presensi-mengajar/${tingkat}/${kelasId}`);

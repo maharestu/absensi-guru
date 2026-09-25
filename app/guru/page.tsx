@@ -52,7 +52,8 @@ export default function DashboardGuruPage() {
 
   const today = formatTanggalLengkap(new Date());
   const namaGuru = user?.nama ?? "Nama Guru";
-  const nipGuru = user?.username ?? "-";
+  // Tampilkan NIP dari data guru (bukan username)
+  const nipGuru = user?.nip ?? "-";
 
   return (
     <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-14 pb-10">

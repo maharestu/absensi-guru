@@ -30,9 +30,8 @@ export interface AdminAkunItem {
   nama: string;
   username: string;
   nip?: string;
-  password?: string; // plain text for mock/demo purposes
-  role: "ADMIN" | "GURU" | "KEPSEK";
-  status: "AKTIF" | "NONAKTIF";
-  terakhir_dilihat: string; // e.g. "Hari ini, 10:24" | "Kemarin, 15:41" | "16 Sep 2026"
+  role: "admin" | "guru" | "kepala_sekolah";
+  status: "aktif" | "nonaktif";
+  terakhir_dilihat: string;
   created_at: string;
 }

@@ -17,15 +17,15 @@ export default function KepsekLayout({
     if (!isLoading) {
       if (!isAuthenticated) {
         router.push("/login");
-      } else if (user?.role === "GURU") {
+      } else if (user?.role === "guru") {
         router.push("/guru");
-      } else if (user?.role === "ADMIN") {
+      } else if (user?.role === "admin") {
         router.push("/admin");
       }
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated || user?.role === "GURU" || user?.role === "ADMIN") {
+  if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "admin") {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { MOCK_USERS } from "@/lib/mock-data";
+import { loginAction } from "@/actions/auth";
+import { Akun } from "@/types/schema";
 
 export default function LoginForm() {
   const [nip, setNip] = useState("");
@@ -20,20 +21,15 @@ export default function LoginForm() {
     setHasError(false);
 
     try {
-      // Simulasi delay jaringan
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Query ke Supabase via Server Action
+      const result = await loginAction(nip, password);
 
-      // Cari user di data mock
-      const user = MOCK_USERS.find(
-        (u) => u.username === nip && u.password_hash === password
-      );
-
-      if (user) {
-        login(user);
-        // Arahkan sesuai Role
-        if (user.role === "GURU") {
+      if (result.success) {
+        login(result.user as Akun);
+        // Arahkan sesuai role (lowercase sesuai DB schema)
+        if (result.user.role === "guru") {
           router.push("/guru");
-        } else if (user.role === "KEPSEK") {
+        } else if (result.user.role === "kepala_sekolah") {
           router.push("/kepsek");
         } else {
           router.push("/admin");
@@ -95,13 +91,13 @@ export default function LoginForm() {
             htmlFor="nip"
             className="block text-sm font-semibold text-slate-800"
           >
-            Username
+            Username / NIP
           </label>
           <input
             id="nip"
             name="nip"
             type="text"
-            placeholder="Masukkan username"
+            placeholder="Masukkan username atau NIP"
             value={nip}
             onChange={(e) => {
               setNip(e.target.value);

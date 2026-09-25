@@ -1,30 +1,29 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  MOCK_ADMIN_AKUN_LIST,
-  MOCK_GURU_LIST,
-} from "@/lib/mock-data";
 import type { AdminAkunItem } from "@/types/admin";
+import { getAkunList, createAkun, updateAkun, deleteAkun } from "@/actions/akun";
+import { getGuruList } from "@/actions/guru";
+import { Guru } from "@/types/schema";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
 
-const STORAGE_KEY = "admin_akun_list";
-
-const ROLE_OPTIONS: AdminAkunItem["role"][] = ["GURU", "ADMIN", "KEPSEK"];
-const STATUS_OPTIONS: AdminAkunItem["status"][] = ["AKTIF", "NONAKTIF"];
+const ROLE_OPTIONS: AdminAkunItem["role"][] = ["guru", "admin", "kepala_sekolah"];
+const STATUS_OPTIONS: AdminAkunItem["status"][] = ["aktif", "nonaktif"];
 
 const ROLE_LABEL: Record<AdminAkunItem["role"], string> = {
-  ADMIN: "Admin",
-  KEPSEK: "Kepala Sekolah",
-  GURU: "Guru",
+  admin: "Admin",
+  kepala_sekolah: "Kepala Sekolah",
+  guru: "Guru",
 };
 
 export default function AccountManagerClient() {
   const [accounts, setAccounts] = useState<AdminAkunItem[]>([]);
+  const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [viewMode, setViewMode] = useState<"list" | "create">("list");
   const [editingAccount, setEditingAccount] = useState<AdminAkunItem | null>(null);
@@ -35,15 +34,16 @@ export default function AccountManagerClient() {
     username: "",
     nip: "",
     password: "",
-    role: "" as AdminAkunItem["role"] | "",
-    status: "AKTIF" as AdminAkunItem["status"] | "",
+    role: "guru" as AdminAkunItem["role"],
+    status: "aktif" as AdminAkunItem["status"],
+    guru_id: "" as string | null,
   });
 
   const [editForm, setEditForm] = useState({
     nama: "",
     username: "",
-    role: "GURU" as AdminAkunItem["role"],
-    status: "AKTIF" as AdminAkunItem["status"],
+    role: "guru" as AdminAkunItem["role"],
+    status: "aktif" as AdminAkunItem["status"],
     passwordBaru: "",
     konfirmasiPassword: "",
   });
@@ -51,53 +51,52 @@ export default function AccountManagerClient() {
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setAccounts(parsed);
-          } else {
-            setAccounts(MOCK_ADMIN_AKUN_LIST);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_ADMIN_AKUN_LIST));
-          }
-        } catch (e) {
-          console.error("Gagal parse local storage akun:", e);
-          setAccounts(MOCK_ADMIN_AKUN_LIST);
-        }
-      } else {
-        setAccounts(MOCK_ADMIN_AKUN_LIST);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(MOCK_ADMIN_AKUN_LIST));
-      }
+  const loadData = async () => {
+    try {
+      const [accList, guruList] = await Promise.all([
+        getAkunList(),
+        getGuruList(),
+      ]);
+      setAccounts(accList);
+      setTeachers(guruList);
+    } catch (e) {
+      console.error("Gagal mengambil data akun / guru:", e);
+    } finally {
       setIsLoaded(true);
     }
-  }, []);
-
-  const saveAccountsToStorage = (updatedList: AdminAkunItem[]) => {
-    setAccounts(updatedList);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-    }
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredAccounts = accounts.filter((a) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return (
-      a.username.toLowerCase().includes(q) ||
-      a.nama.toLowerCase().includes(q) ||
-      a.role.toLowerCase().includes(q) ||
-      ROLE_LABEL[a.role].toLowerCase().includes(q)
+      (a.username || "").toLowerCase().includes(q) ||
+      (a.nama || "").toLowerCase().includes(q) ||
+      (a.role || "").toLowerCase().includes(q) ||
+      (ROLE_LABEL[a.role] || "").toLowerCase().includes(q)
     );
   });
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingAccount) return;
-    const updated = accounts.filter((a) => a.id !== deletingAccount.id);
-    saveAccountsToStorage(updated);
-    setDeletingAccount(null);
+    try {
+      setSubmitting(true);
+      const res = await deleteAkun(deletingAccount.id);
+      if (res.success) {
+        setAccounts((prev) => prev.filter((a) => a.id !== deletingAccount.id));
+        setDeletingAccount(null);
+      } else {
+        alert("Gagal menghapus akun: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOpenEdit = (akun: AdminAkunItem) => {
@@ -113,30 +112,50 @@ export default function AccountManagerClient() {
     setShowEditPassword(false);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
 
-    const updated = accounts.map((a) => {
-      if (a.id === editingAccount.id) {
-        return {
-          ...a,
-          nama: editForm.nama,
-          username: editForm.username,
-          role: editForm.role,
-          status: editForm.status,
-          password: editForm.passwordBaru ? editForm.passwordBaru : a.password,
-        };
-      }
-      return a;
-    });
+    if (editForm.passwordBaru && editForm.passwordBaru !== editForm.konfirmasiPassword) {
+      alert("Password baru dan konfirmasi password tidak cocok!");
+      return;
+    }
 
-    saveAccountsToStorage(updated);
-    setEditingAccount(null);
+    try {
+      setSubmitting(true);
+      const payload: {
+        nama: string;
+        username: string;
+        role: AdminAkunItem["role"];
+        status: AdminAkunItem["status"];
+        password?: string;
+      } = {
+        nama: editForm.nama,
+        username: editForm.username,
+        role: editForm.role,
+        status: editForm.status,
+      };
+
+      if (editForm.passwordBaru) {
+        payload.password = editForm.passwordBaru;
+      }
+
+      const res = await updateAkun(editingAccount.id, payload);
+      if (res.success) {
+        await loadData();
+        setEditingAccount(null);
+      } else {
+        alert("Gagal mengupdate akun: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleSelectTeacher = (teacherName: string) => {
-    const teacher = MOCK_GURU_LIST.find((g) => g.nama === teacherName);
+  const handleSelectTeacher = (teacherId: string) => {
+    const teacher = teachers.find((g) => g.id === teacherId);
     if (teacher) {
       const parts = teacher.nama.split(" ")[0].toLowerCase().replace(/[^a-z]/g, "");
       const secondPart = teacher.nama.split(" ")[1]?.charAt(0).toLowerCase() || "";
@@ -147,41 +166,61 @@ export default function AccountManagerClient() {
         nama: teacher.nama,
         username: generatedUsername,
         nip: teacher.nip || "",
-        role: "GURU",
+        role: "guru",
+        guru_id: teacher.id,
       });
     } else {
       setCreateForm({
         ...createForm,
-        nama: teacherName,
+        nama: "",
+        username: "",
+        nip: "",
+        guru_id: null,
       });
     }
   };
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.nama || !createForm.username || !createForm.role) return;
+    if (!createForm.nama || !createForm.username || !createForm.password || !createForm.role) {
+      alert("Mohon lengkapi semua field yang wajib diisi!");
+      return;
+    }
 
-    const newAkun: AdminAkunItem = {
-      id: `akun-${Date.now()}`,
-      nama: createForm.nama,
-      username: createForm.username,
-      nip: createForm.nip || undefined,
-      password: createForm.password || "password123",
-      role: (createForm.role as AdminAkunItem["role"]) || "GURU",
-      status: (createForm.status as AdminAkunItem["status"]) || "AKTIF",
-      terakhir_dilihat: "Baru saja",
-      created_at: new Date().toISOString().split("T")[0],
-    };
+    try {
+      setSubmitting(true);
+      const res = await createAkun({
+        nama: createForm.nama,
+        username: createForm.username,
+        password: createForm.password,
+        role: createForm.role,
+        guru_id: createForm.guru_id || null,
+      });
 
-    const updated = [newAkun, ...accounts];
-    saveAccountsToStorage(updated);
-
-    setCreateForm({ nama: "", username: "", nip: "", password: "", role: "", status: "AKTIF" });
-    setShowCreatePassword(false);
-    setViewMode("list");
+      if (res.success) {
+        await loadData();
+        setCreateForm({
+          nama: "",
+          username: "",
+          nip: "",
+          password: "",
+          role: "guru",
+          status: "aktif",
+          guru_id: null,
+        });
+        setShowCreatePassword(false);
+        setViewMode("list");
+      } else {
+        alert("Gagal membuat akun: " + (res.error || ""));
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (!isLoaded) return <div className="min-h-[400px]" />;
+  if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data akun...</div>;
 
   if (viewMode === "create") {
     return (
@@ -201,23 +240,34 @@ export default function AccountManagerClient() {
           <form onSubmit={handleCreateSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
+                <label className="block text-xs font-semibold text-slate-800">Tautkan ke Guru (Opsional)</label>
                 <div className="relative">
                   <select
-                    value={createForm.nama}
+                    value={createForm.guru_id || ""}
                     onChange={(e) => handleSelectTeacher(e.target.value)}
-                    required
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
                   >
-                    <option value="">Pilih nama pemilik akun</option>
-                    {MOCK_GURU_LIST.map((guru) => (
-                      <option key={guru.id} value={guru.nama}>{guru.nama}</option>
+                    <option value="">-- Pilih Guru yang Ada --</option>
+                    {teachers.map((guru) => (
+                      <option key={guru.id} value={guru.id}>
+                        {guru.nama} ({guru.nip})
+                      </option>
                     ))}
-                    <option value="Admin Sekolah">Admin Sekolah</option>
-                    <option value="Drs. Budi Santoso">Drs. Budi Santoso (Kepala Sekolah)</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-800">Nama Lengkap</label>
+                <input
+                  type="text"
+                  placeholder="Ketik nama lengkap"
+                  value={createForm.nama}
+                  onChange={(e) => setCreateForm({ ...createForm, nama: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                />
               </div>
 
               <div className="space-y-2">
@@ -233,13 +283,13 @@ export default function AccountManagerClient() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">NIP</label>
+                <label className="block text-xs font-semibold text-slate-800">NIP (Readonly / Terisi Otomatis)</label>
                 <input
                   type="text"
                   placeholder="1987011201"
                   value={createForm.nip}
-                  onChange={(e) => setCreateForm({ ...createForm, nip: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                  readOnly
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-500 bg-slate-50 outline-none"
                 />
               </div>
 
@@ -248,28 +298,15 @@ export default function AccountManagerClient() {
                 <div className="relative">
                   <select
                     value={createForm.role}
-                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as AdminAkunItem["role"] | "" })}
+                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as AdminAkunItem["role"] })}
                     required
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
                   >
-                    <option value="">Pilih role</option>
-                    {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Status akun</label>
-                <div className="relative">
-                  <select
-                    value={createForm.status}
-                    onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as AdminAkunItem["status"] })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="">Pilih status akun</option>
-                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABEL[r]}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
@@ -280,13 +317,17 @@ export default function AccountManagerClient() {
                 <div className="relative">
                   <input
                     type={showCreatePassword ? "text" : "password"}
-                    placeholder="••••••••••"
+                    placeholder="Masukkan password"
                     value={createForm.password}
                     onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                     required
                     className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
                   />
-                  <button type="button" onClick={() => setShowCreatePassword(!showCreatePassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePassword(!showCreatePassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  >
                     {showCreatePassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                   </button>
                 </div>
@@ -294,11 +335,20 @@ export default function AccountManagerClient() {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => setViewMode("list")} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
                 Batal
               </button>
-              <button type="submit" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-                + Tambah Data
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+              >
+                {submitting ? "Menyimpan..." : "Simpan Perubahan"}
               </button>
             </div>
           </form>
@@ -311,8 +361,8 @@ export default function AccountManagerClient() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Kelola Akun</h1>
-          <p className="text-sm text-slate-500 mt-1">Tambah, lihat, dan perbarui data akun.</p>
+          <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Manajemen Akun</h1>
+          <p className="text-sm text-slate-500 mt-1">Kelola data login pengguna dan role-nya.</p>
         </div>
         <ClockBadges />
       </div>
@@ -321,45 +371,69 @@ export default function AccountManagerClient() {
         <div className="relative w-full sm:w-[280px]">
           <input
             type="text"
-            placeholder="Cari username..."
+            placeholder="Cari nama / username..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-[#F4F6F9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
+            className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
-        <button onClick={() => setViewMode("create")} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-1.5 transition-all self-start sm:self-auto">
+        <button
+          onClick={() => setViewMode("create")}
+          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
+        >
           <span>+</span>
           <span>Tambah Akun</span>
         </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[680px]">
+        <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
-            <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
+            <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               <th className="pb-4 font-semibold w-[28%]">NAMA</th>
               <th className="pb-4 font-semibold w-[22%]">USERNAME</th>
-              <th className="pb-4 font-semibold w-[18%]">ROLE</th>
-              <th className="pb-4 font-semibold w-[22%]">TERAKHIR DILIHAT</th>
-              <th className="pb-4 font-semibold text-right w-[10%]"></th>
+              <th className="pb-4 font-semibold w-[20%]">ROLE</th>
+              <th className="pb-4 font-semibold w-[18%]">STATUS</th>
+              <th className="pb-4 font-semibold text-right w-[12%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {filteredAccounts.length === 0 ? (
-              <tr><td colSpan={5} className="py-8 text-center text-slate-400 font-medium">Tidak ada data akun yang sesuai dengan pencarian.</td></tr>
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
+                  Tidak ada akun yang sesuai dengan pencarian.
+                </td>
+              </tr>
             ) : (
               filteredAccounts.map((akun) => (
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-bold text-slate-900">{akun.nama}</td>
+                  <td className="py-4 font-bold text-slate-900">
+                    <div>{akun.nama}</div>
+                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP: {akun.nip}</span>}
+                  </td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
-                  <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role]}</td>
-                  <td className="py-4 text-slate-500 font-normal">{akun.terakhir_dilihat}</td>
+                  <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
+                  <td className="py-4 text-slate-500 font-normal capitalize">
+                    {akun.status === "aktif" ? (
+                      <span className="text-emerald-600 font-medium">Aktif</span>
+                    ) : (
+                      <span className="text-slate-400 font-medium">Nonaktif</span>
+                    )}
+                  </td>
                   <td className="py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
-                      <button onClick={() => handleOpenEdit(akun)} className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer" title="Edit Akun">
+                      <button
+                        onClick={() => handleOpenEdit(akun)}
+                        className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer"
+                        title="Edit Akun"
+                      >
                         <Edit2 className="w-[18px] h-[18px]" />
                       </button>
-                      <button onClick={() => setDeletingAccount(akun)} className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer" title="Hapus Akun">
+                      <button
+                        onClick={() => setDeletingAccount(akun)}
+                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                        title="Hapus Akun"
+                      >
                         <Trash2 className="w-[18px] h-[18px]" />
                       </button>
                     </div>
@@ -387,11 +461,21 @@ export default function AccountManagerClient() {
           </p>
         </div>
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setDeletingAccount(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => setDeletingAccount(null)}
+            className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
             Batal
           </button>
-          <button type="button" onClick={handleConfirmDelete} className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-            Hapus Data
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleConfirmDelete}
+            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+          >
+            {submitting ? "Menghapus..." : "Hapus Data"}
           </button>
         </div>
       </Modal>
@@ -405,17 +489,38 @@ export default function AccountManagerClient() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
-              <input type="text" value={editForm.nama} onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.nama}
+                onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Username</label>
-              <input type="text" value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Role</label>
               <div className="relative">
-                <select value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value as AdminAkunItem["role"] })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer">
-                  {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value as AdminAkunItem["role"] })}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
@@ -423,9 +528,14 @@ export default function AccountManagerClient() {
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Status akun</label>
               <div className="relative">
-                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as AdminAkunItem["status"] })} required className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer">
-                  <option value="AKTIF">Aktif</option>
-                  <option value="NONAKTIF">Nonaktif</option>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as AdminAkunItem["status"] })}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
@@ -433,23 +543,48 @@ export default function AccountManagerClient() {
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Password baru (opsional)</label>
               <div className="relative">
-                <input type={showEditPassword ? "text" : "password"} placeholder="Masukkan password baru" value={editForm.passwordBaru} onChange={(e) => setEditForm({ ...editForm, passwordBaru: e.target.value })} className="w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
-                <button type="button" onClick={() => setShowEditPassword(!showEditPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1">
+                <input
+                  type={showEditPassword ? "text" : "password"}
+                  placeholder="Masukkan password baru"
+                  value={editForm.passwordBaru}
+                  onChange={(e) => setEditForm({ ...editForm, passwordBaru: e.target.value })}
+                  className="w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword(!showEditPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
                   {showEditPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Konfirmasi password</label>
-              <input type="password" placeholder="Ulangi password baru" value={editForm.konfirmasiPassword} onChange={(e) => setEditForm({ ...editForm, konfirmasiPassword: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white" />
+              <input
+                type="password"
+                placeholder="Ulangi password baru"
+                value={editForm.konfirmasiPassword}
+                onChange={(e) => setEditForm({ ...editForm, konfirmasiPassword: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
             </div>
           </div>
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <button type="button" onClick={() => setEditingAccount(null)} className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setEditingAccount(null)}
+              className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
               Batal
             </button>
-            <button type="submit" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all">
-              Simpan Perubahan
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {submitting ? "Menyimpan..." : "Simpan Perubahan"}
             </button>
           </div>
         </form>

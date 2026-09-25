@@ -1,16 +1,14 @@
 // ENUMS
 
-export type RoleAkun = "ADMIN" | "KEPSEK" | "GURU";
-export type StatusAktif = "AKTIF" | "NONAKTIF";
-export type StatusAbsensiMasuk = "HADIR" | "SAKIT" | "IZIN";
+export type RoleAkun = "admin" | "kepala_sekolah" | "guru";
+export type StatusAktif = "aktif" | "nonaktif";
+export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin";
 export type HariJadwal =
-  | "SENIN"
-  | "SELASA"
-  | "RABU"
-  | "KAMIS"
-  | "JUMAT"
-  | "SABTU"
-  | "MINGGU";
+  | "senin"
+  | "selasa"
+  | "rabu"
+  | "kamis"
+  | "jumat";
 
 // INTERFACES (Mapped from ERD)
 
@@ -21,7 +19,8 @@ export interface Akun {
   role: RoleAkun;
   nama: string;
   status: StatusAktif;
-  guru_id?: string | null; // null if Admin/Kepsek
+  guru_id?: string | null; // referensi ke tabel guru (semua role bisa punya NIP)
+  nip?: string | null;     // diisi dari tabel guru saat login berhasil
   created_at: Date | string;
 }
 
@@ -62,6 +61,18 @@ export interface Jadwal {
   jam_selesai: string; // format HH:MM:SS
   status: StatusAktif;
   created_at: Date | string;
+}
+
+export interface JadwalWithDetail extends Jadwal {
+  guru?: {
+    id: string;
+    nama: string;
+    nip: string;
+  } | null;
+  kelas?: {
+    id: string;
+    nama_kelas: string;
+  } | null;
 }
 
 export interface AbsensiMasuk {

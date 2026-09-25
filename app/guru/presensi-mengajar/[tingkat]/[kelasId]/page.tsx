@@ -1,17 +1,33 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
-import { MOCK_KELAS, MOCK_HARI } from "@/lib/mock-data";
+import { getKelasById } from "@/actions/kelas";
+import { Kelas } from "@/types/schema";
+
+const DAFTAR_HARI = [
+  { id: "senin", label: "Senin" },
+  { id: "selasa", label: "Selasa" },
+  { id: "rabu", label: "Rabu" },
+  { id: "kamis", label: "Kamis" },
+  { id: "jumat", label: "Jumat" },
+];
 
 export default function DaftarHariPage() {
   const router = useRouter();
   const params = useParams();
   const tingkat = (params.tingkat as string) || "7";
-  const kelasId = (params.kelasId as string) || "k-7a";
+  const kelasId = (params.kelasId as string) || "";
+  const [kelas, setKelas] = useState<Kelas | null>(null);
 
-  const targetKelas = MOCK_KELAS.find((k) => k.id === kelasId);
-  const title = targetKelas ? targetKelas.nama_kelas : `Kelas ${tingkat}A`;
+  useEffect(() => {
+    if (kelasId) {
+      getKelasById(kelasId).then(setKelas).catch(console.error);
+    }
+  }, [kelasId]);
+
+  const title = kelas ? kelas.nama_kelas : `Kelas ${tingkat}`;
 
   const handleSelectHari = (hariId: string) => {
     router.push(`/guru/presensi-mengajar/${tingkat}/${kelasId}/${hariId}`);
@@ -28,7 +44,7 @@ export default function DaftarHariPage() {
       <h2 className="text-sm font-bold text-slate-900 -mt-6 mb-6">Daftar Hari</h2>
 
       <div className="flex flex-col gap-10">
-        {MOCK_HARI.map((hari) => (
+        {DAFTAR_HARI.map((hari) => (
           <button
             key={hari.id}
             onClick={() => handleSelectHari(hari.id)}
