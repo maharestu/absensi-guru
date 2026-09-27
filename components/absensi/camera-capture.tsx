@@ -57,16 +57,34 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
 
-      // Set ukuran canvas sesuai dengan ukuran video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Menentukan ukuran maksimal gambar (resize)
+      const MAX_WIDTH = 800;
+      const MAX_HEIGHT = 800;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+
+      // Set ukuran canvas sesuai dengan ukuran resize
+      canvas.width = width;
+      canvas.height = height;
 
       const context = canvas.getContext("2d");
       if (context) {
         // Gambar frame dari video ke canvas
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        // Ambil data gambar (base64)
-        const imageSrc = canvas.toDataURL("image/jpeg");
+        context.drawImage(video, 0, 0, width, height);
+        // Ambil data gambar (base64) dengan format WebP dan kualitas 70%
+        const imageSrc = canvas.toDataURL("image/webp", 0.7);
         onCapture(imageSrc);
       }
     }

@@ -4,19 +4,59 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import { isWithinGeofence } from "@/lib/geo";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
 export default function LokasiPage() {
   const router = useRouter();
   const [scanState, setScanState] = useState<ScanState>("IDLE");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   const handleScan = () => {
     setScanState("SCANNING");
-    setTimeout(() => {
-      const isSuccess = Math.random() > 0.5;
-      setScanState(isSuccess ? "SUCCESS" : "FAIL");
-    }, 1500);
+    setErrorMsg("");
+
+    if (!navigator.geolocation) {
+      setErrorMsg("Geolokasi tidak didukung oleh browser Anda.");
+      setScanState("FAIL");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+
+        // TODO: Ambil koordinat sekolah dari database (tabel pengaturan_lokasi_sekolah)
+        // Saat ini kita pakai koordinat simulasi (Monas, Jakarta)
+        const schoolLat = -6.175392;
+        const schoolLng = 106.827153;
+        const radiusMeter = 100; // Radius toleransi absen 100 meter
+
+        const isSuccess = isWithinGeofence(userLat, userLng, schoolLat, schoolLng, radiusMeter);
+
+        if (isSuccess) {
+          // Simpan koordinat asli guru untuk dikirim ke database nanti
+          sessionStorage.setItem("absensi_lat", userLat.toString());
+          sessionStorage.setItem("absensi_lng", userLng.toString());
+          setScanState("SUCCESS");
+        } else {
+          setErrorMsg("Anda berada di luar radius area sekolah.");
+          setScanState("FAIL");
+        }
+      },
+      (error) => {
+        console.error("Gagal mendapatkan lokasi GPS:", error);
+        setErrorMsg("Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi.");
+        setScanState("FAIL");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleRetake = () => {
@@ -25,6 +65,12 @@ export default function LokasiPage() {
 
   const handleContinue = () => {
     router.push("/guru/presensi/verifikasi?status=hadir");
+  };
+
+  const handleBypass = () => {
+    sessionStorage.setItem("absensi_lat", "-6.175392");
+    sessionStorage.setItem("absensi_lng", "106.827153");
+    setScanState("SUCCESS");
   };
 
   return (
@@ -115,10 +161,10 @@ export default function LokasiPage() {
               <span className="text-white font-bold text-2xl leading-none">!</span>
             </div>
             <h2 className="text-[20px] font-bold text-slate-900 leading-tight">
-              Anda Berada Di Luar<br />Area Sekolah
+              Gagal Memverifikasi<br />Lokasi
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed max-w-[260px]">
-              Pastikan Anda berada di area sekitar sekolah.
+              {errorMsg || "Pastikan Anda berada di area sekitar sekolah."}
             </p>
           </div>
 
@@ -128,6 +174,21 @@ export default function LokasiPage() {
             </Button>
           </div>
         </>
+      )}
+
+      {/* Tombol Bypass untuk Development */}
+      {scanState !== "SUCCESS" && (
+        <div className="mt-auto pt-10 pb-4">
+          <button
+            onClick={handleBypass}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-orange-300 text-sm font-bold text-orange-500 hover:bg-orange-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M13 10V3L4 14H11V21L20 10H13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Bypass Verifikasi (Dev Only)
+          </button>
+        </div>
       )}
     </div>
   );

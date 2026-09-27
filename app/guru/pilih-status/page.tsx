@@ -111,8 +111,8 @@ export default function PilihStatusPage() {
       label: "Hadir",
       color: "text-[#16a34a]",
     };
-    const nip = user?.username ?? "1234567890";
-
+    const nip = user?.nip ?? "-";
+    const nama = user?.nama ?? "-";
     return (
       <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
         <PageHeader
@@ -139,15 +139,21 @@ export default function PilihStatusPage() {
           </h2>
 
           <p className={`text-sm font-semibold ${currentStatus.color} mb-6`}>
-            {currentStatus.label} • {absenData.time}
+            {currentStatus.label}
           </p>
 
           <div className="w-full border-b border-slate-100 mb-6" />
 
           <div className="flex flex-col gap-4 text-center">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Tanggal Absensi</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">{absenData.date}</p>
+              <p className="text-xs text-slate-400 font-medium">Tanggal dan Waktu Absensi</p>
+              <p className="text-sm font-bold text-slate-900 mt-1">
+                {absenData.date} • {absenData.time}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-medium">Nama</p>
+              <p className="text-sm font-bold text-slate-900 mt-1">{nama}</p>
             </div>
             <div>
               <p className="text-xs text-slate-400 font-medium">NIP</p>

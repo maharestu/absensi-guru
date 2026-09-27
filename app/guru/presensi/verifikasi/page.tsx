@@ -42,10 +42,12 @@ function VerifikasiContent() {
   const backHref = BACK_HREF[status] ?? "/guru";
 
   const today = formatTanggal(new Date());
+  const nama = user?.nama ?? "-";
   const nip = user?.nip ?? "-";
 
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },
+    { label: "Nama", value: nama },
     { label: "NIP", value: nip },
     { label: "Status Kehadiran", value: statusLabel },
   ];
@@ -64,9 +66,9 @@ function VerifikasiContent() {
 
       <VerificationCard rows={rows} />
 
-      <div className="mt-40">
+      <div className="mt-5">
         <Button onClick={handleSubmit}>
-          Submit
+          Kirim
         </Button>
       </div>
     </div>

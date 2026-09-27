@@ -22,7 +22,6 @@ export default function TeacherManagerClient() {
     nip: "",
     jabatan: "",
     no_telepon: "",
-    alamat: "",
     status: "aktif" as "aktif" | "nonaktif",
     jenis_kelamin: "Laki-Laki",
   });
@@ -32,7 +31,6 @@ export default function TeacherManagerClient() {
     nip: "",
     jabatan: "",
     no_telepon: "",
-    alamat: "",
     status: "aktif" as "aktif" | "nonaktif",
     jenis_kelamin: "Laki-Laki",
   });
@@ -86,7 +84,6 @@ export default function TeacherManagerClient() {
       nip: guru.nip || "",
       jabatan: guru.jabatan || "",
       no_telepon: guru.no_telepon || "",
-      alamat: guru.alamat || "Jl. Pendidikan No. 10, Bandung",
       status: (guru.status?.toLowerCase() === "nonaktif" ? "nonaktif" : "aktif") as "aktif" | "nonaktif",
       jenis_kelamin: (guru.jenis_kelamin as string) || "Laki-Laki",
     });
@@ -103,7 +100,6 @@ export default function TeacherManagerClient() {
         nip: editForm.nip,
         jabatan: editForm.jabatan,
         no_telepon: editForm.no_telepon,
-        alamat: editForm.alamat,
         status: editForm.status,
         jenis_kelamin: editForm.jenis_kelamin,
       };
@@ -135,7 +131,6 @@ export default function TeacherManagerClient() {
         nip: createForm.nip,
         jabatan: createForm.jabatan || "Guru Pengampu",
         no_telepon: createForm.no_telepon || "-",
-        alamat: createForm.alamat || "-",
         status: createForm.status,
         jenis_kelamin: createForm.jenis_kelamin,
       });
@@ -147,7 +142,6 @@ export default function TeacherManagerClient() {
           nip: "",
           jabatan: "",
           no_telepon: "",
-          alamat: "",
           status: "aktif",
           jenis_kelamin: "Laki-Laki",
         });
@@ -226,16 +220,7 @@ export default function TeacherManagerClient() {
                 />
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-800">Alamat</label>
-                <input
-                  type="text"
-                  placeholder="Jl. Pendidikan No. 10, Bandung"
-                  value={createForm.alamat}
-                  onChange={(e) => setCreateForm({ ...createForm, alamat: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
+
 
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-800">Status</label>
@@ -375,24 +360,38 @@ export default function TeacherManagerClient() {
       </div>
 
       <Modal isOpen={!!deletingTeacher} onClose={() => setDeletingTeacher(null)} maxWidth="max-w-md">
-        <div className="w-12 h-12 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20">
-          <span className="text-2xl font-bold leading-none">!</span>
+        {/* Header: ikon + judul sejajar */}
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
+            <span className="text-2xl font-bold leading-none">!</span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
+            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-xl font-bold text-slate-900">Hapus Data?</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
+
+        {/* Pertanyaan konfirmasi */}
+        <p className="text-sm text-slate-700">
+          Apakah Anda yakin ingin menghapus data yang dipilih?
+        </p>
+
+        {/* Card data terpilih */}
+        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3">
+          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
+          <p className="text-sm font-bold text-slate-900">{deletingTeacher?.nama}</p>
         </div>
-        <p className="text-sm font-semibold text-slate-700">Apakah Anda yakin ingin menghapus data yang dipilih?</p>
-        <div className="bg-[#f8fafc] border border-slate-100 p-4 rounded-xl">
-          <p className="text-xs text-slate-400 font-medium">Data terpilih</p>
-          <p className="text-sm font-bold text-slate-900 mt-0.5">{deletingTeacher?.nama}</p>
-        </div>
-        <div className="flex items-center justify-end gap-3 pt-2">
+
+        {/* Divider */}
+        <div className="border-t border-slate-100" />
+
+        {/* Tombol — rata kanan, lebar auto */}
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             disabled={submitting}
             onClick={() => setDeletingTeacher(null)}
-            className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
           >
             Batal
           </button>
@@ -400,7 +399,7 @@ export default function TeacherManagerClient() {
             type="button"
             disabled={submitting}
             onClick={handleConfirmDelete}
-            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
           >
             {submitting ? "Menghapus..." : "Hapus Data"}
           </button>
@@ -452,15 +451,7 @@ export default function TeacherManagerClient() {
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-800">Alamat</label>
-              <input
-                type="text"
-                value={editForm.alamat}
-                onChange={(e) => setEditForm({ ...editForm, alamat: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
-            </div>
+
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Status</label>
               <div className="relative">

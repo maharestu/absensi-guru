@@ -393,7 +393,7 @@ export default function AccountManagerClient() {
               <th className="pb-4 font-semibold w-[28%]">NAMA</th>
               <th className="pb-4 font-semibold w-[22%]">USERNAME</th>
               <th className="pb-4 font-semibold w-[20%]">ROLE</th>
-              <th className="pb-4 font-semibold w-[18%]">STATUS</th>
+              <th className="pb-4 font-semibold w-[18%]">TERAKHIR DILIHAT</th>
               <th className="pb-4 font-semibold text-right w-[12%]"></th>
             </tr>
           </thead>
@@ -413,12 +413,8 @@ export default function AccountManagerClient() {
                   </td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
                   <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
-                  <td className="py-4 text-slate-500 font-normal capitalize">
-                    {akun.status === "aktif" ? (
-                      <span className="text-emerald-600 font-medium">Aktif</span>
-                    ) : (
-                      <span className="text-slate-400 font-medium">Nonaktif</span>
-                    )}
+                  <td className="py-4 text-slate-500 font-normal">
+                    {akun.terakhir_dilihat ?? "-"}
                   </td>
                   <td className="py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
@@ -446,26 +442,40 @@ export default function AccountManagerClient() {
       </div>
 
       <Modal isOpen={!!deletingAccount} onClose={() => setDeletingAccount(null)} maxWidth="max-w-md">
-        <div className="w-12 h-12 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-500/20">
-          <span className="text-2xl font-bold leading-none">!</span>
+        {/* Header: ikon + judul sejajar */}
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
+            <span className="text-2xl font-bold leading-none">!</span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
+            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-xl font-bold text-slate-900">Hapus Data?</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-        </div>
-        <p className="text-sm font-semibold text-slate-700">Apakah Anda yakin ingin menghapus data yang dipilih?</p>
-        <div className="bg-[#f8fafc] border border-slate-100 p-4 rounded-xl">
-          <p className="text-xs text-slate-400 font-medium">Data terpilih</p>
-          <p className="text-sm font-bold text-slate-900 mt-0.5">
+
+        {/* Pertanyaan konfirmasi */}
+        <p className="text-sm text-slate-700">
+          Apakah Anda yakin ingin menghapus data yang dipilih?
+        </p>
+
+        {/* Card data terpilih */}
+        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3">
+          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
+          <p className="text-sm font-bold text-slate-900">
             {deletingAccount?.nama} • {deletingAccount?.username}
           </p>
         </div>
-        <div className="flex items-center justify-end gap-3 pt-2">
+
+        {/* Divider */}
+        <div className="border-t border-slate-100" />
+
+        {/* Tombol — rata kanan */}
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             disabled={submitting}
             onClick={() => setDeletingAccount(null)}
-            className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
           >
             Batal
           </button>
@@ -473,7 +483,7 @@ export default function AccountManagerClient() {
             type="button"
             disabled={submitting}
             onClick={handleConfirmDelete}
-            className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
           >
             {submitting ? "Menghapus..." : "Hapus Data"}
           </button>
