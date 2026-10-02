@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 /**
  * LAYOUT UTAMA AREA GURU (MOBILE CONTAINER)
@@ -15,8 +16,20 @@ export default function GuruLayout({
     <div className="min-h-screen bg-white flex justify-center items-center py-0 sm:py-6 px-0 sm:px-4">
       {/* Mobile Wrapper Container */}
       <div className="w-full max-w-md bg-[#EEF2F7] min-h-screen sm:min-h-[844px] sm:max-h-[92vh] relative shadow-2xl sm:rounded-[36px] overflow-y-auto overflow-x-hidden flex flex-col">
+        {/* Logo Sekolah — pojok kanan atas, fixed di atas konten */}
+        <div className="absolute top-9 right-4 z-10">
+          <Image
+            src="/Logo.png"
+            alt="Logo SMPN 8 Karawang Barat"
+            width={48}
+            height={48}
+            className="object-contain"
+            priority
+          />
+        </div>
         {children}
       </div>
     </div>
   );
 }
+

@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/page-header";
 import ImageUploader from "@/components/ui/image-uploader";
 import Button from "@/components/ui/button";
 
-export default function SakitPage() {
+export default function DinasPage() {
   const router = useRouter();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [keterangan, setKeterangan] = useState("");
@@ -28,15 +28,15 @@ export default function SakitPage() {
     await new Promise((r) => setTimeout(r, 600));
     setIsUploading(false);
 
-    router.push("/guru/presensi/verifikasi?status=sakit");
+    router.push("/guru/presensi/verifikasi?status=dinas");
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
       <PageHeader
         backHref="/guru/pilih-status"
-        title="Bukti Keterangan Sakit"
-        subtitle="Unggah foto surat keterangan sakit yang jelas dan terbaca."
+        title="Bukti Keterangan Dinas"
+        subtitle="Unggah foto surat keterangan dinas yang jelas dan terbaca"
       />
 
       {/* Error Alert */}

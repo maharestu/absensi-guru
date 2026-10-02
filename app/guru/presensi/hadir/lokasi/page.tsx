@@ -42,7 +42,7 @@ export default function LokasiPage() {
           sessionStorage.setItem("absensi_lng", userLng.toString());
           setScanState("SUCCESS");
         } else {
-          setErrorMsg("Anda berada di luar radius area sekolah.");
+          setErrorMsg("Pastikan anda berada di area sekitar sekolah.");
           setScanState("FAIL");
         }
       },
@@ -161,7 +161,7 @@ export default function LokasiPage() {
               <span className="text-white font-bold text-2xl leading-none">!</span>
             </div>
             <h2 className="text-[20px] font-bold text-slate-900 leading-tight">
-              Gagal Memverifikasi<br />Lokasi
+              Anda Berada Di Luar<br />Area Sekolah
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed max-w-[260px]">
               {errorMsg || "Pastikan Anda berada di area sekitar sekolah."}
@@ -170,7 +170,7 @@ export default function LokasiPage() {
 
           <div className="mt-10">
             <Button onClick={handleRetake}>
-              Scan Ulang Lokasi
+              Pindai Ulang Lokasi
             </Button>
           </div>
         </>
@@ -184,7 +184,7 @@ export default function LokasiPage() {
             className="w-full py-3 rounded-2xl border-2 border-dashed border-orange-300 text-sm font-bold text-orange-500 hover:bg-orange-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M13 10V3L4 14H11V21L20 10H13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M13 10V3L4 14H11V21L20 10H13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             Bypass Verifikasi (Dev Only)
           </button>

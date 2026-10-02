@@ -11,6 +11,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
   sakit: { label: "Sakit", color: "text-[#16a34a]" },
   izin: { label: "Izin", color: "text-[#16a34a]" },
+  dinas: { label: "Dinas Keluar", color: "text-[#2563eb]" },
 };
 
 const statusOptions = [
@@ -62,6 +63,15 @@ const statusOptions = [
           strokeLinecap="round"
         />
       </svg>
+    ),
+  },
+  {
+    id: "dinas",
+    label: "Dinas Keluar",
+    description: "Saya berada di luar sekolah",
+    bgColor: "bg-blue-600",
+    icon: (
+      <span className="text-white font-bold text-lg leading-none">D</span>
     ),
   },
 ];

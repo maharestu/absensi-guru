@@ -55,7 +55,7 @@ function BerhasilContent() {
       </h1>
 
       <p className="text-slate-500 text-sm mb-8 text-center">
-        Data absensi Anda sudah tersimpan.
+        Data absensi Kehadiran Anda sudah tersimpan.
       </p>
 
       <div className="w-[306px] h-[128px] bg-white border border-slate-200 rounded-[20px] shadow-sm flex flex-col items-center justify-center gap-4">
