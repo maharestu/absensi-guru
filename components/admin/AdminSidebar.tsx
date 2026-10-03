@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -18,11 +19,11 @@ export default function AdminSidebar() {
       label: "Dashboard",
       href: "/admin",
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="14" y="3" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="14" y="14" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="3" y="14" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
         </svg>
       ),
     },
@@ -30,9 +31,9 @@ export default function AdminSidebar() {
       label: "Kelola Data Guru",
       href: "/admin/guru",
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M18 20V18C18 15.7909 16.2091 14 14 14H10C7.79086 14 6 15.7909 6 18V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="4" width="16" height="16" rx="2" ry="2" />
+          <path d="M8 16v-4M12 16V8M16 16v-6" />
         </svg>
       ),
     },
@@ -40,9 +41,11 @@ export default function AdminSidebar() {
       label: "Kelola Jadwal",
       href: "/admin/jadwal",
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2" />
-          <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+          <circle cx="18" cy="18" r="3" />
+          <path d="M18 14v1M18 23v1M14 18h1M23 18h1M15.5 15.5l.5.5M20.5 20.5l.5.5M15.5 20.5l.5-.5M20.5 15.5l-.5.5" />
         </svg>
       ),
     },
@@ -50,10 +53,22 @@ export default function AdminSidebar() {
       label: "Kelola Akun",
       href: "/admin/akun",
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-          <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
-          <path d="M6.168 18.849C7.488 17.11 9.608 16 12 16C14.392 16 16.512 17.11 17.832 18.849" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="10" cy="10" r="3" />
+          <path d="M5 18c0-3 3-5 5-5 1.7 0 3.2.7 4 1.8" />
+          <circle cx="16" cy="12" r="2" />
+          <path d="M14 18c0-2 1.5-3 3-3s3 1 3 3" />
+        </svg>
+      ),
+    },
+    {
+      label: "Kelola Ruang Kelas",
+      href: "/admin/kelas",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 18H19L21 9H3L5 18Z" />
+          <path d="M7 21h10" />
         </svg>
       ),
     },
@@ -65,12 +80,12 @@ export default function AdminSidebar() {
   };
 
   return (
-    <aside className="w-60 lg:w-64 bg-white border-r border-slate-100 min-h-screen flex flex-col justify-between p-5 lg:p-6 flex-shrink-0">
+    <aside className="w-60 lg:w-64 bg-white border-r border-slate-100 sticky top-0 h-full overflow-y-auto flex flex-col justify-between p-5 lg:p-6 flex-shrink-0">
       <div>
         {/* Profile Card Header */}
         <div className="bg-[#f0f4f9] p-3.5 rounded-2xl flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center flex-shrink-0 text-sm">
-            {initial}
+          <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <Image src="/Logo.png" alt="Logo SMPN 8 Karawang Barat" width={40} height={40} className="object-contain" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900 truncate">{namaUser}</p>

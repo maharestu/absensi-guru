@@ -34,12 +34,12 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex">
+    <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
       {/* Sidebar Navigation */}
       <AdminSidebar />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-5 py-6 md:px-8 md:py-8 overflow-y-auto min-h-screen">
+      <main className="flex-1 px-5 py-6 md:px-8 md:py-8 overflow-y-auto h-screen">
         <div className="w-full">{children}</div>
       </main>
     </div>

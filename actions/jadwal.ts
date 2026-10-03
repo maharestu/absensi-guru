@@ -27,11 +27,39 @@ export async function getJadwalList(): Promise<JadwalWithDetail[]> {
   return (data as unknown as JadwalWithDetail[]) ?? [];
 }
 
+export async function getJadwalById(id: string): Promise<JadwalWithDetail | null> {
+  const { data, error } = await supabaseAdmin
+    .from("jadwal")
+    .select(`
+      *,
+      guru:guru_id ( id, nama, nip ),
+      kelas:kelas_id ( id, nama_kelas )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    console.error("Error fetching jadwal by id:", error);
+    return null;
+  }
+
+  return (data as unknown as JadwalWithDetail) ?? null;
+}
+
 export async function getJadwalByGuruAndHari(
   guruId?: string,
   kelasId?: string,
   hari?: string
 ): Promise<JadwalWithDetail[]> {
+  const VALID_HARI = ["senin", "selasa", "rabu", "kamis", "jumat"];
+
+  if (hari) {
+    const normalizedHari = hari.toLowerCase();
+    if (!VALID_HARI.includes(normalizedHari)) {
+      return [];
+    }
+  }
+
   let query = supabaseAdmin
     .from("jadwal")
     .select(`
@@ -42,7 +70,7 @@ export async function getJadwalByGuruAndHari(
 
   if (guruId) query = query.eq("guru_id", guruId);
   if (kelasId) query = query.eq("kelas_id", kelasId);
-  if (hari) query = query.ilike("hari", hari);
+  if (hari) query = query.eq("hari", hari.toLowerCase());
 
   const { data, error } = await query.order("jam_mulai");
 

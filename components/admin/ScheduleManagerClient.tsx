@@ -7,6 +7,7 @@ import { getKelasList } from "@/actions/kelas";
 import { Guru, Kelas, JadwalWithDetail, HariJadwal } from "@/types/schema";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Edit2, Trash2 } from "lucide-react";
+import ScheduleForm, { ScheduleFormData } from "./ScheduleForm";
 
 const HARI_OPTIONS: { value: HariJadwal; label: string }[] = [
   { value: "senin", label: "Senin" },
@@ -127,19 +128,18 @@ export default function ScheduleManagerClient() {
   };
 
   // Save Edit
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEdit = async (data: ScheduleFormData) => {
     if (!editingSchedule) return;
 
     try {
       setSubmitting(true);
       await updateJadwal(editingSchedule.id, {
-        hari: editForm.hari,
-        kelas_id: editForm.kelas_id,
-        guru_id: editForm.guru_id,
-        jam_mulai: editForm.jam_mulai,
-        jam_selesai: editForm.jam_selesai,
-        mata_pelajaran: editForm.mata_pelajaran,
+        hari: data.hari,
+        kelas_id: data.kelas_id,
+        guru_id: data.guru_id,
+        jam_mulai: data.jam_mulai,
+        jam_selesai: data.jam_selesai,
+        mata_pelajaran: data.mata_pelajaran,
       });
 
       await loadAllData();
@@ -152,9 +152,8 @@ export default function ScheduleManagerClient() {
   };
 
   // Handle Create Schedule Submit
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createForm.mata_pelajaran || !createForm.hari || !createForm.kelas_id || !createForm.guru_id) {
+  const handleCreateSubmit = async (data: ScheduleFormData) => {
+    if (!data.mata_pelajaran || !data.hari || !data.kelas_id || !data.guru_id) {
       alert("Mohon lengkapi seluruh formulir jadwal!");
       return;
     }
@@ -162,12 +161,12 @@ export default function ScheduleManagerClient() {
     try {
       setSubmitting(true);
       await createJadwal({
-        hari: createForm.hari,
-        kelas_id: createForm.kelas_id,
-        guru_id: createForm.guru_id,
-        jam_mulai: createForm.jam_mulai,
-        jam_selesai: createForm.jam_selesai,
-        mata_pelajaran: createForm.mata_pelajaran,
+        hari: data.hari,
+        kelas_id: data.kelas_id,
+        guru_id: data.guru_id,
+        jam_mulai: data.jam_mulai,
+        jam_selesai: data.jam_selesai,
+        mata_pelajaran: data.mata_pelajaran,
         status: "aktif",
       });
 
@@ -224,126 +223,15 @@ export default function ScheduleManagerClient() {
         <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
           <h2 className="text-base font-bold text-slate-900 mb-6">Informasi Jadwal</h2>
 
-          <form onSubmit={handleCreateSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Hari */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Hari</label>
-                <div className="relative">
-                  <select
-                    value={createForm.hari}
-                    onChange={(e) => setCreateForm({ ...createForm, hari: e.target.value as HariJadwal })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    {HARI_OPTIONS.map((h) => (
-                      <option key={h.value} value={h.value}>
-                        {h.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Kelas */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Kelas</label>
-                <div className="relative">
-                  <select
-                    value={createForm.kelas_id}
-                    onChange={(e) => setCreateForm({ ...createForm, kelas_id: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="">Pilih kelas</option>
-                    {kelasList.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.nama_kelas}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Jam Mulai */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Jam Mulai (HH:MM)</label>
-                <input
-                  type="text"
-                  placeholder="07:00"
-                  value={createForm.jam_mulai}
-                  onChange={(e) => setCreateForm({ ...createForm, jam_mulai: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              {/* Jam Selesai */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Jam Selesai (HH:MM)</label>
-                <input
-                  type="text"
-                  placeholder="08:30"
-                  value={createForm.jam_selesai}
-                  onChange={(e) => setCreateForm({ ...createForm, jam_selesai: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              {/* Mata Pelajaran */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Mata Pelajaran</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Matematika"
-                  value={createForm.mata_pelajaran}
-                  onChange={(e) => setCreateForm({ ...createForm, mata_pelajaran: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              {/* Guru Pengajar */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Guru Pengajar</label>
-                <div className="relative">
-                  <select
-                    value={createForm.guru_id}
-                    onChange={(e) => setCreateForm({ ...createForm, guru_id: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="">Pilih guru pengajar</option>
-                    {guruList.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.nama} ({g.nip})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-              >
-                {submitting ? "Menyimpan..." : "+ Tambah Data"}
-              </button>
-            </div>
-          </form>
+          <ScheduleForm
+            initialData={createForm}
+            kelasList={kelasList}
+            guruList={guruList}
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setViewMode("list")}
+            submitting={submitting}
+            submitText="Tambah Data"
+          />
         </div>
       </div>
     );
@@ -510,108 +398,17 @@ export default function ScheduleManagerClient() {
               <p className="text-xs text-slate-400 mt-0.5">Perbarui waktu dan informasi jadwal mengajar.</p>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Hari</label>
-                  <select
-                    value={editForm.hari}
-                    onChange={(e) => setEditForm({ ...editForm, hari: e.target.value as HariJadwal })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  >
-                    {HARI_OPTIONS.map((h) => (
-                      <option key={h.value} value={h.value}>
-                        {h.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Kelas</label>
-                  <select
-                    value={editForm.kelas_id}
-                    onChange={(e) => setEditForm({ ...editForm, kelas_id: e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  >
-                    {kelasList.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.nama_kelas}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Jam Mulai</label>
-                  <input
-                    type="text"
-                    value={editForm.jam_mulai}
-                    onChange={(e) => setEditForm({ ...editForm, jam_mulai: e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Jam Selesai</label>
-                  <input
-                    type="text"
-                    value={editForm.jam_selesai}
-                    onChange={(e) => setEditForm({ ...editForm, jam_selesai: e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Mata Pelajaran</label>
-                  <input
-                    type="text"
-                    value={editForm.mata_pelajaran}
-                    onChange={(e) => setEditForm({ ...editForm, mata_pelajaran: e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-800">Guru Pengajar</label>
-                  <select
-                    value={editForm.guru_id}
-                    onChange={(e) => setEditForm({ ...editForm, guru_id: e.target.value })}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  >
-                    {guruList.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.nama} ({g.nip})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => setEditingSchedule(null)}
-                  className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-                >
-                  {submitting ? "Menyimpan..." : "Simpan Perubahan"}
-                </button>
-              </div>
-            </form>
+            <div className="mt-6">
+              <ScheduleForm
+                initialData={editForm}
+                kelasList={kelasList}
+                guruList={guruList}
+                onSubmit={handleSaveEdit}
+                onCancel={() => setEditingSchedule(null)}
+                submitting={submitting}
+                submitText="Simpan Perubahan"
+              />
+            </div>
           </div>
         </div>
       )}

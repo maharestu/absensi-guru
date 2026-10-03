@@ -361,8 +361,8 @@ export default function AccountManagerClient() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Manajemen Akun</h1>
-          <p className="text-sm text-slate-500 mt-1">Kelola data login pengguna dan role-nya.</p>
+          <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Kelola Akun</h1>
+          <p className="text-sm text-slate-500 mt-1">Tambah, lihat, dan perbarui data akun.</p>
         </div>
         <ClockBadges />
       </div>

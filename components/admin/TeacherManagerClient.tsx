@@ -6,6 +6,7 @@ import { getGuruList, createGuru, updateGuru, deleteGuru } from "@/actions/guru"
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2 } from "lucide-react";
+import TeacherForm, { TeacherFormData } from "./TeacherForm";
 
 export default function TeacherManagerClient() {
   const [teachers, setTeachers] = useState<Guru[]>([]);
@@ -23,7 +24,7 @@ export default function TeacherManagerClient() {
     jabatan: "",
     no_telepon: "",
     status: "aktif" as "aktif" | "nonaktif",
-    jenis_kelamin: "Laki-Laki",
+
   });
 
   const [editForm, setEditForm] = useState({
@@ -32,7 +33,7 @@ export default function TeacherManagerClient() {
     jabatan: "",
     no_telepon: "",
     status: "aktif" as "aktif" | "nonaktif",
-    jenis_kelamin: "Laki-Laki",
+
   });
 
   const loadTeachers = async () => {
@@ -85,23 +86,22 @@ export default function TeacherManagerClient() {
       jabatan: guru.jabatan || "",
       no_telepon: guru.no_telepon || "",
       status: (guru.status?.toLowerCase() === "nonaktif" ? "nonaktif" : "aktif") as "aktif" | "nonaktif",
-      jenis_kelamin: (guru.jenis_kelamin as string) || "Laki-Laki",
+
     });
   };
 
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveEdit = async (data: TeacherFormData) => {
     if (!editingTeacher) return;
 
     try {
       setSubmitting(true);
       const updateData = {
-        nama: editForm.nama,
-        nip: editForm.nip,
-        jabatan: editForm.jabatan,
-        no_telepon: editForm.no_telepon,
-        status: editForm.status,
-        jenis_kelamin: editForm.jenis_kelamin,
+        nama: data.nama,
+        nip: data.nip,
+        jabatan: data.jabatan,
+        no_telepon: data.no_telepon,
+        status: data.status,
+
       };
 
       const res = await updateGuru(editingTeacher.id, updateData);
@@ -120,19 +120,18 @@ export default function TeacherManagerClient() {
     }
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createForm.nama || !createForm.nip) return;
+  const handleCreateSubmit = async (data: TeacherFormData) => {
+    if (!data.nama || !data.nip) return;
 
     try {
       setSubmitting(true);
       const res = await createGuru({
-        nama: createForm.nama,
-        nip: createForm.nip,
-        jabatan: createForm.jabatan || "Guru Pengampu",
-        no_telepon: createForm.no_telepon || "-",
-        status: createForm.status,
-        jenis_kelamin: createForm.jenis_kelamin,
+        nama: data.nama,
+        nip: data.nip,
+        jabatan: data.jabatan || "Guru Pengampu",
+        no_telepon: data.no_telepon || "-",
+        status: data.status,
+
       });
 
       if (res.success) {
@@ -143,7 +142,7 @@ export default function TeacherManagerClient() {
           jabatan: "",
           no_telepon: "",
           status: "aktif",
-          jenis_kelamin: "Laki-Laki",
+
         });
         setViewMode("list");
       } else {
@@ -172,105 +171,13 @@ export default function TeacherManagerClient() {
         <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
           <h2 className="text-base font-bold text-slate-900 mb-6">Informasi Guru</h2>
 
-          <form onSubmit={handleCreateSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Nama lengkap</label>
-                <input
-                  type="text"
-                  placeholder="Pilih / ketik nama guru"
-                  value={createForm.nama}
-                  onChange={(e) => setCreateForm({ ...createForm, nama: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">NIP</label>
-                <input
-                  type="text"
-                  placeholder="1987011201"
-                  value={createForm.nip}
-                  onChange={(e) => setCreateForm({ ...createForm, nip: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Jabatan</label>
-                <input
-                  type="text"
-                  placeholder="Guru Matematika"
-                  value={createForm.jabatan}
-                  onChange={(e) => setCreateForm({ ...createForm, jabatan: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Nomor telepon</label>
-                <input
-                  type="text"
-                  placeholder="0812 3344 5566"
-                  value={createForm.no_telepon}
-                  onChange={(e) => setCreateForm({ ...createForm, no_telepon: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Status</label>
-                <div className="relative">
-                  <select
-                    value={createForm.status}
-                    onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as "aktif" | "nonaktif" })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="aktif">Aktif</option>
-                    <option value="nonaktif">Nonaktif</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Jenis kelamin</label>
-                <div className="relative">
-                  <select
-                    value={createForm.jenis_kelamin}
-                    onChange={(e) => setCreateForm({ ...createForm, jenis_kelamin: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="Laki-Laki">Laki-Laki</option>
-                    <option value="Perempuan">Perempuan</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-              >
-                {submitting ? "Menyimpan..." : "+ Tambah Data"}
-              </button>
-            </div>
-          </form>
+          <TeacherForm
+            initialData={createForm}
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setViewMode("list")}
+            submitting={submitting}
+            submitText="Tambah Guru"
+          />
         </div>
       </div>
     );
@@ -411,94 +318,15 @@ export default function TeacherManagerClient() {
           <h3 className="text-xl font-bold text-slate-900">Update Data Guru</h3>
           <p className="text-xs text-slate-400 mt-0.5">Perbarui informasi guru yang dipilih.</p>
         </div>
-        <form onSubmit={handleSaveEdit} className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Nama lengkap</label>
-              <input
-                type="text"
-                value={editForm.nama}
-                onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">NIP</label>
-              <input
-                type="text"
-                value={editForm.nip}
-                onChange={(e) => setEditForm({ ...editForm, nip: e.target.value })}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Jabatan</label>
-              <input
-                type="text"
-                value={editForm.jabatan}
-                onChange={(e) => setEditForm({ ...editForm, jabatan: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Nomor telepon</label>
-              <input
-                type="text"
-                value={editForm.no_telepon}
-                onChange={(e) => setEditForm({ ...editForm, no_telepon: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Status</label>
-              <div className="relative">
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value as "aktif" | "nonaktif" })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                >
-                  <option value="aktif">Aktif</option>
-                  <option value="nonaktif">Nonaktif</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-800">Jenis kelamin</label>
-              <div className="relative">
-                <select
-                  value={editForm.jenis_kelamin}
-                  onChange={(e) => setEditForm({ ...editForm, jenis_kelamin: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                >
-                  <option value="Laki-Laki">Laki-Laki</option>
-                  <option value="Perempuan">Perempuan</option>
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => setEditingTeacher(null)}
-              className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-            >
-              {submitting ? "Menyimpan..." : "Update Data"}
-            </button>
-          </div>
-        </form>
+        <div className="mt-6">
+          <TeacherForm
+            initialData={editForm}
+            onSubmit={handleSaveEdit}
+            onCancel={() => setEditingTeacher(null)}
+            submitting={submitting}
+            submitText="Simpan Perubahan"
+          />
+        </div>
       </Modal>
     </div>
   );

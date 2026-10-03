@@ -4,8 +4,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
-import { getKelasById } from "@/actions/kelas";
-import { Kelas } from "@/types/schema";
+import { getJadwalById } from "@/actions/jadwal";
+import { JadwalWithDetail } from "@/types/schema";
 
 /** Format tanggal ke "Senin, 7 September 2026" */
 function formatTanggal(date: Date): string {
@@ -20,23 +20,27 @@ function formatTanggal(date: Date): string {
 function VerifikasiMengajarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const jadwalId = searchParams.get("jadwal_id");
+  const hari = searchParams.get("hari");
 
-  const tingkat = searchParams.get("tingkat") || "7";
-  const kelasId = searchParams.get("kelas_id") || "";
-  const hari = searchParams.get("hari") || "senin";
-
-  const [kelas, setKelas] = useState<Kelas | null>(null);
+  const [jadwal, setJadwal] = useState<JadwalWithDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (kelasId) {
-      getKelasById(kelasId).then(setKelas).catch(console.error);
+    async function fetchJadwal() {
+      if (jadwalId) {
+        try {
+          const data = await getJadwalById(jadwalId);
+          setJadwal(data);
+        } catch (err) {
+          console.error("Gagal memuat detail jadwal:", err);
+        }
+      }
+      setLoading(false);
     }
-  }, [kelasId]);
-
-  const namaKelas = kelas ? kelas.nama_kelas : `Kelas ${tingkat}`;
-
-  const todayFormatted = formatTanggal(new Date());
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+    fetchJadwal();
+  }, [jadwalId]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -55,7 +59,9 @@ function VerifikasiMengajarContent() {
     router.push("/guru/presensi-mengajar/berhasil");
   };
 
-  const backHref = `/guru/presensi-mengajar/${tingkat}/${kelasId}/${hari}/foto`;
+  const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
+  const backHref = `/guru/presensi-mengajar/foto?jadwal_id=${jadwalId}${hariQuery}`;
+  const todayFormatted = formatTanggal(new Date());
 
   return (
     <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
@@ -78,19 +84,20 @@ function VerifikasiMengajarContent() {
             Kelas / Mata Pelajaran
           </p>
           <p className="text-base font-bold text-slate-900">
-            {namaKelas} • Ilmu Pengetahuan Alam
+            {loading ? "Memuat..." : jadwal ? `${jadwal.kelas?.nama_kelas} • ${jadwal.mata_pelajaran}` : "Tidak diketahui"}
           </p>
         </div>
 
         <div className="py-4">
           <p className="text-xs font-medium text-slate-400 mb-1">Jadwal</p>
-          <p className="text-base font-bold text-slate-900">06:30 - 08:30</p>
+          <p className="text-base font-bold text-slate-900">
+             {loading ? "Memuat..." : jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "Tidak diketahui"}
+          </p>
         </div>
       </div>
 
       {photoUrl && (
         <div className="w-full h-[240px] sm:h-[260px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60 mt-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photoUrl}
             alt="Foto Selfie Mengajar"
@@ -99,8 +106,19 @@ function VerifikasiMengajarContent() {
         </div>
       )}
 
-      <div className="w-full max-w-[354px] mt-10">
-        <Button onClick={handleSubmit}>Submit</Button>
+      <div className="mt-8 flex gap-3">
+        <div className="flex-shrink-0 mt-1">
+          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Dengan mengklik konfirmasi, saya menyatakan bahwa saya benar-benar mengajar di kelas ini sesuai jadwal yang tertera.
+        </p>
+      </div>
+
+      <div className="w-full mt-auto pt-8">
+        <Button onClick={handleSubmit} disabled={loading}>Konfirmasi & Simpan</Button>
       </div>
     </div>
   );

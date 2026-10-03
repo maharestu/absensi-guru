@@ -1,0 +1,71 @@
+"use server";
+
+import { supabaseAdmin } from "@/lib/supabase";
+
+export interface LaporanKehadiran {
+  id: string;
+  tanggal: string;
+  nama: string;
+  waktu_masuk: string;
+  status: string;
+}
+
+export interface LaporanMengajar {
+  id: string;
+  tanggal: string;
+  nama: string;
+  kelasMapel: string;
+  waktu: string;
+  status: string;
+}
+
+export async function getLaporanKehadiran(): Promise<LaporanKehadiran[]> {
+  const { data, error } = await supabaseAdmin
+    .from("absensi_masuk")
+    .select("id, tanggal, waktu_submit, status, guru(nama)")
+    .order("waktu_submit", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }),
+    nama: row.guru?.nama ?? "-",
+    waktu_masuk: row.status === "hadir" 
+      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) 
+      : "—",
+    status: row.status.charAt(0).toUpperCase() + row.status.slice(1)
+  }));
+}
+
+export async function getLaporanMengajar(): Promise<LaporanMengajar[]> {
+  const { data, error } = await supabaseAdmin
+    .from("absensi_mengajar")
+    .select("id, tanggal, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))")
+    .order("waktu_submit", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row: any) => {
+    const jadwal = Array.isArray(row.jadwal) ? row.jadwal[0] : row.jadwal;
+    const guru = Array.isArray(jadwal?.guru) ? jadwal?.guru[0] : jadwal?.guru;
+    const kelas = Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0] : jadwal?.kelas;
+
+    return {
+      id: row.id,
+      tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }),
+      nama: guru?.nama ?? "-",
+      kelasMapel: `${kelas?.nama_kelas ?? "-"} / ${jadwal?.mata_pelajaran ?? "-"}`,
+      waktu: jadwal ? `${jadwal.jam_mulai} - ${jadwal.jam_selesai}` : "-",
+      status: "Mengajar"
+    };
+  });
+}

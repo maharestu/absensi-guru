@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -18,11 +19,11 @@ export default function KepsekSidebar() {
       label: "Dashboard",
       href: "/kepsek",
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="14" y="3" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="14" y="14" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
-          <rect x="3" y="14" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
         </svg>
       ),
     },
@@ -45,12 +46,12 @@ export default function KepsekSidebar() {
   };
 
   return (
-    <aside className="w-60 lg:w-64 bg-white border-r border-slate-100 min-h-screen flex flex-col justify-between p-5 lg:p-6 flex-shrink-0">
+    <aside className="w-60 lg:w-64 bg-white border-r border-slate-100 sticky top-0 h-screen overflow-y-auto flex flex-col justify-between p-5 lg:p-6 flex-shrink-0">
       <div>
         {/* Profile Card Header */}
         <div className="bg-[#f0f4f9] p-3.5 rounded-2xl flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center flex-shrink-0 text-sm">
-            {initial}
+          <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <Image src="/Logo.png" alt="Logo SMPN 8 Karawang Barat" width={40} height={40} className="object-contain" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900 truncate">{namaUser}</p>

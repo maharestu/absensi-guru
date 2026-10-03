@@ -1,0 +1,188 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Kelas } from "@/types/schema";
+import { getKelasList } from "@/actions/kelas";
+import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { Modal } from "./ui/Modal";
+import { Button } from "../ui/button";
+
+export default function ClassManagerClient() {
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<Kelas | null>(null);
+
+  const { timeString, dateString } = useRealtimeClock();
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getKelasList();
+        setKelasList(data);
+      } catch (e) {
+        console.error("Gagal mengambil data kelas:", e);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+    load();
+  }, []);
+
+  const filteredKelas = kelasList.filter((k) =>
+    (k.nama_kelas || "").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handlePrintQR = () => {
+    // In a real app, this would trigger a print action or generate a PDF.
+    window.print();
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center text-slate-400">
+        Memuat data kelas...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">
+            Kelola Ruang Kelas
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Lihat data QR Code pada masing-masing kelas.
+          </p>
+        </div>
+
+        {/* Badges */}
+        <div className="flex items-center gap-3">
+          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-500">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+              <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
+          </div>
+          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-500">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" />
+              <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" />
+              <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" />
+              <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            <span className="text-sm font-semibold text-slate-700">{dateString}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Input Box */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+        <div className="relative w-full sm:w-[400px]">
+          <input
+            type="text"
+            placeholder="Cari nama kelas..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Table List */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[500px]">
+          <thead>
+              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
+                <th className="pb-4 font-semibold text-right w-[20%]">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100/80">
+              {filteredKelas.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="py-8 text-center text-slate-400 font-medium">
+                    Tidak ada ruang kelas yang cocok dengan "{searchQuery}".
+                  </td>
+                </tr>
+              ) : (
+                filteredKelas.map((kelas) => (
+                  <tr key={kelas.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-slate-800">
+                        {kelas.nama_kelas}
+                      </div>
+                    </td>
+                    <td className="py-4 whitespace-nowrap text-right">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth={false}
+                        onClick={() => setSelectedClass(kelas)}
+                        className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
+                      >
+                        Lihat QR
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+        </table>
+      </div>
+
+      {/* QR Code Modal */}
+      <Modal isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} maxWidth="max-w-md">
+        {selectedClass && (
+          <div className="text-center space-y-6 flex flex-col items-center">
+            <div className="space-y-2 text-center w-full">
+              <h2 className="text-xl font-bold text-slate-900 text-left">
+                QR Ruang {selectedClass.nama_kelas}
+              </h2>
+              <p className="text-sm text-slate-500 text-left">
+                Berikut adalah QR Code kelas untuk melakukan absensi.
+              </p>
+            </div>
+
+            {/* QR Image Wrapper */}
+            <div className="bg-[#0f172a] p-4 rounded-3xl w-full flex items-center justify-center aspect-square max-w-[320px]">
+              <div className="bg-white p-4 rounded-xl shadow-inner w-full h-full flex justify-center items-center">
+                {/* Using API for generating dummy QR based on class ID */}
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedClass.id)}`}
+                  alt={`QR Code ${selectedClass.nama_kelas}`}
+                  className="w-full h-full object-contain mix-blend-multiply"
+                />
+              </div>
+            </div>
+
+            <div className="flex w-full justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedClass(null)}
+                fullWidth={false}
+                className="px-6"
+              >
+                Tutup
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handlePrintQR}
+                fullWidth={false}
+                className="px-6"
+              >
+                Cetak QR
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}

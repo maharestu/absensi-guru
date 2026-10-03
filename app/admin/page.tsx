@@ -127,8 +127,8 @@ export default function AdminDashboardPage() {
         <h2 className="text-lg font-bold text-slate-900 mb-4">Aktivitas Terbaru</h2>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
-            <thead>
+        <table className="w-full text-left border-collapse min-w-[600px]">
+          <thead>
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                 <th className="pb-4 font-semibold w-[35%]">AKTIVITAS</th>
                 <th className="pb-4 font-semibold w-[25%]">PENGGUNA</th>
@@ -162,8 +162,8 @@ export default function AdminDashboardPage() {
                 ))
               )}
             </tbody>
-          </table>
-        </div>
+        </table>
+      </div>
       </div>
     </div>
   );

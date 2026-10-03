@@ -117,7 +117,8 @@ export default function PilihStatusPage() {
 
   // Tampilan jika user sudah absen hari ini
   if (isAlreadyAbsen) {
-    const currentStatus = STATUS_LABELS[absenData.status] ?? {
+    const normalizedStatus = (absenData.status || "").toLowerCase();
+    const currentStatus = STATUS_LABELS[normalizedStatus] ?? {
       label: "Hadir",
       color: "text-[#16a34a]",
     };
@@ -173,7 +174,7 @@ export default function PilihStatusPage() {
         </div>
 
         {/* Tombol Selesai */}
-        <div className="mt-60">
+        <div className="mt-8">
           <Button onClick={() => router.push("/guru")}>
             Selesai
           </Button>

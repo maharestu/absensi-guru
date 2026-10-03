@@ -3,30 +3,48 @@
 import React, { useState } from "react";
 import { Clock, Calendar } from "lucide-react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
+import { useEffect } from "react";
 
-// --- MOCK DATA FOR LAPORAN MENGAJAR ---
-const MOCK_LAPORAN_MENGAJAR = [
-  { id: 1, tanggal: "17 Sep 2026", nama: "Ahmad Fauzan, S.Pd.", kelasMapel: "VII A / Matematika", waktu: "06:30 - 8:00", status: "Mengajar" },
-  { id: 2, tanggal: "17 Sep 2026", nama: "Siti Rahmawati, S.Pd.", kelasMapel: "VIII B / IPA", waktu: "06:30 - 8:00", status: "Mengajar" },
-  { id: 3, tanggal: "17 Sep 2026", nama: "Dimas Pratama, S.Pd.", kelasMapel: "VII B / Seni Budaya", waktu: "8:30 - 10:00", status: "—" },
-  { id: 4, tanggal: "16 Sep 2026", nama: "Nadia Kusuma, S.Pd.", kelasMapel: "IX A / Kimia", waktu: "06:30 - 8:00", status: "Mengajar" },
-  { id: 5, tanggal: "16 Sep 2026", nama: "Rudi Hartono, S.Pd.", kelasMapel: "IX B / Olahraga", waktu: "10:00 - 12:30", status: "—" },
-  { id: 6, tanggal: "16 Sep 2026", nama: "Lina Marlina, S.Pd.", kelasMapel: "VIII C / IPS", waktu: "10:00 - 12:30", status: "Mengajar" },
-];
 
-// --- MOCK DATA FOR LAPORAN KEHADIRAN ---
-const MOCK_LAPORAN_KEHADIRAN = [
-  { id: 1, tanggal: "17 Sep 2026", nama: "Ahmad Fauzan, S.Pd.", waktu_masuk: "06:52", status: "Hadir" },
-  { id: 2, tanggal: "17 Sep 2026", nama: "Siti Rahmawati, S.Pd.", waktu_masuk: "06:58", status: "Hadir" },
-  { id: 3, tanggal: "17 Sep 2026", nama: "Dimas Pratama, S.Pd.", waktu_masuk: "—", status: "Izin" },
-  { id: 4, tanggal: "16 Sep 2026", nama: "Nadia Kusuma, S.Pd.", waktu_masuk: "07:06", status: "Hadir" },
-  { id: 5, tanggal: "16 Sep 2026", nama: "Rudi Hartono, S.Pd.", waktu_masuk: "—", status: "Sakit" },
-];
 
 export default function LaporanAbsensiPage() {
   const { timeString, dateString } = useRealtimeClock();
   const [activeTab, setActiveTab] = useState<"kehadiran" | "mengajar">("kehadiran");
   const [isFiltered, setIsFiltered] = useState(true);
+  const [laporanKehadiran, setLaporanKehadiran] = useState<LaporanKehadiran[]>([]);
+  const [laporanMengajar, setLaporanMengajar] = useState<LaporanMengajar[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Hitung jumlah statistik Kehadiran secara dinamis
+  const countHadir = laporanKehadiran.filter((r) => r.status.toLowerCase() === "hadir").length;
+  const countIzin = laporanKehadiran.filter((r) => r.status.toLowerCase() === "izin").length;
+  const countSakit = laporanKehadiran.filter((r) => r.status.toLowerCase() === "sakit").length;
+  // Karena laporanKehadiran hanya berisi yang sudah absen, kita pakai '-' atau hitung 0
+  const countTidakHadir = 0;
+
+  // Hitung jumlah statistik Mengajar secara dinamis
+  const countMengajar = laporanMengajar.length;
+  const countJadwal = laporanMengajar.length;
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [kehadiran, mengajar] = await Promise.all([
+          getLaporanKehadiran(),
+          getLaporanMengajar()
+        ]);
+        setLaporanKehadiran(kehadiran);
+        setLaporanMengajar(mengajar);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const handleTampilkan = () => {
     setIsFiltered(true);
@@ -216,7 +234,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Jadwal</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">135</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countJadwal}</h2>
               </div>
             </div>
 
@@ -230,7 +248,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Mengajar</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">130</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countMengajar}</h2>
               </div>
             </div>
           </div>
@@ -261,7 +279,7 @@ export default function LaporanAbsensiPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {MOCK_LAPORAN_MENGAJAR.map((row) => (
+                  {laporanMengajar.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
@@ -293,7 +311,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Guru Hadir</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">135</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countHadir}</h2>
               </div>
             </div>
 
@@ -309,7 +327,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Izin</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">15</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countIzin}</h2>
               </div>
             </div>
 
@@ -327,7 +345,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">5</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countSakit}</h2>
               </div>
             </div>
 
@@ -343,7 +361,7 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Tidak Hadir</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">9</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countTidakHadir}</h2>
               </div>
             </div>
           </div>
@@ -373,7 +391,7 @@ export default function LaporanAbsensiPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {MOCK_LAPORAN_KEHADIRAN.map((row) => (
+                  {laporanKehadiran.map((row) => (
                     <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
