@@ -7,6 +7,31 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { uploadFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 
+export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("absensi_masuk")
+      .select("status, waktu_submit")
+      .eq("guru_id", guruId)
+      .eq("tanggal", tanggal)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error cekStatusAbsensiHariIni:", error);
+      return { completed: false };
+    }
+
+    if (data) {
+      return { completed: true, status: data.status, waktu: data.waktu_submit };
+    }
+    
+    return { completed: false };
+  } catch (error) {
+    console.error("Error cekStatusAbsensiHariIni:", error);
+    return { completed: false };
+  }
+}
+
 export async function submitPresensiMasukAction(formData: FormData) {
   try {
     const guruId = formData.get("guruId") as string;
@@ -18,6 +43,18 @@ export async function submitPresensiMasukAction(formData: FormData) {
 
     if (!guruId || !tanggal || !status || !file) {
       throw new Error("Data presensi tidak lengkap.");
+    }
+
+    // CEK DUPLIKASI SEBELUM UPLOAD FOTO (Mencegah pemborosan storage)
+    const { data: existingData } = await supabaseAdmin
+      .from("absensi_masuk")
+      .select("id")
+      .eq("guru_id", guruId)
+      .eq("tanggal", tanggal)
+      .maybeSingle();
+      
+    if (existingData) {
+      throw new Error("Anda sudah melakukan absensi untuk tanggal ini.");
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());

@@ -91,21 +91,67 @@ export default function PilihStatusPage() {
   });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const completed = sessionStorage.getItem("absensi_completed") === "true";
+    let isMounted = true;
+    async function checkStatus() {
+      if (!user?.guru_id) return;
+      
+      const sessCompleted = sessionStorage.getItem("absensi_completed") === "true";
       const dynamic = getDynamicDateTime();
-      if (completed) {
-        setIsAlreadyAbsen(true);
-        setAbsenData({
-          status: sessionStorage.getItem("absensi_status") ?? "hadir",
-          time: sessionStorage.getItem("absensi_time") ?? dynamic.time,
-          date: sessionStorage.getItem("absensi_date") ?? dynamic.date,
-        });
-      } else {
-        setIsAlreadyAbsen(false);
+
+      if (sessCompleted) {
+        if (isMounted) {
+          setIsAlreadyAbsen(true);
+          setAbsenData({
+            status: sessionStorage.getItem("absensi_status") ?? "hadir",
+            time: sessionStorage.getItem("absensi_time") ?? dynamic.time,
+            date: sessionStorage.getItem("absensi_date") ?? dynamic.date,
+          });
+        }
+        return;
+      }
+
+      try {
+        const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
+        // Gunakan tanggal lokal
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+        
+        const result = await cekStatusAbsensiHariIni(user.guru_id, localDate);
+        
+        if (isMounted) {
+          if (result.completed) {
+            sessionStorage.setItem("absensi_completed", "true");
+            sessionStorage.setItem("absensi_status", result.status || "hadir");
+            
+            const dbDate = result.waktu ? new Date(result.waktu) : new Date();
+            const timeStr = dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+            const dateStr = dbDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            
+            sessionStorage.setItem("absensi_time", timeStr);
+            sessionStorage.setItem("absensi_date", dateStr);
+
+            setIsAlreadyAbsen(true);
+            setAbsenData({
+              status: result.status || "hadir",
+              time: timeStr,
+              date: dateStr,
+            });
+          } else {
+            setIsAlreadyAbsen(false);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        if (isMounted) setIsAlreadyAbsen(false);
       }
     }
-  }, []);
+    
+    if (typeof window !== "undefined") {
+      checkStatus();
+    }
+    
+    return () => { isMounted = false; };
+  }, [user]);
 
   const handleSelect = (statusId: string) => {
     router.push(`/guru/presensi/${statusId}`);

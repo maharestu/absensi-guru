@@ -42,7 +42,7 @@ export async function getJadwalByGuruAndHari(
 
   if (guruId) query = query.eq("guru_id", guruId);
   if (kelasId) query = query.eq("kelas_id", kelasId);
-  if (hari) query = query.ilike("hari", hari);
+  if (hari) query = query.eq("hari", hari);
 
   const { data, error } = await query.order("jam_mulai");
 

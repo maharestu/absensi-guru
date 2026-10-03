@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 // Tingkatan kelas bersifat statis (tidak perlu dari DB)
 const TINGKATAN_KELAS = [
@@ -14,21 +15,56 @@ const TINGKATAN_KELAS = [
 
 export default function PresensiMengajarPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    let isMounted = true;
+    
+    async function checkStatus() {
+      if (!user?.guru_id) return;
+      
       const completed = sessionStorage.getItem("absensi_completed") === "true";
       const status = sessionStorage.getItem("absensi_status");
 
-      // Absensi Mengajar HANYA bisa diakses jika user sudah absen HADIR hari ini
-      if (completed && status === "hadir") {
-        setCanAccess(true);
-      } else {
-        setCanAccess(false);
+      if (completed) {
+        if (isMounted) setCanAccess(status === "hadir");
+        return;
+      }
+
+      try {
+        const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+        
+        const result = await cekStatusAbsensiHariIni(user.guru_id, localDate);
+        
+        if (isMounted) {
+          if (result.completed) {
+            sessionStorage.setItem("absensi_completed", "true");
+            sessionStorage.setItem("absensi_status", result.status || "hadir");
+            
+            const dbDate = result.waktu ? new Date(result.waktu) : new Date();
+            sessionStorage.setItem("absensi_time", dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
+            sessionStorage.setItem("absensi_date", dbDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+            
+            setCanAccess(result.status === "hadir");
+          } else {
+            setCanAccess(false);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        if (isMounted) setCanAccess(false);
       }
     }
-  }, []);
+
+    if (typeof window !== "undefined") {
+      checkStatus();
+    }
+
+    return () => { isMounted = false; };
+  }, [user]);
 
   const handleSelectTingkat = (tingkatId: string) => {
     router.push(`/guru/presensi-mengajar/${tingkatId}`);
