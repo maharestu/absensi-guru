@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Button from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 const STATUS_TITLES: Record<string, string> = {
   hadir: "Absensi Kehadiran",
@@ -13,6 +14,7 @@ const STATUS_TITLES: Record<string, string> = {
 
 function BerhasilContent() {
   const router = useRouter();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const status = searchParams.get("status") ?? "hadir";
   const title = STATUS_TITLES[status] ?? "Absensi";
@@ -38,6 +40,9 @@ function BerhasilContent() {
       sessionStorage.setItem("absensi_status", status);
       sessionStorage.setItem("absensi_time", `${hours}:${minutes} WIB`);
       sessionStorage.setItem("absensi_date", `${dayName}, ${date} ${month} ${year}`);
+      if (user?.guru_id) {
+        sessionStorage.setItem("absensi_guru_id", user.guru_id);
+      }
     }
     router.push("/guru");
   };

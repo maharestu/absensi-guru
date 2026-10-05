@@ -95,10 +95,19 @@ export default function PilihStatusPage() {
     async function checkStatus() {
       if (!user?.guru_id) return;
       
+      // Validasi: cache hanya berlaku untuk guru yang sama
+      const cachedGuruId = sessionStorage.getItem("absensi_guru_id");
       const sessCompleted = sessionStorage.getItem("absensi_completed") === "true";
       const dynamic = getDynamicDateTime();
 
-      if (sessCompleted) {
+      // Jika guru_id berbeda, hapus cache lama
+      if (cachedGuruId && cachedGuruId !== user.guru_id) {
+        sessionStorage.removeItem("absensi_completed");
+        sessionStorage.removeItem("absensi_status");
+        sessionStorage.removeItem("absensi_time");
+        sessionStorage.removeItem("absensi_date");
+        sessionStorage.removeItem("absensi_guru_id");
+      } else if (sessCompleted && cachedGuruId === user.guru_id) {
         if (isMounted) {
           setIsAlreadyAbsen(true);
           setAbsenData({
@@ -122,6 +131,7 @@ export default function PilihStatusPage() {
           if (result.completed) {
             sessionStorage.setItem("absensi_completed", "true");
             sessionStorage.setItem("absensi_status", result.status || "hadir");
+            sessionStorage.setItem("absensi_guru_id", user.guru_id);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
             const timeStr = dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });

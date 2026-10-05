@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    // Bersihkan semua cache absensi di sessionStorage agar tidak bocor ke user berikutnya
+    sessionStorage.clear();
     router.push("/login");
   };
 

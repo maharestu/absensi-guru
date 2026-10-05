@@ -32,10 +32,19 @@ export default function PresensiMengajarPage() {
     async function checkStatus() {
       if (!user?.guru_id) return;
       
+      // Validasi: cache hanya berlaku untuk guru yang sama
+      const cachedGuruId = sessionStorage.getItem("absensi_guru_id");
       const completed = sessionStorage.getItem("absensi_completed") === "true";
       const status = sessionStorage.getItem("absensi_status");
 
-      if (completed) {
+      // Jika guru_id berbeda, hapus cache lama
+      if (cachedGuruId && cachedGuruId !== user.guru_id) {
+        sessionStorage.removeItem("absensi_completed");
+        sessionStorage.removeItem("absensi_status");
+        sessionStorage.removeItem("absensi_time");
+        sessionStorage.removeItem("absensi_date");
+        sessionStorage.removeItem("absensi_guru_id");
+      } else if (completed && cachedGuruId === user.guru_id) {
         if (isMounted) setCanAccess(status === "hadir");
         return;
       }
@@ -51,6 +60,7 @@ export default function PresensiMengajarPage() {
           if (result.completed) {
             sessionStorage.setItem("absensi_completed", "true");
             sessionStorage.setItem("absensi_status", result.status || "hadir");
+            sessionStorage.setItem("absensi_guru_id", user.guru_id);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
             sessionStorage.setItem("absensi_time", dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
