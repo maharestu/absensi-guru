@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import ImageUploader from "@/components/ui/image-uploader";
 import Button from "@/components/ui/button";
+import { convertToWebp } from "@/lib/image-utils";
 
 export default function SakitPage() {
   const router = useRouter();
@@ -13,8 +14,20 @@ export default function SakitPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showError, setShowError] = useState(false);
 
-  const handleFileSelect = (_file: File, url: string) => {
-    setPreviewUrl(url);
+  const handleFileSelect = async (file: File, url: string) => {
+    try {
+      const webpBlob = await convertToWebp(file, 0.75);
+      const reader = new FileReader();
+      reader.readAsDataURL(webpBlob);
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        sessionStorage.setItem("absensi_captured_photo", base64data);
+        setPreviewUrl(base64data);
+      };
+    } catch (err) {
+      console.error("Gagal convert ke webp", err);
+      setPreviewUrl(url);
+    }
     if (showError) setShowError(false);
   };
 
@@ -25,8 +38,8 @@ export default function SakitPage() {
     }
 
     setIsUploading(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setIsUploading(false);
+    sessionStorage.setItem("absensi_keterangan", keterangan);
+    router.push("/guru/presensi/verifikasi?status=sakit");
 
     router.push("/guru/presensi/verifikasi?status=sakit");
   };
