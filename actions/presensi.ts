@@ -146,3 +146,29 @@ export async function submitPresensiMengajarAction(formData: FormData) {
     return { success: false, error: error.message };
   }
 }
+
+export async function verifyQrKelas(jadwalId: string, scannedQr: string): Promise<boolean> {
+  try {
+    const { data: jadwal } = await supabaseAdmin
+      .from("jadwal")
+      .select("kelas_id")
+      .eq("id", jadwalId)
+      .single();
+      
+    if (!jadwal) return false;
+
+    const { data: kelas } = await supabaseAdmin
+      .from("kelas")
+      .select("id, kode_qr")
+      .eq("id", jadwal.kelas_id)
+      .single();
+
+    if (!kelas) return false;
+
+    // Cocokkan baik ke kode_qr maupun id (fallback)
+    return kelas.kode_qr === scannedQr || kelas.id === scannedQr;
+  } catch (error) {
+    console.error("verifyQrKelas Error:", error);
+    return false;
+  }
+}

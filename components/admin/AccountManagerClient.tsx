@@ -50,6 +50,7 @@ export default function AccountManagerClient() {
 
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
 
   const loadData = async () => {
     try {
@@ -187,6 +188,11 @@ export default function AccountManagerClient() {
       return;
     }
 
+    if (createForm.role === "guru" && !createForm.guru_id) {
+      alert("Validasi Gagal: Untuk Role Guru, nama pemilik akun harus terdaftar di sistem. Silakan pilih dari daftar pencarian.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       const res = await createAkun({
@@ -222,140 +228,7 @@ export default function AccountManagerClient() {
 
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data akun...</div>;
 
-  if (viewMode === "create") {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Tambah Akun</h1>
-            <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu simpan perubahan</p>
-          </div>
-          <ClockBadges />
-        </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
-          <h2 className="text-base font-bold text-slate-900 mb-6 pb-4 border-b border-slate-100">
-            Informasi Akun
-          </h2>
-          <form onSubmit={handleCreateSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Tautkan ke Guru (Opsional)</label>
-                <div className="relative">
-                  <select
-                    value={createForm.guru_id || ""}
-                    onChange={(e) => handleSelectTeacher(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    <option value="">-- Pilih Guru yang Ada --</option>
-                    {teachers.map((guru) => (
-                      <option key={guru.id} value={guru.id}>
-                        {guru.nama} ({guru.nip})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Nama Lengkap</label>
-                <input
-                  type="text"
-                  placeholder="Ketik nama lengkap"
-                  value={createForm.nama}
-                  onChange={(e) => setCreateForm({ ...createForm, nama: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Username</label>
-                <input
-                  type="text"
-                  placeholder="ahmad.f"
-                  value={createForm.username}
-                  onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">NIP (Readonly / Terisi Otomatis)</label>
-                <input
-                  type="text"
-                  placeholder="1987011201"
-                  value={createForm.nip}
-                  readOnly
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-500 bg-slate-50 outline-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Role</label>
-                <div className="relative">
-                  <select
-                    value={createForm.role}
-                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as AdminAkunItem["role"] })}
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
-                  >
-                    {ROLE_OPTIONS.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABEL[r]}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-800">Password</label>
-                <div className="relative">
-                  <input
-                    type={showCreatePassword ? "text" : "password"}
-                    placeholder="Masukkan password"
-                    value={createForm.password}
-                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 pr-12 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCreatePassword(!showCreatePassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
-                  >
-                    {showCreatePassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-              >
-                {submitting ? "Menyimpan..." : "Simpan Perubahan"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -595,6 +468,196 @@ export default function AccountManagerClient() {
               className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
             >
               {submitting ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: TAMBAH AKUN */}
+      <Modal isOpen={viewMode === "create"} onClose={() => setViewMode("list")} maxWidth="max-w-3xl">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Tambah Akun</h3>
+          <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
+        </div>
+        <form onSubmit={handleCreateSubmit} className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Nama Pemilik Akun */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
+              {createForm.role === "guru" ? (
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ketik untuk mencari nama..."
+                    value={createForm.nama}
+                    onFocus={() => setShowTeacherDropdown(true)}
+                    onBlur={() => setShowTeacherDropdown(false)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setShowTeacherDropdown(true);
+                      const found = teachers.find((t) => t.nama.toLowerCase() === val.toLowerCase());
+                      if (found) {
+                        handleSelectTeacher(found.id);
+                      } else {
+                        // Jika mengetik sendiri (custom)
+                        setCreateForm({ ...createForm, nama: val, guru_id: null, nip: "", username: "" });
+                      }
+                    }}
+                    required
+                    autoComplete="off"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                  />
+                  <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform ${showTeacherDropdown ? 'rotate-180' : ''}`} />
+                  
+                  {/* Custom Dropdown UI */}
+                  {showTeacherDropdown && (
+                    <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                      {teachers
+                        .filter((g) => g.nama.toLowerCase().includes(createForm.nama.toLowerCase()))
+                        .map((guru) => (
+                          <button
+                            key={guru.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()} // Mencegah input kehilangan fokus (blur) sebelum onClick dipicu
+                            onClick={() => {
+                              handleSelectTeacher(guru.id);
+                              setShowTeacherDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
+                          >
+                            <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
+                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
+                          </button>
+                      ))}
+                      {teachers.filter((g) => g.nama.toLowerCase().includes(createForm.nama.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-red-500 text-center font-medium">
+                          Data guru "{createForm.nama}" tidak ditemukan di sistem.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  placeholder=""
+                  value={createForm.nama}
+                  onChange={(e) => setCreateForm({ ...createForm, nama: e.target.value })}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                />
+              )}
+            </div>
+
+            {/* Username */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">Username</label>
+              <input
+                type="text"
+                placeholder=""
+                value={createForm.username}
+                onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
+                required
+                autoComplete="off"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              />
+            </div>
+
+            {/* NIP */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">NIP</label>
+              <input
+                type="text"
+                placeholder=""
+                value={createForm.nip}
+                readOnly
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-500 bg-slate-50 outline-none cursor-not-allowed"
+              />
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">Role</label>
+              <div className="relative">
+                <select
+                  value={createForm.role}
+                  onChange={(e) => {
+                    const newRole = e.target.value as AdminAkunItem["role"];
+                    setCreateForm({ ...createForm, role: newRole, guru_id: newRole !== "guru" ? null : createForm.guru_id, nama: newRole !== "guru" ? "" : createForm.nama });
+                  }}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
+                  <option value="" disabled>Pilih role</option>
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Status akun */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">Status akun</label>
+              <div className="relative">
+                <select
+                  value={createForm.status}
+                  onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as AdminAkunItem["status"] })}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white appearance-none cursor-pointer"
+                >
+                  <option value="" disabled>Pilih status akun</option>
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="space-y-2 flex flex-col">
+              <label className="block text-xs font-semibold text-slate-800">Password</label>
+              <div className="relative">
+                <input
+                  type={showCreatePassword ? "text" : "password"}
+                  placeholder=""
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  required
+                  autoComplete="new-password"
+                  className="w-full px-4 py-2.5 pr-12 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCreatePassword(!showCreatePassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                >
+                  {showCreatePassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
+                </button>
+              </div>
+            </div>
+            
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              disabled={submitting}
+              className="px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {submitting ? "Menyimpan..." : "Tambah Data"}
             </button>
           </div>
         </form>

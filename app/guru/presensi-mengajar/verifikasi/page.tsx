@@ -2,8 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import PageHeader from "@/components/ui/page-header";
-import Button from "@/components/ui/button";
+import Link from "next/link";
 import { getJadwalById } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
 
@@ -64,40 +63,66 @@ function VerifikasiMengajarContent() {
   const todayFormatted = formatTanggal(new Date());
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
-      <PageHeader
-        backHref={backHref}
-        title="Verifikasi Absensi"
-        subtitle="Pastikan data absensi mengajar Anda sudah benar."
-      />
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC] px-6 pt-12 pb-6">
+      {/* Header Baru */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <Link 
+            href={backHref}
+            className="w-11 h-11 bg-white border border-slate-200 rounded-[14px] flex items-center justify-center text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+          </Link>
+          <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">
+            Verifikasi Absensi
+          </h1>
+        </div>
+      </div>
+      <p className="text-[14px] text-slate-500 mb-6 leading-relaxed pr-4">
+        Pastikan data absensi mengajar Anda sudah benar.
+      </p>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-1">
+      <div className="bg-white rounded-[24px] border border-slate-100 shadow-sm px-5 py-2">
         <div className="py-4 border-b border-slate-100">
-          <p className="text-xs font-medium text-slate-400 mb-1">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">
             Tanggal Absensi Mengajar
           </p>
-          <p className="text-base font-bold text-slate-900">{todayFormatted}</p>
+          <p className="text-[15px] font-bold text-slate-900">{todayFormatted}</p>
         </div>
 
         <div className="py-4 border-b border-slate-100">
-          <p className="text-xs font-medium text-slate-400 mb-1">
-            Kelas / Mata Pelajaran
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Nama</p>
+          <p className="text-[15px] font-bold text-slate-900">
+            {loading ? "Memuat..." : (Array.isArray(jadwal?.guru) ? jadwal?.guru[0]?.nama : jadwal?.guru?.nama) || "Tidak diketahui"}
           </p>
-          <p className="text-base font-bold text-slate-900">
-            {loading ? "Memuat..." : jadwal ? `${jadwal.kelas?.nama_kelas} • ${jadwal.mata_pelajaran}` : "Tidak diketahui"}
+        </div>
+
+        <div className="py-4 border-b border-slate-100">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Kelas</p>
+          <p className="text-[15px] font-bold text-slate-900">
+            {loading ? "Memuat..." : (Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0]?.nama_kelas : jadwal?.kelas?.nama_kelas) || "Tidak diketahui"}
+          </p>
+        </div>
+
+        <div className="py-4 border-b border-slate-100">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Mata Pelajaran</p>
+          <p className="text-[15px] font-bold text-slate-900">
+            {loading ? "Memuat..." : jadwal?.mata_pelajaran || "Tidak diketahui"}
           </p>
         </div>
 
         <div className="py-4">
-          <p className="text-xs font-medium text-slate-400 mb-1">Jadwal</p>
-          <p className="text-base font-bold text-slate-900">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Jadwal</p>
+          <p className="text-[15px] font-bold text-slate-900">
              {loading ? "Memuat..." : jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "Tidak diketahui"}
           </p>
         </div>
       </div>
 
       {photoUrl && (
-        <div className="w-full h-[240px] sm:h-[260px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60 mt-6">
+        <div className="w-full h-[220px] relative rounded-[28px] overflow-hidden shadow-sm border border-slate-200 mt-6 mb-8">
           <img
             src={photoUrl}
             alt="Foto Selfie Mengajar"
@@ -106,19 +131,14 @@ function VerifikasiMengajarContent() {
         </div>
       )}
 
-      <div className="mt-8 flex gap-3">
-        <div className="flex-shrink-0 mt-1">
-          <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Dengan mengklik konfirmasi, saya menyatakan bahwa saya benar-benar mengajar di kelas ini sesuai jadwal yang tertera.
-        </p>
-      </div>
-
-      <div className="w-full mt-auto pt-8">
-        <Button onClick={handleSubmit} disabled={loading}>Konfirmasi & Simpan</Button>
+      <div className="w-full mt-auto">
+        <button 
+          onClick={handleSubmit} 
+          disabled={loading}
+          className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-[16px] font-bold shadow-sm transition-all"
+        >
+          Kirim
+        </button>
       </div>
     </div>
   );

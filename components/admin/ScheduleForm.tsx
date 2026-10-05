@@ -93,40 +93,6 @@ export default function ScheduleForm({
           </Select>
         </div>
 
-        {/* Guru */}
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-800">
-            Guru Pengajar
-          </label>
-          <Select
-            value={form.guru_id}
-            onChange={(e) => setForm({ ...form, guru_id: e.target.value })}
-            required
-          >
-            {guruList.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.nama}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        {/* Mata Pelajaran */}
-        <div className="space-y-2">
-          <label className="block text-xs font-semibold text-slate-800">
-            Mata Pelajaran
-          </label>
-          <Input
-            type="text"
-            placeholder="Contoh: Matematika"
-            value={form.mata_pelajaran}
-            onChange={(e) =>
-              setForm({ ...form, mata_pelajaran: e.target.value })
-            }
-            required
-          />
-        </div>
-
         {/* Jam Mulai */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-slate-800">
@@ -153,6 +119,40 @@ export default function ScheduleForm({
             onChange={(e) => setForm({ ...form, jam_selesai: e.target.value })}
             required
           />
+        </div>
+
+        {/* Mata Pelajaran */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-800">
+            Mata Pelajaran
+          </label>
+          <Input
+            type="text"
+            placeholder="Contoh: Matematika"
+            value={form.mata_pelajaran}
+            onChange={(e) =>
+              setForm({ ...form, mata_pelajaran: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        {/* Guru */}
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-slate-800">
+            Guru Pengajar
+          </label>
+          <Select
+            value={form.guru_id}
+            onChange={(e) => setForm({ ...form, guru_id: e.target.value })}
+            required
+          >
+            {guruList.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nama}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 

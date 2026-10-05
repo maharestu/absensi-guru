@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
-import Button from "@/components/ui/button";
 
 function FotoSelfieKelasContent() {
   const router = useRouter();
@@ -68,6 +67,12 @@ function FotoSelfieKelasContent() {
     }
   };
 
+  const handleBypass = () => {
+    // 1x1 transparent png
+    const dummyImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+    setPhoto(dummyImage);
+  };
+
   const handleRetake = () => {
     setPhoto(null);
   };
@@ -83,16 +88,16 @@ function FotoSelfieKelasContent() {
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
+    <div className="flex flex-col min-h-screen bg-[#F8FAFC] px-6 pt-12 pb-10">
       <PageHeader
         backHref={`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}${hariQuery}`}
-        title="Foto Selfie"
-        subtitle="Ambil foto selfie di dalam ruangan kelas."
+        title="Ambil Foto Mengajar"
+        subtitle="Pastikan wajah Anda terlihat jelas dan pencahayaan cukup."
       />
 
       {!photo ? (
         <>
-          <div className="relative w-full h-[450px] bg-[#0c1322] rounded-[28px] overflow-hidden shadow-lg flex items-center justify-center p-8 border border-slate-800">
+          <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-800 rounded-[28px] overflow-hidden shadow-sm border border-slate-200">
             <video
               ref={videoRef}
               autoPlay
@@ -102,36 +107,33 @@ function FotoSelfieKelasContent() {
             />
 
             {!hasPermission && hasPermission !== null && (
-              <p className="text-white text-sm text-center relative z-10">
-                Akses kamera ditolak atau tidak tersedia.
-              </p>
-            )}
-
-            {hasPermission && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none opacity-40">
-                <svg width="200" height="280" viewBox="0 0 200 280" fill="none">
-                  <ellipse cx="100" cy="140" rx="85" ry="120" stroke="white" strokeWidth="3" strokeDasharray="10 10" />
-                </svg>
+              <div className="absolute inset-0 flex items-center justify-center p-6">
+                <p className="text-white text-sm text-center relative z-10">
+                  Akses kamera ditolak atau tidak tersedia.
+                </p>
               </div>
             )}
           </div>
 
-          <p className="text-center text-sm text-slate-500 mt-6 px-4">
-            Pastikan wajah Anda dan suasana kelas terlihat dengan jelas.
-          </p>
-
-          <div className="w-full mt-auto pt-8">
-            <Button
+          <div className="w-full mt-auto pt-8 flex flex-col gap-4">
+            <button 
+              onClick={handleBypass}
+              className="text-[13px] text-slate-400 hover:text-slate-600 mx-auto underline transition-colors"
+            >
+              Bypass (Testing)
+            </button>
+            <button
               onClick={handleTakePhoto}
               disabled={!hasPermission}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-sm transition-all"
             >
               Ambil Foto
-            </Button>
+            </button>
           </div>
         </>
       ) : (
         <>
-          <div className="relative w-full h-[450px] bg-slate-200 rounded-[28px] overflow-hidden shadow-lg border border-slate-200">
+          <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-200 rounded-[28px] overflow-hidden shadow-sm border border-slate-200">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo}
@@ -140,15 +142,19 @@ function FotoSelfieKelasContent() {
             />
           </div>
 
-          <p className="text-center text-sm text-slate-500 mt-6 px-4">
-            Apakah foto ini sudah terlihat jelas dan menampilkan suasana kelas?
-          </p>
-
-          <div className="w-full mt-auto pt-8 flex flex-col gap-3">
-            <Button onClick={handleContinue}>Gunakan Foto Ini</Button>
-            <Button variant="outline" onClick={handleRetake}>
-              Foto Ulang
-            </Button>
+          <div className="w-full mt-auto pt-8 flex flex-col gap-4">
+            <button 
+              onClick={handleContinue}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-sm transition-all"
+            >
+              Lanjutkan
+            </button>
+            <button 
+              onClick={handleRetake}
+              className="w-full py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 rounded-2xl font-bold shadow-sm transition-all"
+            >
+              Ulangi
+            </button>
           </div>
         </>
       )}

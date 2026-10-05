@@ -4,6 +4,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import jsQR from "jsqr";
+import { verifyQrKelas } from "@/actions/presensi";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -14,8 +16,56 @@ function ScanQrKelasContent() {
   const hari = searchParams.get("hari");
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const requestRef = useRef<number>(0);
+  
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanState, setScanState] = useState<ScanState>("IDLE");
+
+  // Fungsi untuk memproses frame video secara berulang (continuous scan)
+  const tick = () => {
+    if (scanState !== "IDLE" && scanState !== "SCANNING") return;
+    
+    if (videoRef.current && canvasRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code && code.data && jadwalId) {
+          // Jika QR Code ditemukan!
+          processQRCode(code.data);
+          return; // Hentikan loop sementara proses verifikasi berjalan
+        }
+      }
+    }
+    
+    // Ulangi frame berikutnya
+    requestRef.current = requestAnimationFrame(tick);
+  };
+
+  const processQRCode = async (scannedText: string) => {
+    if (!jadwalId) return;
+    setScanState("SCANNING");
+    
+    try {
+      // Panggil backend untuk memverifikasi QR
+      const isSuccess = await verifyQrKelas(jadwalId, scannedText);
+      setScanState(isSuccess ? "SUCCESS" : "FAIL");
+    } catch (err) {
+      console.error(err);
+      setScanState("FAIL");
+    }
+  };
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -31,13 +81,16 @@ function ScanQrKelasContent() {
           videoRef.current.srcObject = stream;
         }
         setHasPermission(true);
+        
+        // Mulai loop scanning begitu kamera menyala
+        requestRef.current = requestAnimationFrame(tick);
       } catch (err) {
         console.error("Gagal mengakses kamera:", err);
         setHasPermission(false);
       }
     };
 
-    if (scanState === "IDLE" || scanState === "SCANNING") {
+    if (scanState === "IDLE") {
       startCamera();
     }
 
@@ -45,15 +98,18 @@ function ScanQrKelasContent() {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
+      }
     };
   }, [scanState]);
 
-  const handleScan = () => {
+  // Tombol bypass untuk keperluan testing (mock success)
+  const handleBypass = () => {
     setScanState("SCANNING");
     setTimeout(() => {
-      const isSuccess = Math.random() > 0.2;
-      setScanState(isSuccess ? "SUCCESS" : "FAIL");
-    }, 1200);
+      setScanState("SUCCESS");
+    }, 1000);
   };
 
   const handleRetake = () => {
@@ -75,7 +131,7 @@ function ScanQrKelasContent() {
         <PageHeader
           backHref={backHref}
           title="Scan QR Kelas"
-          subtitle="Arahkan kamera ke QR code kelas."
+          subtitle="Arahkan kamera ke QR code kelas yang dipilih."
         />
       ) : scanState === "SUCCESS" ? (
         <PageHeader
@@ -85,7 +141,7 @@ function ScanQrKelasContent() {
         />
       ) : (
         <PageHeader
-          backHref={backHref}
+          backHref={undefined}
           title="Scan QR Kelas"
           subtitle="QR code tidak dapat diverifikasi."
         />
@@ -93,14 +149,16 @@ function ScanQrKelasContent() {
 
       {(scanState === "IDLE" || scanState === "SCANNING") && (
         <>
-          <div className="relative w-full h-[450px] bg-[#0c1322] rounded-[28px] overflow-hidden shadow-lg flex items-center justify-center p-8 border border-slate-800">
+          <div className="relative w-full h-[520px] bg-[#0f172a] rounded-[24px] overflow-hidden shadow-lg flex items-center justify-center border border-slate-800">
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className={`absolute inset-0 w-full h-full object-cover ${hasPermission ? "opacity-70" : "hidden"}`}
+              className={`absolute inset-0 w-full h-full object-cover ${hasPermission ? "opacity-60" : "hidden"}`}
             />
+            {/* Hidden canvas for processing frames */}
+            <canvas ref={canvasRef} className="hidden" />
 
             {!hasPermission && hasPermission !== null && (
               <p className="text-white text-sm text-center relative z-10">
@@ -109,13 +167,16 @@ function ScanQrKelasContent() {
             )}
 
             {hasPermission && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                <div className="w-56 h-56 border-[3px] border-white/50 rounded-3xl relative">
-                  <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-3xl"></div>
-                  <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-3xl"></div>
-                  <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-3xl"></div>
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-3xl"></div>
-                </div>
+              <div className="absolute inset-0 z-10 pointer-events-none p-10 flex items-center justify-center">
+                <span className="text-white text-[13px] font-bold tracking-widest absolute">
+                  AREA QR CODE
+                </span>
+                
+                {/* Frame sudut */}
+                <div className="absolute top-12 left-10 w-10 h-10 border-t-[3px] border-l-[3px] border-white"></div>
+                <div className="absolute top-12 right-10 w-10 h-10 border-t-[3px] border-r-[3px] border-white"></div>
+                <div className="absolute bottom-12 left-10 w-10 h-10 border-b-[3px] border-l-[3px] border-white"></div>
+                <div className="absolute bottom-12 right-10 w-10 h-10 border-b-[3px] border-r-[3px] border-white"></div>
               </div>
             )}
 
@@ -126,58 +187,56 @@ function ScanQrKelasContent() {
             )}
           </div>
 
-          <p className="text-center text-sm text-slate-500 mt-6 px-4">
-            Posisikan QR Code kelas di dalam area kotak untuk melakukan verifikasi.
-          </p>
-
-          <div className="w-full mt-auto pt-8">
+          <div className="w-full mt-auto pt-8 flex flex-col gap-3">
             <Button
-              onClick={handleScan}
-              disabled={scanState === "SCANNING" || !hasPermission}
+              onClick={handleBypass}
+              variant="outline"
+              disabled={scanState === "SCANNING"}
+              className="border-slate-300 text-slate-500 hover:bg-slate-50"
             >
-              {scanState === "SCANNING" ? "Memverifikasi..." : "Verifikasi QR"}
+              Bypass Verifikasi (Testing)
             </Button>
           </div>
         </>
       )}
 
       {scanState === "SUCCESS" && (
-        <div className="flex-1 flex flex-col justify-center items-center text-center -mt-20">
-          <div className="w-24 h-24 bg-[#10b981] rounded-full flex items-center justify-center text-white mb-6 shadow-xl shadow-emerald-200 animate-in zoom-in duration-300">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
+        <div className="flex flex-col h-full mt-6">
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-10 text-center animate-in zoom-in duration-300">
+            <div className="w-14 h-14 bg-[#10b981] rounded-full flex items-center justify-center text-white mb-6 shadow-md shadow-emerald-200">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <h2 className="text-[22px] font-bold text-slate-900 leading-tight mb-3 px-4">
+              QR Code Kelas Sudah Valid
+            </h2>
+            <p className="text-sm text-slate-500">
+              QR Code berhasil diverifikasi.
+            </p>
           </div>
-          <h2 className="text-[24px] font-bold text-slate-900 mb-3">
-            QR Code Valid!
-          </h2>
-          <p className="text-sm text-slate-500 mb-10 px-4 leading-relaxed">
-            Sistem telah berhasil memverifikasi QR Code ruangan. Silakan lanjutkan ke tahap berikutnya.
-          </p>
-          <div className="w-full mt-auto">
+          <div className="w-full mt-10">
             <Button onClick={handleContinue}>Lanjutkan</Button>
           </div>
         </div>
       )}
 
       {scanState === "FAIL" && (
-        <div className="flex-1 flex flex-col justify-center items-center text-center -mt-20">
-          <div className="w-24 h-24 bg-[#ef4444] rounded-full flex items-center justify-center text-white mb-6 shadow-xl shadow-red-200 animate-in zoom-in duration-300">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+        <div className="flex flex-col h-full mt-6">
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-10 text-center animate-in zoom-in duration-300">
+            <div className="w-14 h-14 bg-[#ef4444] rounded-full flex items-center justify-center text-white mb-6 shadow-md shadow-red-200">
+              <span className="font-bold text-2xl leading-none">!</span>
+            </div>
+            <h2 className="text-[22px] font-bold text-slate-900 leading-tight mb-3 px-2">
+              Qr Code Kelas Tidak Valid
+            </h2>
+            <p className="text-sm text-slate-500 leading-relaxed px-2">
+              QR tidak sesuai dengan kelas yang dipilih atau sudah tidak berlaku.
+            </p>
           </div>
-          <h2 className="text-[24px] font-bold text-slate-900 mb-3">
-            Verifikasi Gagal
-          </h2>
-          <p className="text-sm text-slate-500 mb-10 px-4 leading-relaxed">
-            QR Code tidak dikenali atau tidak cocok dengan ruangan kelas jadwal ini. Pastikan Anda scan di kelas yang benar.
-          </p>
-          <div className="w-full mt-auto flex flex-col gap-3">
-            <Button onClick={handleRetake}>Coba Lagi</Button>
-            <Button variant="outline" onClick={() => router.push(backHref)}>
-              Kembali ke Jadwal
+          <div className="w-full mt-10">
+            <Button variant="outline" onClick={handleRetake} className="border-slate-200 text-slate-900 font-bold hover:bg-slate-50">
+              Pindai Ulang QR
             </Button>
           </div>
         </div>

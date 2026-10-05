@@ -191,51 +191,7 @@ export default function ScheduleManagerClient() {
     return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data jadwal...</div>;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // VIEW: TAMBAH JADWAL
-  // ═══════════════════════════════════════════════════════════
-  if (viewMode === "create") {
-    return (
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">
-              Tambah Jadwal
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Lengkapi data berikut, lalu tambah ke daftar jadwal.
-            </p>
-          </div>
 
-          {/* Badges */}
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-              <span className="text-sm font-semibold text-slate-700">{timeString}</span>
-            </div>
-            <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-              <span className="text-sm font-semibold text-slate-700">{dateString}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card Form */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
-          <h2 className="text-base font-bold text-slate-900 mb-6">Informasi Jadwal</h2>
-
-          <ScheduleForm
-            initialData={createForm}
-            kelasList={kelasList}
-            guruList={guruList}
-            onSubmit={handleCreateSubmit}
-            onCancel={() => setViewMode("list")}
-            submitting={submitting}
-            submitText="Tambah Data"
-          />
-        </div>
-      </div>
-    );
-  }
 
   // ═══════════════════════════════════════════════════════════
   // VIEW: DAFTAR JADWAL
@@ -392,7 +348,7 @@ export default function ScheduleManagerClient() {
       {/* MODAL: UPDATE JADWAL */}
       {editingSchedule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-2xl bg-white rounded-3xl p-8 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
+          <div className="w-full max-w-3xl bg-white rounded-3xl p-8 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div>
               <h3 className="text-xl font-bold text-slate-900">Update Jadwal</h3>
               <p className="text-xs text-slate-400 mt-0.5">Perbarui waktu dan informasi jadwal mengajar.</p>
@@ -407,6 +363,29 @@ export default function ScheduleManagerClient() {
                 onCancel={() => setEditingSchedule(null)}
                 submitting={submitting}
                 submitText="Simpan Perubahan"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH JADWAL */}
+      {viewMode === "create" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-3xl bg-white rounded-3xl p-8 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Tambah Jadwal</h3>
+              <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
+            </div>
+            <div className="mt-6">
+              <ScheduleForm
+                initialData={createForm}
+                kelasList={kelasList}
+                guruList={guruList}
+                onSubmit={handleCreateSubmit}
+                onCancel={() => setViewMode("list")}
+                submitting={submitting}
+                submitText="Tambah Data"
               />
             </div>
           </div>

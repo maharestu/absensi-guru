@@ -157,31 +157,7 @@ export default function TeacherManagerClient() {
 
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data guru...</div>;
 
-  if (viewMode === "create") {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">Tambah Data Guru</h1>
-            <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar guru.</p>
-          </div>
-          <ClockBadges />
-        </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm">
-          <h2 className="text-base font-bold text-slate-900 mb-6">Informasi Guru</h2>
-
-          <TeacherForm
-            initialData={createForm}
-            onSubmit={handleCreateSubmit}
-            onCancel={() => setViewMode("list")}
-            submitting={submitting}
-            submitText="Tambah Guru"
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -313,7 +289,7 @@ export default function TeacherManagerClient() {
         </div>
       </Modal>
 
-      <Modal isOpen={!!editingTeacher} onClose={() => setEditingTeacher(null)} maxWidth="max-w-2xl">
+      <Modal isOpen={!!editingTeacher} onClose={() => setEditingTeacher(null)} maxWidth="max-w-3xl">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Update Data Guru</h3>
           <p className="text-xs text-slate-400 mt-0.5">Perbarui informasi guru yang dipilih.</p>
@@ -325,6 +301,22 @@ export default function TeacherManagerClient() {
             onCancel={() => setEditingTeacher(null)}
             submitting={submitting}
             submitText="Simpan Perubahan"
+          />
+        </div>
+      </Modal>
+
+      <Modal isOpen={viewMode === "create"} onClose={() => setViewMode("list")} maxWidth="max-w-3xl">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900">Tambah Data Guru</h3>
+          <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
+        </div>
+        <div className="mt-6">
+          <TeacherForm
+            initialData={createForm}
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setViewMode("list")}
+            submitting={submitting}
+            submitText="Tambah Data"
           />
         </div>
       </Modal>

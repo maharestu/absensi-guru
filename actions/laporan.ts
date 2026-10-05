@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export interface LaporanKehadiran {
   id: string;
+  guru_id: string;
   tanggal: string;
   nama: string;
   waktu_masuk: string;
@@ -12,6 +13,8 @@ export interface LaporanKehadiran {
 
 export interface LaporanMengajar {
   id: string;
+  guru_id: string;
+  kelas_id: string;
   tanggal: string;
   nama: string;
   kelasMapel: string;
@@ -22,19 +25,20 @@ export interface LaporanMengajar {
 export async function getLaporanKehadiran(): Promise<LaporanKehadiran[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_masuk")
-    .select("id, tanggal, waktu_submit, status, guru(nama)")
+    .select("id, guru_id, tanggal, waktu_submit, status, guru(nama)")
     .order("waktu_submit", { ascending: false });
 
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row: any) => ({
     id: row.id,
+    guru_id: row.guru_id ?? "",
     tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
       day: "2-digit",
       month: "short",
       year: "numeric"
     }),
-    nama: row.guru?.nama ?? "-",
+    nama: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
     waktu_masuk: row.status === "hadir" 
       ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) 
       : "—",
@@ -45,7 +49,7 @@ export async function getLaporanKehadiran(): Promise<LaporanKehadiran[]> {
 export async function getLaporanMengajar(): Promise<LaporanMengajar[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_mengajar")
-    .select("id, tanggal, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))")
+    .select("id, tanggal, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru_id, kelas_id, guru(nama), kelas(nama_kelas))")
     .order("waktu_submit", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -57,6 +61,8 @@ export async function getLaporanMengajar(): Promise<LaporanMengajar[]> {
 
     return {
       id: row.id,
+      guru_id: jadwal?.guru_id ?? "",
+      kelas_id: jadwal?.kelas_id ?? "",
       tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "short",

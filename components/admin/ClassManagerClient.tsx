@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Edit2, Trash2 } from "lucide-react";
 import { Kelas } from "@/types/schema";
-import { getKelasList } from "@/actions/kelas";
+import { getKelasList, createKelas, updateKelas, deleteKelas } from "@/actions/kelas";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Modal } from "./ui/Modal";
 import { Button } from "../ui/button";
@@ -13,20 +14,28 @@ export default function ClassManagerClient() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Kelas | null>(null);
 
+  const [createMode, setCreateMode] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [editingClass, setEditingClass] = useState<Kelas | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deletingClass, setDeletingClass] = useState<Kelas | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const { timeString, dateString } = useRealtimeClock();
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getKelasList();
-        setKelasList(data);
-      } catch (e) {
-        console.error("Gagal mengambil data kelas:", e);
-      } finally {
-        setIsLoaded(true);
-      }
+  const loadData = async () => {
+    try {
+      const data = await getKelasList();
+      setKelasList(data);
+    } catch (e) {
+      console.error("Gagal mengambil data kelas:", e);
+    } finally {
+      setIsLoaded(true);
     }
-    load();
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const filteredKelas = kelasList.filter((k) =>
@@ -36,6 +45,64 @@ export default function ClassManagerClient() {
   const handlePrintQR = () => {
     // In a real app, this would trigger a print action or generate a PDF.
     window.print();
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createName.trim()) return;
+    try {
+      setSubmitting(true);
+      const res = await createKelas({ nama_kelas: createName });
+      if (res.success) {
+        setCreateMode(false);
+        setCreateName("");
+        loadData();
+      } else {
+        alert("Gagal menambah kelas: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass || !editName.trim()) return;
+    try {
+      setSubmitting(true);
+      const res = await updateKelas(editingClass.id, { nama_kelas: editName });
+      if (res.success) {
+        setEditingClass(null);
+        setEditName("");
+        loadData();
+      } else {
+        alert("Gagal update kelas: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingClass) return;
+    try {
+      setSubmitting(true);
+      const res = await deleteKelas(deletingClass.id);
+      if (res.success) {
+        setDeletingClass(null);
+        loadData();
+      } else {
+        alert("Gagal menghapus kelas: " + res.error);
+      }
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!isLoaded) {
@@ -81,7 +148,7 @@ export default function ClassManagerClient() {
       </div>
 
       {/* Search Input Box */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative w-full sm:w-[400px]">
           <input
             type="text"
@@ -91,6 +158,13 @@ export default function ClassManagerClient() {
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
+        <button
+          onClick={() => setCreateMode(true)}
+          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
+        >
+          <span>+</span>
+          <span>Tambah Kelas</span>
+        </button>
       </div>
 
       {/* Table List */}
@@ -118,15 +192,34 @@ export default function ClassManagerClient() {
                       </div>
                     </td>
                     <td className="py-4 whitespace-nowrap text-right">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        fullWidth={false}
-                        onClick={() => setSelectedClass(kelas)}
-                        className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
-                      >
-                        Lihat QR
-                      </Button>
+                      <div className="flex items-center justify-end gap-3">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          fullWidth={false}
+                          onClick={() => setSelectedClass(kelas)}
+                          className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
+                        >
+                          Lihat QR
+                        </Button>
+                        <button
+                          onClick={() => {
+                            setEditingClass(kelas);
+                            setEditName(kelas.nama_kelas);
+                          }}
+                          className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer ml-4"
+                          title="Edit Kelas"
+                        >
+                          <Edit2 className="w-[18px] h-[18px]" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingClass(kelas)}
+                          className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer ml-1"
+                          title="Hapus Kelas"
+                        >
+                          <Trash2 className="w-[18px] h-[18px]" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -153,7 +246,7 @@ export default function ClassManagerClient() {
               <div className="bg-white p-4 rounded-xl shadow-inner w-full h-full flex justify-center items-center">
                 {/* Using API for generating dummy QR based on class ID */}
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedClass.id)}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedClass.kode_qr || selectedClass.id)}`}
                   alt={`QR Code ${selectedClass.nama_kelas}`}
                   className="w-full h-full object-contain mix-blend-multiply"
                 />
@@ -182,6 +275,125 @@ export default function ClassManagerClient() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal Tambah Kelas */}
+      <Modal isOpen={createMode} onClose={() => setCreateMode(false)} maxWidth="max-w-[400px]">
+        <div className="pb-4 border-b border-slate-100">
+          <h3 className="text-[22px] font-bold text-slate-900">Tambah Ruang Kelas</h3>
+          <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu simpan perubahan.</p>
+        </div>
+        <form onSubmit={handleCreate} className="space-y-6 mt-5">
+          <div className="space-y-2 flex flex-col">
+            <label className="block text-sm font-bold text-slate-900">Nama kelas</label>
+            <input
+              type="text"
+              placeholder=""
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              required
+              autoComplete="off"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setCreateMode(false)}
+              disabled={submitting}
+              className="w-[120px] py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-[120px] py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-bold text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {submitting ? "Menyimpan..." : "Tambah Data"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Edit Kelas */}
+      <Modal isOpen={!!editingClass} onClose={() => setEditingClass(null)} maxWidth="max-w-[400px]">
+        <div className="pb-4 border-b border-slate-100">
+          <h3 className="text-[22px] font-bold text-slate-900">Update Data Ruang Kelas</h3>
+          <p className="text-sm text-slate-500 mt-1">Perbarui informasi kelas yang dipilih.</p>
+        </div>
+        <form onSubmit={handleUpdate} className="space-y-6 mt-5">
+          <div className="space-y-2 flex flex-col">
+            <label className="block text-sm font-bold text-slate-900">Nama kelas</label>
+            <input
+              type="text"
+              placeholder=""
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+              autoComplete="off"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditingClass(null)}
+              disabled={submitting}
+              className="w-[120px] py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-[120px] py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-bold text-white shadow-sm transition-all disabled:opacity-50"
+            >
+              {submitting ? "Menyimpan..." : "Simpan"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Hapus Kelas */}
+      <Modal isOpen={!!deletingClass} onClose={() => setDeletingClass(null)} maxWidth="max-w-md">
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
+            <span className="text-2xl font-bold leading-none">!</span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
+            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-700 mt-6">
+          Apakah Anda yakin ingin menghapus data yang dipilih?
+        </p>
+        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3 mt-4">
+          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
+          <p className="text-sm font-bold text-slate-900">
+            {deletingClass?.nama_kelas}
+          </p>
+        </div>
+        <div className="border-t border-slate-100 mt-6" />
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => setDeletingClass(null)}
+            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleDelete}
+            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
+          >
+            {submitting ? "Menghapus..." : "Hapus Data"}
+          </button>
+        </div>
       </Modal>
     </div>
   );
