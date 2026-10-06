@@ -57,3 +57,11 @@ export async function deleteGuru(
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
+
+export async function importGuruBulk(
+  data: Array<Omit<Guru, "id" | "created_at">>
+): Promise<{ success: boolean; error?: string; count?: number }> {
+  const { error } = await supabaseAdmin.from("guru").insert(data);
+  if (error) return { success: false, error: error.message };
+  return { success: true, count: data.length };
+}
