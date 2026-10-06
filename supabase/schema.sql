@@ -18,7 +18,8 @@ CREATE TYPE status_aktif AS ENUM (
 CREATE TYPE status_absensi_masuk AS ENUM (
     'hadir',
     'izin',
-    'sakit'
+    'sakit',
+    'dinas'
 );
 
 CREATE TYPE hari_jadwal AS ENUM (

@@ -10,7 +10,6 @@ import { convertToWebp } from "@/lib/image-utils";
 export default function SakitPage() {
   const router = useRouter();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [keterangan, setKeterangan] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [showError, setShowError] = useState(false);
 
@@ -32,15 +31,12 @@ export default function SakitPage() {
   };
 
   const handleLanjutkan = async () => {
-    if (!previewUrl || !keterangan.trim()) {
+    if (!previewUrl) {
       setShowError(true);
       return;
     }
 
     setIsUploading(true);
-    sessionStorage.setItem("absensi_keterangan", keterangan);
-    router.push("/guru/presensi/verifikasi?status=sakit");
-
     router.push("/guru/presensi/verifikasi?status=sakit");
   };
 
@@ -61,7 +57,7 @@ export default function SakitPage() {
             </svg>
           </div>
           <span className="text-sm font-semibold text-slate-800">
-            Salah satu field tidak boleh kosong.
+            Foto bukti tidak boleh kosong.
           </span>
         </div>
       )}
@@ -77,23 +73,6 @@ export default function SakitPage() {
           Ketuk gambar untuk mengganti foto
         </p>
       )}
-
-      {/* Keterangan Tambahan */}
-      <div className="mt-6">
-        <label className="block text-sm font-semibold text-slate-800 mb-2">
-          Keterangan Tambahan
-        </label>
-        <textarea
-          value={keterangan}
-          onChange={(e) => {
-            setKeterangan(e.target.value);
-            if (showError) setShowError(false);
-          }}
-          placeholder="Masukkan keterangan tambahan"
-          rows={4}
-          className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
-        />
-      </div>
 
       <div className="mt-8">
         <Button onClick={handleLanjutkan} disabled={isUploading}>

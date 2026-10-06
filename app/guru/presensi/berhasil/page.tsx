@@ -4,11 +4,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-
 const STATUS_TITLES: Record<string, string> = {
   hadir: "Absensi Kehadiran",
   izin: "Absensi Izin",
   sakit: "Absensi Sakit",
+  dinas: "Absensi Dinas Keluar",
   mengajar: "Absensi Mengajar",
 };
 

@@ -6,6 +6,9 @@
  */
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { getTodayWIB } from "@/lib/date";
+import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
+import { StatusAbsensiMasuk } from "@/types/schema";
 
 // ── Tipe data ─────────────────────────────────────────────────
 
@@ -19,6 +22,7 @@ export interface KepsekStats {
   guruHadir: number;
   izin: number;
   sakit: number;
+  dinas: number;
   belumAbsen: number;
 }
 
@@ -76,12 +80,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
 
   return (data ?? []).map((row) => ({
     id: row.id,
-    aktivitas:
-      row.status === "hadir"
-        ? "Presensi Masuk"
-        : row.status === "izin"
-        ? "Pengajuan Izin"
-        : "Pengajuan Sakit",
+    aktivitas: STATUS_AKTIVITAS_LABEL[row.status as StatusAbsensiMasuk] || "Lainnya",
     // @ts-expect-error — nested join
     pengguna: row.guru?.nama ?? "Guru",
     waktu: row.waktu_submit
@@ -97,7 +96,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
 // ── Kepsek Stats ──────────────────────────────────────────────
 
 export async function getKepsekStats(): Promise<KepsekStats> {
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const today = getTodayWIB();
 
   // Hitung total guru aktif
   const { count: totalGuru } = await supabaseAdmin
@@ -114,16 +113,17 @@ export async function getKepsekStats(): Promise<KepsekStats> {
   const hadir = absensiHariIni?.filter((a) => a.status === "hadir").length ?? 0;
   const izin = absensiHariIni?.filter((a) => a.status === "izin").length ?? 0;
   const sakit = absensiHariIni?.filter((a) => a.status === "sakit").length ?? 0;
+  const dinas = absensiHariIni?.filter((a) => a.status === "dinas").length ?? 0;
   const sudahAbsen = (absensiHariIni?.length ?? 0);
   const belumAbsen = Math.max(0, (totalGuru ?? 0) - sudahAbsen);
 
-  return { guruHadir: hadir, izin, sakit, belumAbsen };
+  return { guruHadir: hadir, izin, sakit, dinas, belumAbsen };
 }
 
 // ── Kepsek: Tabel Kehadiran Hari Ini ─────────────────────────
 
 export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayWIB();
 
   const { data, error } = await supabaseAdmin
     .from("absensi_masuk")
@@ -144,19 +144,14 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
             minute: "2-digit",
           })
         : null,
-    status:
-      row.status === "hadir"
-        ? "Hadir"
-        : row.status === "izin"
-        ? "Izin"
-        : "Sakit",
+    status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
   }));
 }
 
 // ── Kepsek: Tabel Mengajar Hari Ini ──────────────────────────
 
 export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayWIB();
 
   const { data, error } = await supabaseAdmin
     .from("absensi_mengajar")

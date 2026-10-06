@@ -118,6 +118,7 @@ export default function LaporanAbsensiPage() {
   const countHadir = filteredKehadiran.filter((r) => r.status.toLowerCase() === "hadir").length;
   const countIzin = filteredKehadiran.filter((r) => r.status.toLowerCase() === "izin").length;
   const countSakit = filteredKehadiran.filter((r) => r.status.toLowerCase() === "sakit").length;
+  const countDinas = filteredKehadiran.filter((r) => r.status.toLowerCase() === "dinas").length;
   const countTidakHadir = 0;
 
   // Hitung jumlah statistik Mengajar secara dinamis
@@ -260,6 +261,7 @@ export default function LaporanAbsensiPage() {
                   <option value="hadir">Hadir</option>
                   <option value="sakit">Sakit</option>
                   <option value="izin">Izin</option>
+                  <option value="dinas">Dinas Luar</option>
                 </select>
                 <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
@@ -427,7 +429,7 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards Kehadiran */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
             {/* Card 1: Guru Hadir */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
               <div className="w-13 h-13 rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
@@ -474,6 +476,20 @@ export default function LaporanAbsensiPage() {
               <div>
                 <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
                 <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countSakit}</h2>
+              </div>
+            </div>
+
+            {/* Card: Dinas Luar */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
+              <div className="w-13 h-13 rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-slate-400">Dinas Luar</p>
+                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countDinas}</h2>
               </div>
             </div>
 
@@ -557,8 +573,8 @@ export default function LaporanAbsensiPage() {
         const detailHadir = detailKehadiran.filter(r => r.status.toLowerCase() === "hadir").length;
         const detailSakit = detailKehadiran.filter(r => r.status.toLowerCase() === "sakit").length;
         const detailIzin = detailKehadiran.filter(r => r.status.toLowerCase() === "izin").length;
+        const detailDinasLuar = detailKehadiran.filter(r => r.status.toLowerCase() === "dinas").length;
         const detailTidakHadir = 0;
-        const detailDinasLuar = 0;
         const totalCatatan = detailKehadiran.length;
         const persentaseHadir = totalCatatan > 0 ? Math.round((detailHadir / totalCatatan) * 100) : 0;
 

@@ -2,7 +2,7 @@
 
 export type RoleAkun = "admin" | "kepala_sekolah" | "guru";
 export type StatusAktif = "aktif" | "nonaktif";
-export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin";
+export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin" | "dinas";
 export type HariJadwal =
   | "senin"
   | "selasa"

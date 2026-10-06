@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import { isWithinGeofence } from "@/lib/geo";
+import { useEffect } from "react";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -12,6 +13,24 @@ export default function LokasiPage() {
   const router = useRouter();
   const [scanState, setScanState] = useState<ScanState>("IDLE");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [sekolahLat, setSekolahLat] = useState<number>(-6.175392);
+  const [sekolahLng, setSekolahLng] = useState<number>(106.827153);
+  const [radiusToleransi, setRadiusToleransi] = useState<number>(50);
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const { getLokasiSekolah } = await import("@/actions/pengaturan");
+        const config = await getLokasiSekolah();
+        setSekolahLat(config.latitude);
+        setSekolahLng(config.longitude);
+        setRadiusToleransi(config.radius_meter);
+      } catch (err) {
+        console.error("Gagal memuat pengaturan lokasi:", err);
+      }
+    }
+    loadConfig();
+  }, []);
 
   const handleScan = () => {
     setScanState("SCANNING");
@@ -28,13 +47,7 @@ export default function LokasiPage() {
         const userLat = position.coords.latitude;
         const userLng = position.coords.longitude;
 
-        // TODO: Ambil koordinat sekolah dari database (tabel pengaturan_lokasi_sekolah)
-        // Saat ini kita pakai koordinat simulasi (Monas, Jakarta)
-        const schoolLat = -6.175392;
-        const schoolLng = 106.827153;
-        const radiusMeter = 100; // Radius toleransi absen 100 meter
-
-        const isSuccess = isWithinGeofence(userLat, userLng, schoolLat, schoolLng, radiusMeter);
+        const isSuccess = isWithinGeofence(userLat, userLng, sekolahLat, sekolahLng, radiusToleransi);
 
         if (isSuccess) {
           // Simpan koordinat asli guru untuk dikirim ke database nanti
@@ -68,8 +81,8 @@ export default function LokasiPage() {
   };
 
   const handleBypass = () => {
-    sessionStorage.setItem("absensi_lat", "-6.175392");
-    sessionStorage.setItem("absensi_lng", "106.827153");
+    sessionStorage.setItem("absensi_lat", sekolahLat.toString());
+    sessionStorage.setItem("absensi_lng", sekolahLng.toString());
     setScanState("SUCCESS");
   };
 

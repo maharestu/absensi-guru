@@ -9,6 +9,20 @@ import { verifyQrKelas } from "@/actions/presensi";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
+function extractKodeFromQr(urlOrText: string): string | null {
+  try {
+    const url = new URL(urlOrText);
+    const parts = url.pathname.split("/");
+    if (parts.length >= 3 && parts[1] === "absen-qr") {
+      return parts[2];
+    }
+  } catch (e) {
+    // Fallback: bukan URL valid, anggap itu kodenya jika tidak mengandung slash
+    if (!urlOrText.includes("/")) return urlOrText;
+  }
+  return null;
+}
+
 function ScanQrKelasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,14 +71,35 @@ function ScanQrKelasContent() {
     if (!jadwalId) return;
     setScanState("SCANNING");
     
-    try {
-      // Panggil backend untuk memverifikasi QR
-      const isSuccess = await verifyQrKelas(jadwalId, scannedText);
-      setScanState(isSuccess ? "SUCCESS" : "FAIL");
-    } catch (err) {
-      console.error(err);
+    const kodeQr = extractKodeFromQr(scannedText);
+    if (!kodeQr) {
       setScanState("FAIL");
+      return;
     }
+
+    if (!navigator.geolocation) {
+      setScanState("FAIL");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const isSuccess = await verifyQrKelas(jadwalId, kodeQr, lat, lng);
+          setScanState(isSuccess ? "SUCCESS" : "FAIL");
+        } catch (err) {
+          console.error(err);
+          setScanState("FAIL");
+        }
+      },
+      (err) => {
+        console.error("GPS error", err);
+        setScanState("FAIL");
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
   };
 
   useEffect(() => {

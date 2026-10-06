@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
   hadir: "Hadir",
   sakit: "Sakit",
   izin: "Izin",
+  dinas: "Dinas Keluar",
   mengajar: "Mengajar",
 };
 
@@ -29,6 +30,7 @@ const BACK_HREF: Record<string, string> = {
   hadir: "/guru/presensi/hadir/lokasi",
   sakit: "/guru/presensi/sakit",
   izin: "/guru/presensi/izin",
+  dinas: "/guru/presensi/dinas",
   mengajar: "/guru/presensi-mengajar",
 };
 
@@ -96,10 +98,6 @@ function VerifikasiContent() {
           const lng = sessionStorage.getItem("absensi_lng");
           if (lat) formData.append("latitude", lat);
           if (lng) formData.append("longitude", lng);
-        } else {
-          // Sakit/Izin/Dinas
-          const keterangan = sessionStorage.getItem("absensi_keterangan") || "";
-          formData.append("keterangan", keterangan); // Optional: if DB supports it later
         }
 
         const { submitPresensiMasukAction } = await import("@/actions/presensi");
@@ -111,7 +109,6 @@ function VerifikasiContent() {
       sessionStorage.removeItem("absensi_captured_photo");
       sessionStorage.removeItem("absensi_lat");
       sessionStorage.removeItem("absensi_lng");
-      sessionStorage.removeItem("absensi_keterangan");
       sessionStorage.removeItem("absensi_jadwal_id");
 
       router.push(`/guru/presensi/berhasil?status=${status}`);

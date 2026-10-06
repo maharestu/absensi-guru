@@ -17,6 +17,7 @@ export default function KepsekDashboardPage() {
     guruHadir: 0,
     izin: 0,
     sakit: 0,
+    dinas: 0,
     belumAbsen: 0,
   });
   const [kehadiran, setKehadiran] = useState<KehadiranHariIni[]>([]);
@@ -78,8 +79,8 @@ export default function KepsekDashboardPage() {
         </div>
       </div>
 
-      {/* ── STAT CARDS (4 Cards) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+      {/* ── STAT CARDS ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
         {/* Card 1: Guru Hadir */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
           <div className="w-13 h-13 rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
@@ -135,7 +136,23 @@ export default function KepsekDashboardPage() {
           </div>
         </div>
 
-        {/* Card 4: Belum Absen */}
+        {/* Card: Dinas Luar */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
+          <div className="w-13 h-13 rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold text-slate-400">Dinas Luar</p>
+            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+              {loading ? "..." : stats.dinas}
+            </h2>
+          </div>
+        </div>
+
+        {/* Card: Belum Absen */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
           <div className="w-13 h-13 rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
