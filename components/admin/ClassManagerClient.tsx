@@ -171,60 +171,60 @@ export default function ClassManagerClient() {
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[500px]">
           <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
-                <th className="pb-4 font-semibold text-right w-[20%]"></th>
+            <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+              <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
+              <th className="pb-4 font-semibold text-right w-[20%]"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100/80">
+            {filteredKelas.length === 0 ? (
+              <tr>
+                <td colSpan={2} className="py-8 text-center text-slate-400 font-medium">
+                  Tidak ada ruang kelas yang cocok dengan "{searchQuery}".
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/80">
-              {filteredKelas.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="py-8 text-center text-slate-400 font-medium">
-                    Tidak ada ruang kelas yang cocok dengan "{searchQuery}".
+            ) : (
+              filteredKelas.map((kelas) => (
+                <tr key={kelas.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-slate-800">
+                      {kelas.nama_kelas}
+                    </div>
+                  </td>
+                  <td className="py-4 whitespace-nowrap text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth={false}
+                        onClick={() => setSelectedClass(kelas)}
+                        className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
+                      >
+                        Lihat QR
+                      </Button>
+                      <button
+                        onClick={() => {
+                          setEditingClass(kelas);
+                          setEditName(kelas.nama_kelas);
+                        }}
+                        className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer ml-4"
+                        title="Edit Kelas"
+                      >
+                        <Edit2 className="w-[18px] h-[18px]" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingClass(kelas)}
+                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer ml-1"
+                        title="Hapus Kelas"
+                      >
+                        <Trash2 className="w-[18px] h-[18px]" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                filteredKelas.map((kelas) => (
-                  <tr key={kelas.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-slate-800">
-                        {kelas.nama_kelas}
-                      </div>
-                    </td>
-                    <td className="py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          fullWidth={false}
-                          onClick={() => setSelectedClass(kelas)}
-                          className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
-                        >
-                          Lihat QR
-                        </Button>
-                        <button
-                          onClick={() => {
-                            setEditingClass(kelas);
-                            setEditName(kelas.nama_kelas);
-                          }}
-                          className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer ml-4"
-                          title="Edit Kelas"
-                        >
-                          <Edit2 className="w-[18px] h-[18px]" />
-                        </button>
-                        <button
-                          onClick={() => setDeletingClass(kelas)}
-                          className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer ml-1"
-                          title="Hapus Kelas"
-                        >
-                          <Trash2 className="w-[18px] h-[18px]" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
+              ))
+            )}
+          </tbody>
         </table>
       </div>
 
@@ -245,11 +245,20 @@ export default function ClassManagerClient() {
             <div className="bg-[#0f172a] p-4 rounded-3xl w-full flex items-center justify-center aspect-square max-w-[320px]">
               <div className="bg-white p-4 rounded-xl shadow-inner w-full h-full flex justify-center items-center">
                 {/* Using API for generating dummy QR based on class ID */}
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(selectedClass.kode_qr || selectedClass.id)}`}
-                  alt={`QR Code ${selectedClass.nama_kelas}`}
-                  className="w-full h-full object-contain mix-blend-multiply"
-                />
+                {(() => {
+                  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+                  // Pastikan tidak ada slash berlebih di akhir baseUrl
+                  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+                  const qrUrl = `${cleanBaseUrl}/absen-qr/${selectedClass.kode_qr || selectedClass.id}`;
+                  
+                  return (
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
+                      alt={`QR Code ${selectedClass.nama_kelas}`}
+                      className="w-full h-full object-contain mix-blend-multiply"
+                    />
+                  );
+                })()}
               </div>
             </div>
 
