@@ -22,11 +22,16 @@ export interface LaporanMengajar {
   status: string;
 }
 
-export async function getLaporanKehadiran(): Promise<LaporanKehadiran[]> {
-  const { data, error } = await supabaseAdmin
+export async function getLaporanKehadiran(startDate?: string, endDate?: string): Promise<LaporanKehadiran[]> {
+  let query = supabaseAdmin
     .from("absensi_masuk")
     .select("id, guru_id, tanggal, waktu_submit, status, guru(nama)")
     .order("waktu_submit", { ascending: false });
+
+  if (startDate) query = query.gte("tanggal", startDate);
+  if (endDate) query = query.lte("tanggal", endDate);
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
 
@@ -46,11 +51,16 @@ export async function getLaporanKehadiran(): Promise<LaporanKehadiran[]> {
   }));
 }
 
-export async function getLaporanMengajar(): Promise<LaporanMengajar[]> {
-  const { data, error } = await supabaseAdmin
+export async function getLaporanMengajar(startDate?: string, endDate?: string): Promise<LaporanMengajar[]> {
+  let query = supabaseAdmin
     .from("absensi_mengajar")
     .select("id, tanggal, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru_id, kelas_id, guru(nama), kelas(nama_kelas))")
     .order("waktu_submit", { ascending: false });
+
+  if (startDate) query = query.gte("tanggal", startDate);
+  if (endDate) query = query.lte("tanggal", endDate);
+
+  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
 

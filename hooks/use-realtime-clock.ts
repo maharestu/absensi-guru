@@ -8,17 +8,19 @@ import { formatJamIndo, formatTanggalIndo } from "@/lib/format";
  * Update setiap detik. Menggantikan pola useState + useEffect + setInterval
  * yang sebelumnya diduplikat di beberapa komponen.
  *
- * @returns { timeString, dateString }
+ * @returns { timeString, dateString, now }
  */
 export function useRealtimeClock() {
+  const [now, setNow] = useState<Date | null>(null);
   const [timeString, setTimeString] = useState<string>("06:30");
   const [dateString, setDateString] = useState<string>("17 September 2026");
 
   useEffect(() => {
     const updateRealtime = () => {
-      const now = new Date();
-      setTimeString(formatJamIndo(now));
-      setDateString(formatTanggalIndo(now));
+      const currentDate = new Date();
+      setNow(currentDate);
+      setTimeString(formatJamIndo(currentDate));
+      setDateString(formatTanggalIndo(currentDate));
     };
 
     updateRealtime();
@@ -26,5 +28,5 @@ export function useRealtimeClock() {
     return () => clearInterval(interval);
   }, []);
 
-  return { timeString, dateString };
+  return { timeString, dateString, now };
 }

@@ -12,7 +12,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         type={type}
         ref={ref}
         className={`
-          flex h-12 w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900
+          h-12 w-full rounded-xl border bg-white px-4 py-3 text-sm text-slate-900
           placeholder:text-slate-400 placeholder:text-sm
           outline-none transition duration-150 ease-in-out
           ${

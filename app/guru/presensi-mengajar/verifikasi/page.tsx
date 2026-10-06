@@ -67,12 +67,12 @@ function VerifikasiMengajarContent() {
       {/* Header Baru */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <Link 
+          <Link
             href={backHref}
             className="w-11 h-11 bg-white border border-slate-200 rounded-[14px] flex items-center justify-center text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m15 18-6-6 6-6"/>
+              <path d="m15 18-6-6 6-6" />
             </svg>
           </Link>
           <h1 className="text-[22px] font-bold text-slate-900 tracking-tight">
@@ -116,7 +116,7 @@ function VerifikasiMengajarContent() {
         <div className="py-4">
           <p className="text-[13px] font-medium text-slate-400 mb-1">Jadwal</p>
           <p className="text-[15px] font-bold text-slate-900">
-             {loading ? "Memuat..." : jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "Tidak diketahui"}
+            {loading ? "Memuat..." : jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "Tidak diketahui"}
           </p>
         </div>
       </div>
@@ -132,8 +132,8 @@ function VerifikasiMengajarContent() {
       )}
 
       <div className="w-full mt-auto">
-        <button 
-          onClick={handleSubmit} 
+        <button
+          onClick={handleSubmit}
           disabled={loading}
           className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-[16px] font-bold shadow-sm transition-all"
         >

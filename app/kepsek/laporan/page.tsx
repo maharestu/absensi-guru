@@ -83,7 +83,6 @@ function SearchableSelect({
 export default function LaporanAbsensiPage() {
   const { timeString, dateString } = useRealtimeClock();
   const [activeTab, setActiveTab] = useState<"kehadiran" | "mengajar">("kehadiran");
-  const [isFiltered, setIsFiltered] = useState(true);
   const [laporanKehadiran, setLaporanKehadiran] = useState<LaporanKehadiran[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -96,21 +95,43 @@ export default function LaporanAbsensiPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
 
-  const [appliedGuru, setAppliedGuru] = useState<string>("all");
-  const [appliedStatus, setAppliedStatus] = useState<string>("all");
-  const [appliedKelas, setAppliedKelas] = useState<string>("all");
+  const [periodeType, setPeriodeType] = useState<string>("this_month");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // Sync date based on periodType
+  useEffect(() => {
+    const today = new Date();
+    if (periodeType === "today") {
+      const d = today.toLocaleDateString('en-CA');
+      setStartDate(d);
+      setEndDate(d);
+    } else if (periodeType === "last_7_days") {
+      const dEnd = today.toLocaleDateString('en-CA');
+      const start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const dStart = start.toLocaleDateString('en-CA');
+      setStartDate(dStart);
+      setEndDate(dEnd);
+    } else if (periodeType === "this_month") {
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      setStartDate(`${y}-${m}-01`);
+      const lastDay = new Date(y, today.getMonth() + 1, 0).getDate();
+      setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
+    }
+  }, [periodeType]);
 
   // Filter Data Kehadiran
   const filteredKehadiran = laporanKehadiran.filter(r => {
-    const matchGuru = appliedGuru === "all" || r.guru_id === appliedGuru;
-    const matchStatus = appliedStatus === "all" || r.status.toLowerCase() === appliedStatus.toLowerCase();
+    const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
+    const matchStatus = selectedStatus === "all" || r.status.toLowerCase() === selectedStatus.toLowerCase();
     return matchGuru && matchStatus;
   });
 
   // Filter Data Mengajar
   const filteredMengajar = laporanMengajar.filter(r => {
-    const matchGuru = appliedGuru === "all" || r.guru_id === appliedGuru;
-    const matchKelas = appliedKelas === "all" || r.kelas_id === appliedKelas;
+    const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
+    const matchKelas = selectedKelas === "all" || r.kelas_id === selectedKelas;
     return matchGuru && matchKelas;
   });
 
@@ -127,11 +148,12 @@ export default function LaporanAbsensiPage() {
 
   useEffect(() => {
     async function loadData() {
+      if (!startDate || !endDate) return;
       setLoading(true);
       try {
         const [kehadiran, mengajar, gurus, kelasArr] = await Promise.all([
-          getLaporanKehadiran(),
-          getLaporanMengajar(),
+          getLaporanKehadiran(startDate, endDate),
+          getLaporanMengajar(startDate, endDate),
           getGuruList(),
           getKelasList()
         ]);
@@ -146,13 +168,36 @@ export default function LaporanAbsensiPage() {
       }
     }
     loadData();
-  }, []);
+  }, [startDate, endDate]);
 
-  const handleTampilkan = () => {
-    setIsFiltered(true);
-    setAppliedGuru(selectedGuru);
-    setAppliedStatus(selectedStatus);
-    setAppliedKelas(selectedKelas);
+  const formatDateLabel = (dateStr: string) => {
+    if (!dateStr) return "-";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const formatted = d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+      return formatted.replace(/ /g, "-");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const handleTampilkan = async () => {
+    // Tombol dipertahankan untuk manual refresh
+    if (!startDate || !endDate) return;
+    setLoading(true);
+    try {
+      const [kehadiran, mengajar] = await Promise.all([
+        getLaporanKehadiran(startDate, endDate),
+        getLaporanMengajar(startDate, endDate),
+      ]);
+      setLaporanKehadiran(kehadiran);
+      setLaporanMengajar(mengajar);
+    } catch(err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTabChange = (tab: "kehadiran" | "mengajar") => {
@@ -177,7 +222,7 @@ export default function LaporanAbsensiPage() {
             {pageTitle}
           </h1>
           <p className="text-sm text-slate-400 mt-1 font-normal">
-            Rekap periode 1–17 September 2026
+            Rekap periode {formatDateLabel(startDate)} hingga {formatDateLabel(endDate)}
           </p>
         </div>
 
@@ -223,8 +268,15 @@ export default function LaporanAbsensiPage() {
           <div className="flex-1 space-y-2">
             <label className="text-[11px] font-bold text-slate-900 tracking-wider">Periode</label>
             <div className="relative">
-              <select className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                <option>01 Sep 2026 - 17 Sep 2026</option>
+              <select 
+                value={periodeType}
+                onChange={(e) => setPeriodeType(e.target.value)}
+                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                <option value="this_month">Bulan Ini</option>
+                <option value="today">Hari Ini</option>
+                <option value="last_7_days">7 Hari Terakhir</option>
+                <option value="custom">Kustom</option>
               </select>
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
@@ -232,6 +284,23 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
             </div>
+            {periodeType === "custom" && (
+              <div className="flex items-center gap-2 mt-2">
+                <input 
+                  type="date" 
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+                <span className="text-slate-400">-</span>
+                <input 
+                  type="date" 
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex-1 space-y-2">
@@ -321,18 +390,7 @@ export default function LaporanAbsensiPage() {
       </div>
 
       {/* ── CONTENT AREA ── */}
-      {!isFiltered ? (
-        // Empty State
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center min-h-[450px]">
-          <h2 className="text-lg font-bold text-slate-900 mb-2">
-            Pilih filter laporan
-          </h2>
-          <p className="text-sm text-slate-500 max-w-sm leading-relaxed">
-            Atur periode, status, atau guru lalu klik "Tampilkan"<br />
-            untuk melihat laporan absensi kehadiran.
-          </p>
-        </div>
-      ) : activeTab === "mengajar" ? (
+      {activeTab === "mengajar" ? (
         // Result State (Mengajar)
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -606,7 +664,7 @@ export default function LaporanAbsensiPage() {
                 <div className="border border-slate-200 rounded-2xl p-5">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-[15px] font-bold text-slate-900">Kehadiran selama periode</h3>
-                    <span className="text-sm text-slate-500">01–17 Sep 2026</span>
+                    <span className="text-sm text-slate-500">{formatDateLabel(startDate)} hingga {formatDateLabel(endDate)}</span>
                   </div>
                   
                   <div className="flex items-center gap-6 md:gap-10">

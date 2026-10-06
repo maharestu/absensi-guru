@@ -4,17 +4,31 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
+import { getAbsensiMengajarHariIni } from "@/actions/presensi";
+import { getTodayWIB } from "@/lib/date";
 import { useAuth } from "@/context/AuthContext";
 import { JadwalWithDetail } from "@/types/schema";
+import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+
+const HARI_ORDER = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
+
+function parseTimeToDate(timeStr: string): Date {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  const now = new Date();
+  now.setHours(hours, minutes, 0, 0);
+  return now;
+}
 
 export default function DaftarJadwalHarianPage() {
   const router = useRouter();
   const params = useParams();
   const { user, isLoading: authLoading } = useAuth();
+  const { now: currentTime } = useRealtimeClock();
   
   const hari = (params.hari as string) || "senin";
 
   const [jadwalList, setJadwalList] = useState<JadwalWithDetail[]>([]);
+  const [sudahAbsenIds, setSudahAbsenIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +49,11 @@ export default function DaftarJadwalHarianPage() {
         
         const sortedData = data.sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai));
         setJadwalList(sortedData);
+
+        // Ambil daftar jadwal yang sudah diabsen hari ini
+        const today = getTodayWIB();
+        const absenIds = await getAbsensiMengajarHariIni(user.guru_id, today);
+        setSudahAbsenIds(absenIds);
       } catch (err) {
         console.error("Gagal memuat jadwal:", err);
       } finally {
@@ -47,7 +66,31 @@ export default function DaftarJadwalHarianPage() {
 
   const hariLabel = hari.charAt(0).toUpperCase() + hari.slice(1);
 
-  const handleSelectJadwal = (jadwalId: string) => {
+  const getJadwalStatus = (j: JadwalWithDetail) => {
+    if (sudahAbsenIds.includes(j.id)) return "sudah_absen";
+    if (!currentTime) return "loading";
+
+    const hariIndex = HARI_ORDER.indexOf(hari.toLowerCase());
+    const currentHariIndex = currentTime.getDay();
+
+    if (hariIndex < currentHariIndex) return "sudah_lewat";
+    if (hariIndex > currentHariIndex) return "belum_waktunya";
+
+    // Same day, check time
+    const startTime = parseTimeToDate(j.jam_mulai).getTime();
+    const endTime = parseTimeToDate(j.jam_selesai).getTime();
+    const nowTime = currentTime.getTime();
+    
+    const allowedStartTime = startTime - 10 * 60 * 1000; // 10 minutes before
+
+    if (nowTime < allowedStartTime) return "belum_waktunya";
+    if (nowTime > endTime) return "sudah_lewat";
+    
+    return "bisa_absen";
+  };
+
+  const handleSelectJadwal = (jadwalId: string, status: string) => {
+    if (status !== "bisa_absen") return;
     router.push(`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}&hari=${encodeURIComponent(hari)}`);
   };
 
@@ -64,7 +107,7 @@ export default function DaftarJadwalHarianPage() {
       </h2>
 
       <div className="flex flex-col gap-4">
-        {loading ? (
+        {loading || !currentTime ? (
           <div className="bg-white rounded-2xl p-6 text-center text-slate-500 font-medium">
             Memuat jadwal...
           </div>
@@ -82,38 +125,67 @@ export default function DaftarJadwalHarianPage() {
             <p className="text-xs text-slate-500 mt-1">Anda tidak memiliki jadwal mengajar di hari {hariLabel}.</p>
           </div>
         ) : (
-          jadwalList.map((j) => (
-            <button
-              key={j.id}
-              onClick={() => handleSelectJadwal(j.id)}
-              className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left"
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold uppercase rounded-md">
-                    {j.kelas?.nama_kelas || "Kelas ?"}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">
-                    {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)}
-                  </span>
+          jadwalList.map((j) => {
+            const status = getJadwalStatus(j);
+            const isDisabled = status !== "bisa_absen";
+
+            return (
+              <button
+                key={j.id}
+                onClick={() => handleSelectJadwal(j.id, status)}
+                disabled={isDisabled}
+                className={`w-full rounded-2xl border shadow-sm px-6 py-5 flex items-center justify-between text-left transition-all duration-150 ${
+                  isDisabled 
+                    ? "bg-slate-50 border-slate-200 opacity-80 cursor-not-allowed" 
+                    : "bg-white border-slate-100 active:scale-[0.98] hover:shadow-md"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md ${
+                      isDisabled ? "bg-slate-200 text-slate-500" : "bg-blue-50 text-blue-700"
+                    }`}>
+                      {j.kelas?.nama_kelas || "Kelas ?"}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      {j.jam_mulai.slice(0, 5)} - {j.jam_selesai.slice(0, 5)}
+                    </span>
+                  </div>
+                  <p className={`text-base font-bold mt-1 ${isDisabled ? "text-slate-500" : "text-slate-900"}`}>
+                    {j.mata_pelajaran}
+                  </p>
+                  
+                  {status === "belum_waktunya" && (
+                    <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-500 rounded">
+                      Belum waktunya
+                    </span>
+                  )}
+                  {status === "sudah_lewat" && (
+                    <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-500 rounded">
+                      Sudah lewat
+                    </span>
+                  )}
+                  {status === "sudah_absen" && (
+                    <span className="inline-block mt-2 text-[10px] font-bold px-2 py-0.5 bg-green-50 text-green-700 rounded">
+                      Sudah absen
+                    </span>
+                  )}
                 </div>
-                <p className="text-base font-bold text-slate-900 mt-1">
-                  {j.mata_pelajaran}
-                </p>
-              </div>
-              <div className="flex-shrink-0 text-slate-400">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M9 18l6-6-6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-            </button>
-          ))
+                
+                <div className={`flex-shrink-0 ${isDisabled ? "text-slate-300" : "text-slate-400"}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 18l6-6-6-6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              </button>
+            );
+          })
         )}
       </div>
     </div>

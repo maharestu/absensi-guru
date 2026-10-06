@@ -99,7 +99,7 @@ export default function ScheduleForm({
             Jam Mulai (HH:MM)
           </label>
           <Input
-            type="text"
+            type="time"
             placeholder="07:00"
             value={form.jam_mulai}
             onChange={(e) => setForm({ ...form, jam_mulai: e.target.value })}
@@ -113,7 +113,7 @@ export default function ScheduleForm({
             Jam Selesai (HH:MM)
           </label>
           <Input
-            type="text"
+            type="time"
             placeholder="08:30"
             value={form.jam_selesai}
             onChange={(e) => setForm({ ...form, jam_selesai: e.target.value })}

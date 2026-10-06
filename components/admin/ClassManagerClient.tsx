@@ -173,7 +173,7 @@ export default function ClassManagerClient() {
           <thead>
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                 <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
-                <th className="pb-4 font-semibold text-right w-[20%]">Aksi</th>
+                <th className="pb-4 font-semibold text-right w-[20%]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/80">

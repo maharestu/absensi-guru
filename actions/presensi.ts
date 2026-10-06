@@ -36,6 +36,28 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
   }
 }
 
+export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("absensi_mengajar")
+      .select("jadwal_id")
+      .eq("tanggal", tanggal)
+      // Kita perlu join ke jadwal untuk mengecek guru_id, tapi karena biasanya kita query jadwalnya dulu
+      // dan hanya ambil ID nya, kita bisa kembalikan semuanya untuk hari ini, lalu filter di client.
+      // Lebih baik kita query semua absen hari ini lalu biarkan client memfilternya sesuai jadwal yang tampil.
+      
+    if (error) {
+      console.error("Error getAbsensiMengajarHariIni:", error);
+      return [];
+    }
+
+    return data?.map(d => d.jadwal_id) || [];
+  } catch (error) {
+    console.error("Error getAbsensiMengajarHariIni:", error);
+    return [];
+  }
+}
+
 export async function submitPresensiMasukAction(formData: FormData) {
   try {
     const guruId = formData.get("guruId") as string;

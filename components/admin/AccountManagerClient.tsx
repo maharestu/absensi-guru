@@ -51,6 +51,7 @@ export default function AccountManagerClient() {
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
+  const [showEditTeacherDropdown, setShowEditTeacherDropdown] = useState(false);
 
   const loadData = async () => {
     try {
@@ -177,6 +178,22 @@ export default function AccountManagerClient() {
         username: "",
         nip: "",
         guru_id: null,
+      });
+    }
+  };
+
+  const handleSelectTeacherForEdit = (teacherId: string) => {
+    const teacher = teachers.find((g) => g.id === teacherId);
+    if (teacher) {
+      const parts = teacher.nama.split(" ")[0].toLowerCase().replace(/[^a-z]/g, "");
+      const secondPart = teacher.nama.split(" ")[1]?.charAt(0).toLowerCase() || "";
+      const generatedUsername = secondPart ? `${parts}.${secondPart}` : parts;
+
+      setEditForm({
+        ...editForm,
+        nama: teacher.nama,
+        username: generatedUsername,
+        role: "guru",
       });
     }
   };
@@ -370,15 +387,70 @@ export default function AccountManagerClient() {
         </div>
         <form onSubmit={handleSaveEdit} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
-              <input
-                type="text"
-                value={editForm.nama}
-                onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
-                required
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-              />
+              {editForm.role === "guru" ? (
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Ketik untuk mencari nama..."
+                    value={editForm.nama}
+                    onFocus={() => setShowEditTeacherDropdown(true)}
+                    onBlur={() => setShowEditTeacherDropdown(false)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setShowEditTeacherDropdown(true);
+                      const found = teachers.find((t) => t.nama.toLowerCase() === val.toLowerCase());
+                      if (found) {
+                        handleSelectTeacherForEdit(found.id);
+                      } else {
+                        // Jika mengetik sendiri (custom)
+                        setEditForm({ ...editForm, nama: val });
+                      }
+                    }}
+                    required
+                    autoComplete="off"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                  />
+                  <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform ${showEditTeacherDropdown ? 'rotate-180' : ''}`} />
+                  
+                  {/* Custom Dropdown UI */}
+                  {showEditTeacherDropdown && (
+                    <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                      {teachers
+                        .filter((g) => g.nama.toLowerCase().includes(editForm.nama.toLowerCase()))
+                        .map((guru) => (
+                          <button
+                            key={guru.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              handleSelectTeacherForEdit(guru.id);
+                              setShowEditTeacherDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
+                          >
+                            <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
+                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
+                          </button>
+                      ))}
+                      {teachers.filter((g) => g.nama.toLowerCase().includes(editForm.nama.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-red-500 text-center font-medium">
+                          Data guru "{editForm.nama}" tidak ditemukan di sistem.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={editForm.nama}
+                  onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                  required
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-800">Username</label>
