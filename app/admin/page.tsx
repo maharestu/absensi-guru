@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { getAdminStats, getRecentActivities, AdminStats, ActivityItem } from "@/actions/dashboard";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import Pagination from "@/components/ui/pagination";
 
 export default function AdminDashboardPage() {
   const { timeString, dateString } = useRealtimeClock();
@@ -13,6 +14,16 @@ export default function AdminDashboardPage() {
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // State untuk paginasi
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  // Memotong data sesuai halaman
+  const paginatedActivities = activities.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -144,7 +155,7 @@ export default function AdminDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                activities.map((act) => (
+                paginatedActivities.map((act) => (
                   <tr key={act.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-4 font-semibold text-slate-800">
                       {act.aktivitas}
@@ -163,6 +174,16 @@ export default function AdminDashboardPage() {
               )}
             </tbody>
         </table>
+        
+        {/* Komponen Paginasi */}
+        {!loading && activities.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={activities.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
       </div>
     </div>

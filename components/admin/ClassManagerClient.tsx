@@ -7,8 +7,10 @@ import { getKelasList, createKelas, updateKelas, deleteKelas } from "@/actions/k
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Modal } from "./ui/Modal";
 import { Button } from "../ui/button";
+import Pagination from "@/components/ui/pagination";
 
 export default function ClassManagerClient() {
+
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -23,6 +25,12 @@ export default function ClassManagerClient() {
 
   const { timeString, dateString } = useRealtimeClock();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadData = async () => {
     try {
       const data = await getKelasList();
@@ -105,6 +113,11 @@ export default function ClassManagerClient() {
     }
   };
 
+    const paginatedList = filteredKelas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) {
     return (
       <div className="min-h-[400px] flex items-center justify-center text-slate-400">
@@ -184,7 +197,7 @@ export default function ClassManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredKelas.map((kelas) => (
+              paginatedList.map((kelas) => (
                 <tr key={kelas.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 whitespace-nowrap">
                     <div className="text-sm font-semibold text-slate-800">
@@ -226,6 +239,16 @@ export default function ClassManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredKelas.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredKelas.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
       {/* QR Code Modal */}
@@ -251,7 +274,10 @@ export default function ClassManagerClient() {
                   const cleanBaseUrl = baseUrl.replace(/\/$/, "");
                   const qrUrl = `${cleanBaseUrl}/absen-qr/${selectedClass.kode_qr || selectedClass.id}`;
                   
-                  return (
+                  
+// reset page if search changes
+
+  return (
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
                       alt={`QR Code ${selectedClass.nama_kelas}`}

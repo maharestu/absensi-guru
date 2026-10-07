@@ -97,7 +97,7 @@ function VerifikasiMengajarContent() {
   const todayFormatted = formatTanggal(new Date());
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC] px-6 pt-12 pb-6">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-6">
       {/* Header Baru */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -180,7 +180,7 @@ function VerifikasiMengajarContent() {
 
 export default function VerifikasiMengajarPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#EEF2F7]" />}>
+    <Suspense fallback={<div className="min-h-full bg-[#EEF2F7]" />}>
       <VerifikasiMengajarContent />
     </Suspense>
   );

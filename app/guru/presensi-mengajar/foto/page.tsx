@@ -88,7 +88,7 @@ function FotoSelfieKelasContent() {
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC] px-6 pt-12 pb-10">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-10">
       <PageHeader
         backHref={`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}${hariQuery}`}
         title="Ambil Foto Mengajar"
@@ -166,7 +166,7 @@ function FotoSelfieKelasContent() {
 
 export default function FotoSelfieKelasPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#EEF2F7]" />}>
+    <Suspense fallback={<div className="min-h-full bg-[#EEF2F7]" />}>
       <FotoSelfieKelasContent />
     </Suspense>
   );

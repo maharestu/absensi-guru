@@ -46,17 +46,6 @@ export default function LoginForm() {
 
   return (
     <div className="w-full">
-      {/* Header - Rata tengah sesuai Figma */}
-      <header className="mb-8 text-center">
-        <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
-          Selamat Datang
-        </h1>
-        <p className="mt-2 text-sm text-slate-500 leading-relaxed max-w-xs sm:max-w-sm mx-auto">
-          {hasError
-            ? "Periksa kembali data yang Anda masukkan."
-            : "Gunakan username dan password untuk mengakses dashboard sekolah."}
-        </p>
-      </header>
 
       <form onSubmit={handleSubmit} className="w-full space-y-5">
         {/* Error Alert */}

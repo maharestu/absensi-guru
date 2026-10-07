@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
@@ -12,6 +12,7 @@ export default function AdminLayout({
 }) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -35,12 +36,36 @@ export default function AdminLayout({
 
   return (
     <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40 shadow-sm">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg active:scale-95 transition-all"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M4 6H20M4 12H14M4 18H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        <span className="ml-3 font-bold text-slate-800">Admin Dashboard</span>
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 z-[45] md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <AdminSidebar />
+      <AdminSidebar 
+        isMobileMenuOpen={isMobileMenuOpen} 
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)} 
+      />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-5 py-6 md:px-8 md:py-8 overflow-y-auto h-screen">
-        <div className="w-full">{children}</div>
+      <main className="flex-1 overflow-y-auto h-screen pt-16 md:pt-0 bg-[#f8fafc]">
+        <div className="px-5 py-6 md:px-8 md:py-8 w-full">{children}</div>
       </main>
     </div>
   );

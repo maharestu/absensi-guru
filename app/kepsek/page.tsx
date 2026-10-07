@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import Pagination from "@/components/ui/pagination";
 import {
   getKepsekStats,
   getKehadiranHariIni,
@@ -12,6 +13,7 @@ import {
 } from "@/actions/dashboard";
 
 export default function KepsekDashboardPage() {
+
   const { timeString, dateString } = useRealtimeClock();
   const [stats, setStats] = useState<KepsekStats>({
     guruHadir: 0,
@@ -23,6 +25,21 @@ export default function KepsekDashboardPage() {
   const [kehadiran, setKehadiran] = useState<KehadiranHariIni[]>([]);
   const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination states
+  const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
+  const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
+  const itemsPerPage = 11;
+
+  const paginatedKehadiran = kehadiran.slice(
+    (currentPageKehadiran - 1) * itemsPerPage,
+    currentPageKehadiran * itemsPerPage
+  );
+
+  const paginatedMengajar = mengajar.slice(
+    (currentPageMengajar - 1) * itemsPerPage,
+    currentPageMengajar * itemsPerPage
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -43,6 +60,8 @@ export default function KepsekDashboardPage() {
     }
     loadData();
   }, []);
+
+  
 
   return (
     <div className="space-y-8">
@@ -192,7 +211,7 @@ export default function KepsekDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                kehadiran.map((row) => (
+                paginatedKehadiran.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-4 font-semibold text-slate-800">
                       {row.nama_guru}
@@ -208,6 +227,15 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          {!loading && kehadiran.length > 0 && (
+            <Pagination
+              currentPage={currentPageKehadiran}
+              totalItems={kehadiran.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPageKehadiran}
+            />
+          )}
+
         </div>
       </div>
 
@@ -234,7 +262,7 @@ export default function KepsekDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                mengajar.map((row) => (
+                paginatedMengajar.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-4 font-semibold text-slate-800">
                       {row.nama_guru}
@@ -256,6 +284,17 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          {!loading && mengajar.length > 0 && (
+            <Pagination
+              currentPage={currentPageMengajar}
+              totalItems={mengajar.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPageMengajar}
+            />
+          )}
+
+
+
         </div>
       </div>
     </div>

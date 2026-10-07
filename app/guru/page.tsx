@@ -56,7 +56,7 @@ export default function DashboardGuruPage() {
   const nipGuru = user?.nip ?? "-";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-14 pb-10">
+    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-10 min-h-full">
 
       {/* ── Header ── */}
       <header className="mb-6">
@@ -136,39 +136,9 @@ export default function DashboardGuruPage() {
         ))}
       </div>
 
-      {/* ── Tombol Keluar ── */}
-      <div className="mt-8">
-        <button
-          onClick={() => {
-            logout();
-            router.push("/");
-          }}
-          className="w-full bg-white py-3.5 rounded-2xl border border-red-500 text-red-500 font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] hover:bg-red-50 transition-all shadow-sm"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M17 16L21 12M21 12L17 8M21 12H9M13 16V17C13 18.6569 11.6569 20 10 20H6C4.34315 20 3 18.6569 3 17V7C3 5.34315 4.34315 4 6 4H10C11.6569 4 13 5.34315 13 7V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Keluar
-        </button>
-      </div>
 
-      {/* ── Tombol Dev Reset (untuk Testing) ── */}
-      <div className="mt-6 flex justify-center pb-6">
-        <button
-          onClick={() => {
-            if (typeof window !== "undefined") {
-              sessionStorage.removeItem("absensi_completed");
-              sessionStorage.removeItem("absensi_status");
-              sessionStorage.removeItem("absensi_time");
-              sessionStorage.removeItem("absensi_date");
-              alert("Status absensi telah di-reset! Anda dapat mencoba alur absensi dari awal lagi.");
-            }
-          }}
-          className="text-xs text-slate-400 hover:text-blue-600 underline font-medium transition-colors"
-        >
-          Reset Status Absensi (Dev Testing)
-        </button>
-      </div>
+
+
     </div>
   );
 }

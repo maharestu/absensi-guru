@@ -7,8 +7,10 @@ import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2 } from "lucide-react";
 import TeacherForm, { TeacherFormData } from "./TeacherForm";
+import Pagination from "@/components/ui/pagination";
 
 export default function TeacherManagerClient() {
+
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -36,6 +38,12 @@ export default function TeacherManagerClient() {
 
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadTeachers = async () => {
     try {
       const data = await getGuruList();
@@ -155,9 +163,17 @@ export default function TeacherManagerClient() {
     }
   };
 
+    const paginatedList = filteredTeachers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data guru...</div>;
 
 
+
+  
+// reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -208,7 +224,7 @@ export default function TeacherManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredTeachers.map((guru) => (
+              paginatedList.map((guru) => (
                 <tr key={guru.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-bold text-slate-900">{guru.nama}</td>
                   <td className="py-4 text-slate-500 font-medium">{guru.nip}</td>
@@ -240,6 +256,16 @@ export default function TeacherManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredTeachers.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredTeachers.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
       <Modal isOpen={!!deletingTeacher} onClose={() => setDeletingTeacher(null)} maxWidth="max-w-md">

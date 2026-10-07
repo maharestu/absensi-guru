@@ -8,6 +8,7 @@ import { Guru } from "@/types/schema";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
+import Pagination from "@/components/ui/pagination";
 
 const ROLE_OPTIONS: AdminAkunItem["role"][] = ["guru", "admin", "kepala_sekolah"];
 const STATUS_OPTIONS: AdminAkunItem["status"][] = ["aktif", "nonaktif"];
@@ -19,6 +20,7 @@ const ROLE_LABEL: Record<AdminAkunItem["role"], string> = {
 };
 
 export default function AccountManagerClient() {
+
   const [accounts, setAccounts] = useState<AdminAkunItem[]>([]);
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +55,12 @@ export default function AccountManagerClient() {
   const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
   const [showEditTeacherDropdown, setShowEditTeacherDropdown] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadData = async () => {
     try {
       const [accList, guruList] = await Promise.all([
@@ -243,9 +251,17 @@ export default function AccountManagerClient() {
     }
   };
 
+    const paginatedList = filteredAccounts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data akun...</div>;
 
 
+
+  
+// reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -295,7 +311,7 @@ export default function AccountManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredAccounts.map((akun) => (
+              paginatedList.map((akun) => (
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-bold text-slate-900">
                     <div>{akun.nama}</div>
@@ -329,6 +345,16 @@ export default function AccountManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredAccounts.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredAccounts.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
       <Modal isOpen={!!deletingAccount} onClose={() => setDeletingAccount(null)} maxWidth="max-w-md">

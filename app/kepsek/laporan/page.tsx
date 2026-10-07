@@ -8,6 +8,7 @@ import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
 import { Guru, Kelas } from "@/types/schema";
 import { useEffect, useRef } from "react";
+import Pagination from "@/components/ui/pagination";
 
 function SearchableSelect({ 
   options, 
@@ -81,6 +82,7 @@ function SearchableSelect({
 }
 
 export default function LaporanAbsensiPage() {
+
   const { timeString, dateString } = useRealtimeClock();
   const [activeTab, setActiveTab] = useState<"kehadiran" | "mengajar">("kehadiran");
   const [laporanKehadiran, setLaporanKehadiran] = useState<LaporanKehadiran[]>([]);
@@ -134,6 +136,20 @@ export default function LaporanAbsensiPage() {
     const matchKelas = selectedKelas === "all" || r.kelas_id === selectedKelas;
     return matchGuru && matchKelas;
   });
+
+  const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
+  const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
+  const itemsPerPage = 11;
+
+  const paginatedKehadiran = filteredKehadiran.slice(
+    (currentPageKehadiran - 1) * itemsPerPage,
+    currentPageKehadiran * itemsPerPage
+  );
+
+  const paginatedMengajar = filteredMengajar.slice(
+    (currentPageMengajar - 1) * itemsPerPage,
+    currentPageMengajar * itemsPerPage
+  );
 
   // Hitung jumlah statistik Kehadiran secara dinamis
   const countHadir = filteredKehadiran.filter((r) => r.status.toLowerCase() === "hadir").length;
@@ -459,7 +475,7 @@ export default function LaporanAbsensiPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredMengajar.map((row) => (
+                    paginatedMengajar.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
@@ -478,6 +494,14 @@ export default function LaporanAbsensiPage() {
                   )))}
                 </tbody>
               </table>
+            {filteredMengajar.length > 0 && (
+              <Pagination
+                currentPage={currentPageMengajar}
+                totalItems={filteredMengajar.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPageMengajar}
+              />
+            )}
             </div>
           </div>
 
@@ -601,7 +625,7 @@ export default function LaporanAbsensiPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredKehadiran.map((row) => (
+                    paginatedKehadiran.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
@@ -636,7 +660,9 @@ export default function LaporanAbsensiPage() {
         const totalCatatan = detailKehadiran.length;
         const persentaseHadir = totalCatatan > 0 ? Math.round((detailHadir / totalCatatan) * 100) : 0;
 
-        return (
+        
+
+  return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
               
@@ -759,6 +785,8 @@ export default function LaporanAbsensiPage() {
                         )}
                       </tbody>
                     </table>
+
+
                   </div>
                 </div>
                 

@@ -8,6 +8,7 @@ import { Guru, Kelas, JadwalWithDetail, HariJadwal } from "@/types/schema";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Edit2, Trash2 } from "lucide-react";
 import ScheduleForm, { ScheduleFormData } from "./ScheduleForm";
+import Pagination from "@/components/ui/pagination";
 
 const HARI_OPTIONS: { value: HariJadwal; label: string }[] = [
   { value: "senin", label: "Senin" },
@@ -18,6 +19,7 @@ const HARI_OPTIONS: { value: HariJadwal; label: string }[] = [
 ];
 
 export default function ScheduleManagerClient() {
+
   const [schedules, setSchedules] = useState<JadwalWithDetail[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -56,6 +58,12 @@ export default function ScheduleManagerClient() {
   // Realtime clock & date
   const { timeString, dateString } = useRealtimeClock();
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadAllData = async () => {
     try {
       const [jData, gData, kData] = await Promise.all([
@@ -187,6 +195,11 @@ export default function ScheduleManagerClient() {
     }
   };
 
+    const paginatedList = filteredSchedules.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) {
     return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data jadwal...</div>;
   }
@@ -196,6 +209,9 @@ export default function ScheduleManagerClient() {
   // ═══════════════════════════════════════════════════════════
   // VIEW: DAFTAR JADWAL
   // ═══════════════════════════════════════════════════════════
+  
+// reset page if search changes
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -262,7 +278,7 @@ export default function ScheduleManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredSchedules.map((jadwal) => (
+              paginatedList.map((jadwal) => (
                 <tr key={jadwal.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-semibold text-slate-900 capitalize">
                     {jadwal.hari}
@@ -302,6 +318,16 @@ export default function ScheduleManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredSchedules.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredSchedules.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
       {/* MODAL: HAPUS JADWAL */}

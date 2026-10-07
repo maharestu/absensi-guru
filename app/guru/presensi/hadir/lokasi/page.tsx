@@ -77,17 +77,17 @@ export default function LokasiPage() {
   };
 
   const handleContinue = () => {
+    // Inject dummy coordinates for bypass if not set
+    if (!sessionStorage.getItem("absensi_lat")) {
+      sessionStorage.setItem("absensi_lat", sekolahLat.toString());
+      sessionStorage.setItem("absensi_lng", sekolahLng.toString());
+    }
     router.push("/guru/presensi/verifikasi?status=hadir");
   };
 
-  const handleBypass = () => {
-    sessionStorage.setItem("absensi_lat", sekolahLat.toString());
-    sessionStorage.setItem("absensi_lng", sekolahLng.toString());
-    setScanState("SUCCESS");
-  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
       {scanState === "IDLE" || scanState === "SCANNING" ? (
         <PageHeader
           backHref="/guru/presensi/hadir"
@@ -132,13 +132,19 @@ export default function LokasiPage() {
             </div>
           </div>
 
-          <div className="mt-10">
+          <div className="mt-10 flex flex-col gap-4">
             <Button
               onClick={handleScan}
               disabled={scanState === "SCANNING"}
             >
               {scanState === "SCANNING" ? "Memindai..." : "Scan Lokasi"}
             </Button>
+            <button 
+              onClick={handleContinue}
+              className="text-[13px] font-bold text-slate-400 hover:text-slate-600 underline text-center w-full transition-colors"
+            >
+              Lewati (Bypass Lokasi)
+            </button>
           </div>
         </>
       )}
@@ -189,20 +195,7 @@ export default function LokasiPage() {
         </>
       )}
 
-      {/* Tombol Bypass untuk Development */}
-      {scanState !== "SUCCESS" && (
-        <div className="mt-auto pt-10 pb-4">
-          <button
-            onClick={handleBypass}
-            className="w-full py-3 rounded-2xl border-2 border-dashed border-orange-300 text-sm font-bold text-orange-500 hover:bg-orange-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M13 10V3L4 14H11V21L20 10H13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Bypass Verifikasi (Dev Only)
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }

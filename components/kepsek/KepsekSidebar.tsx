@@ -6,7 +6,12 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-export default function KepsekSidebar() {
+interface KepsekSidebarProps {
+  isMobileMenuOpen?: boolean;
+  onCloseMobileMenu?: () => void;
+}
+
+export default function KepsekSidebar({ isMobileMenuOpen = false, onCloseMobileMenu = () => {} }: KepsekSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -45,18 +50,37 @@ export default function KepsekSidebar() {
     router.push("/login");
   };
 
+  // Handle closing on route change for mobile
+  React.useEffect(() => {
+    onCloseMobileMenu();
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <aside className="w-60 lg:w-64 bg-white border-r border-slate-100 sticky top-0 h-screen overflow-y-auto flex flex-col justify-between p-5 lg:p-6 flex-shrink-0">
-      <div>
-        {/* Profile Card Header */}
-        <div className="bg-[#f0f4f9] p-3.5 rounded-2xl flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-transparent flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <Image src="/Logo.png" alt="Logo SMPN 8 Karawang Barat" width={40} height={40} className="object-contain" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{namaUser}</p>
-          </div>
+    <aside className={`fixed md:relative top-0 left-0 h-full w-64 bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-50 transition-transform duration-300 md:transition-none shadow-xl md:shadow-none ${
+      isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+    }`}>
+      <div className="flex flex-col h-full overflow-hidden w-full p-4 lg:p-6 relative">
+        
+        {/* Mobile Close Button & Header */}
+        <div className="md:hidden flex items-center justify-between mb-6 pt-2">
+          <span className="font-bold text-slate-800 ml-1">Menu Kepsek</span>
+          <button onClick={onCloseMobileMenu} className="p-2 -mr-2 text-slate-500 hover:bg-slate-100 rounded-lg active:scale-95">
+             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+               <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+             </svg>
+          </button>
         </div>
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+          {/* Profile Card Header */}
+          <div className="bg-[#f0f4f9] p-3.5 rounded-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm">
+              <Image src="/Logo.png" alt="Logo SMPN 8 Karawang Barat" width={32} height={32} className="object-contain" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900 truncate">{namaUser}</p>
+            </div>
+          </div>
 
         {/* Section Label */}
         <div className="mt-8 mb-3 px-2">
@@ -119,6 +143,7 @@ export default function KepsekSidebar() {
           </svg>
           Keluar
         </button>
+      </div>
       </div>
     </aside>
   );
