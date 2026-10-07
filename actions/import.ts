@@ -117,7 +117,7 @@ export async function importExcelData(data: ParsedData) {
     if (newKelases.length > 0) {
       const kelasesToInsert = newKelases.map(k => ({
         nama_kelas: k.nama_kelas,
-        kode_qr: `QR-${k.nama_kelas}-${Date.now()}` // Generate unik QR
+        kode_qr: crypto.randomUUID() // Generate unik QR dengan UUID
       }));
 
       const { data: insertedKelases, error: insertKelasErr } = await supabase

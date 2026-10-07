@@ -61,7 +61,7 @@ function FotoSelfieKelasContent() {
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        const dataUrl = canvas.toDataURL("image/webp", 0.8);
         setPhoto(dataUrl);
       }
     }
@@ -116,7 +116,7 @@ function FotoSelfieKelasContent() {
           </div>
 
           <div className="w-full mt-auto pt-8 flex flex-col gap-4">
-            <button 
+            <button
               onClick={handleBypass}
               className="text-[13px] text-slate-400 hover:text-slate-600 mx-auto underline transition-colors"
             >
@@ -143,13 +143,13 @@ function FotoSelfieKelasContent() {
           </div>
 
           <div className="w-full mt-auto pt-8 flex flex-col gap-4">
-            <button 
+            <button
               onClick={handleContinue}
               className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-sm transition-all"
             >
               Lanjutkan
             </button>
-            <button 
+            <button
               onClick={handleRetake}
               className="w-full py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 rounded-2xl font-bold shadow-sm transition-all"
             >

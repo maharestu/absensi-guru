@@ -70,7 +70,7 @@ function VerifikasiMengajarContent() {
       // Convert base64 photo to a File object
       const res = await fetch(photoUrl);
       const blob = await res.blob();
-      const file = new File([blob], `mengajar_${jadwalId}.jpg`, { type: "image/jpeg" });
+      const file = new File([blob], `mengajar_${jadwalId}.webp`, { type: "image/webp" });
       
       const formData = new FormData();
       formData.append("jadwalId", jadwalId);
