@@ -43,7 +43,7 @@ export default function AdminLayout({
           className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg active:scale-95 transition-all"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6H20M4 12H14M4 18H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
         <span className="ml-3 font-bold text-slate-800">Admin Dashboard</span>

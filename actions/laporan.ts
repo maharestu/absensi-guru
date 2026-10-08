@@ -9,6 +9,8 @@ export interface LaporanKehadiran {
   nama: string;
   waktu_masuk: string;
   status: string;
+  foto_absensi?: string | null;
+  file_bukti_izin_sakit?: string | null;
 }
 
 export interface LaporanMengajar {
@@ -17,15 +19,17 @@ export interface LaporanMengajar {
   kelas_id: string;
   tanggal: string;
   nama: string;
-  kelasMapel: string;
+  kelas: string;
+  mata_pelajaran: string;
   waktu: string;
   status: string;
+  foto_absensi?: string | null;
 }
 
 export async function getLaporanKehadiran(startDate?: string, endDate?: string): Promise<LaporanKehadiran[]> {
   let query = supabaseAdmin
     .from("absensi_masuk")
-    .select("id, guru_id, tanggal, waktu_submit, status, guru(nama)")
+    .select("id, guru_id, tanggal, waktu_submit, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
     .order("waktu_submit", { ascending: false });
 
   if (startDate) query = query.gte("tanggal", startDate);
@@ -47,14 +51,16 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     waktu_masuk: row.status === "hadir" 
       ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) 
       : "—",
-    status: row.status.charAt(0).toUpperCase() + row.status.slice(1)
+    status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
+    foto_absensi: row.foto_absensi,
+    file_bukti_izin_sakit: row.file_bukti_izin_sakit
   }));
 }
 
 export async function getLaporanMengajar(startDate?: string, endDate?: string): Promise<LaporanMengajar[]> {
   let query = supabaseAdmin
     .from("absensi_mengajar")
-    .select("id, tanggal, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru_id, kelas_id, guru(nama), kelas(nama_kelas))")
+    .select("id, tanggal, waktu_submit, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru_id, kelas_id, guru(nama), kelas(nama_kelas))")
     .order("waktu_submit", { ascending: false });
 
   if (startDate) query = query.gte("tanggal", startDate);
@@ -79,9 +85,11 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
         year: "numeric"
       }),
       nama: guru?.nama ?? "-",
-      kelasMapel: `${kelas?.nama_kelas ?? "-"} / ${jadwal?.mata_pelajaran ?? "-"}`,
-      waktu: jadwal ? `${jadwal.jam_mulai} - ${jadwal.jam_selesai}` : "-",
-      status: "Mengajar"
+      kelas: kelas?.nama_kelas ?? "-",
+      mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
+      waktu: jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "-",
+      status: "Mengajar",
+      foto_absensi: row.foto_absensi
     };
   });
 }

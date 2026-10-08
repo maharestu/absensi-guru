@@ -99,10 +99,10 @@ export default function KepsekDashboardPage() {
       </div>
 
       {/* ── STAT CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
         {/* Card 1: Guru Hadir */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="18" x="3" y="3" rx="4" />
               <circle cx="12" cy="10" r="3" />
@@ -110,16 +110,16 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Guru Hadir</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Guru Hadir</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.guruHadir}
             </h2>
           </div>
         </div>
 
         {/* Card 2: Izin */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="14" height="18" x="5" y="3" rx="3" />
               <path d="M9 9h6" />
@@ -128,16 +128,16 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Izin</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Izin</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.izin}
             </h2>
           </div>
         </div>
 
         {/* Card 3: Sakit */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="18" x="3" y="4" rx="3" />
               <path d="M16 2v4" />
@@ -148,32 +148,32 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Sakit</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.sakit}
             </h2>
           </div>
         </div>
 
         {/* Card: Dinas Luar */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Dinas Luar</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Dinas Luar</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.dinas}
             </h2>
           </div>
         </div>
 
         {/* Card: Belum Absen */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 col-span-2 lg:col-span-1">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="14" x="3" y="5" rx="3" />
               <path d="M3 10h18" />
@@ -182,8 +182,8 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Belum Absen</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Belum Absen</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.belumAbsen}
             </h2>
           </div>

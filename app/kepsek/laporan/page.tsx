@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Clock, Calendar } from "lucide-react";
+import { Clock, Calendar, Camera } from "lucide-react";
+import * as XLSX from "xlsx-js-style";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
 import { getGuruList } from "@/actions/guru";
@@ -92,6 +93,7 @@ export default function LaporanAbsensiPage() {
   const [loading, setLoading] = useState(true);
 
   const [detailModalGuruId, setDetailModalGuruId] = useState<string | null>(null);
+  const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
 
   const [selectedGuru, setSelectedGuru] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
@@ -221,7 +223,84 @@ export default function LaporanAbsensiPage() {
   };
 
   const handleExport = () => {
-    alert("Mengekspor data ke Excel (.xlsx)...");
+    const isKehadiran = activeTab === "kehadiran";
+    const dataToExport = isKehadiran ? filteredKehadiran : filteredMengajar;
+
+    if (dataToExport.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+
+    let exportData;
+    if (isKehadiran) {
+      exportData = (dataToExport as LaporanKehadiran[]).map((row) => ({
+        "Tanggal": row.tanggal,
+        "Nama Guru": row.nama,
+        "Status": row.status,
+        "Waktu Masuk": row.waktu_masuk,
+      }));
+    } else {
+      exportData = (dataToExport as LaporanMengajar[]).map((row) => ({
+        "Tanggal": row.tanggal,
+        "Nama Guru": row.nama,
+        "Kelas": row.kelas,
+        "Mata Pelajaran": row.mata_pelajaran,
+        "Waktu": row.waktu,
+        "Status": row.status,
+      }));
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // -- STYLING EXCEL --
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
+    
+    // Header styling (Baris 0)
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!worksheet[address]) continue;
+      worksheet[address].s = {
+        fill: { 
+          patternType: "solid",
+          fgColor: { rgb: "FDE047" } // Warna kuning (Tailwind yellow-300)
+        }, 
+        font: { bold: true, color: { rgb: "000000" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "D1D5DB" } },
+          bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+          left: { style: "thin", color: { rgb: "D1D5DB" } },
+          right: { style: "thin", color: { rgb: "D1D5DB" } },
+        }
+      };
+    }
+
+    // Body styling (Baris 1 ke bawah)
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!worksheet[address]) continue;
+        worksheet[address].s = {
+          border: {
+            top: { style: "thin", color: { rgb: "D1D5DB" } },
+            bottom: { style: "thin", color: { rgb: "D1D5DB" } },
+            left: { style: "thin", color: { rgb: "D1D5DB" } },
+            right: { style: "thin", color: { rgb: "D1D5DB" } },
+          }
+        };
+      }
+    }
+
+    // Set Column Widths (Wch = Width in Characters)
+    worksheet['!cols'] = isKehadiran 
+      ? [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 15 }] 
+      : [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
+    
+    const fileName = `Laporan_${isKehadiran ? "Kehadiran" : "Mengajar"}_${startDate}_sampai_${endDate}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
   const pageTitle =
@@ -278,10 +357,10 @@ export default function LaporanAbsensiPage() {
       </div>
 
       {/* ── FILTER SECTION ── */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-end gap-4">
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5 shadow-sm">
+        <div className="grid grid-cols-2 md:flex md:flex-row md:items-end gap-3 sm:gap-4">
 
-          <div className="flex-1 space-y-2">
+          <div className="col-span-1 md:col-span-1 flex-1 space-y-2">
             <label className="text-[11px] font-bold text-slate-900 tracking-wider">Periode</label>
             <div className="relative">
               <select 
@@ -301,14 +380,14 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
             {periodeType === "custom" && (
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-col xl:flex-row xl:items-center gap-2 mt-2">
                 <input 
                   type="date" 
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
-                <span className="text-slate-400">-</span>
+                <span className="hidden xl:inline text-slate-400">-</span>
                 <input 
                   type="date" 
                   value={endDate}
@@ -319,7 +398,7 @@ export default function LaporanAbsensiPage() {
             )}
           </div>
 
-          <div className="flex-1 space-y-2">
+          <div className="col-span-1 md:col-span-1 flex-1 space-y-2">
             <label className="text-[11px] font-bold text-slate-900 tracking-wider">Guru</label>
             <SearchableSelect 
               placeholder="Semua Guru"
@@ -334,7 +413,7 @@ export default function LaporanAbsensiPage() {
 
           {activeTab === "kehadiran" ? (
             // Filter untuk Kehadiran
-            <div className="flex-1 space-y-2">
+            <div className="col-span-2 md:col-span-1 flex-1 space-y-2">
               <label className="text-[11px] font-bold text-slate-900 tracking-wider">Status</label>
               <div className="relative">
                 <select 
@@ -358,7 +437,7 @@ export default function LaporanAbsensiPage() {
           ) : (
             // Filter untuk Mengajar (Kelas & Mata Pelajaran)
             <>
-              <div className="flex-1 space-y-2">
+              <div className="col-span-1 flex-1 space-y-2">
                 <label className="text-[11px] font-bold text-slate-900 tracking-wider">Kelas</label>
                 <SearchableSelect 
                   placeholder="Semua Kelas"
@@ -370,7 +449,7 @@ export default function LaporanAbsensiPage() {
                   ]}
                 />
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="col-span-1 flex-1 space-y-2">
                 <label className="text-[11px] font-bold text-slate-900 tracking-wider">Status</label>
                 <div className="relative">
                   <select 
@@ -392,12 +471,11 @@ export default function LaporanAbsensiPage() {
             </>
           )}
 
-          <div className="mt-4 md:mt-0 flex-shrink-0">
+          <div className="col-span-2 mt-2 md:mt-0 flex-shrink-0">
             <button
               type="button"
               onClick={handleTampilkan}
               className="w-full md:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
-              style={{ width: 134, height: 44 }}
             >
               Tampilkan
             </button>
@@ -411,9 +489,9 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4 w-full sm:w-[260px]">
-              <div className="w-13 h-13 rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="18" x="3" y="3" rx="4" />
                   <path d="M8 10h8" />
@@ -421,13 +499,13 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Jadwal</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countJadwal}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Jadwal</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countJadwal}</h2>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4 w-full sm:w-[260px]">
-              <div className="w-13 h-13 rounded-2xl bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="2" x2="22" y1="12" y2="12" />
@@ -435,8 +513,8 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Mengajar</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countMengajar}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Mengajar</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countMengajar}</h2>
               </div>
             </div>
           </div>
@@ -459,10 +537,11 @@ export default function LaporanAbsensiPage() {
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-4 font-semibold w-[15%]">TANGGAL</th>
-                    <th className="pb-4 font-semibold w-[25%]">NAMA GURU</th>
-                    <th className="pb-4 font-semibold w-[30%]">Kelas / Mata Pelajaran</th>
-                    <th className="pb-4 font-semibold w-[15%]">WAKTU</th>
+                    <th className="pb-4 font-semibold w-[12%]">TANGGAL</th>
+                    <th className="pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                    <th className="pb-4 font-semibold w-[12%]">KELAS</th>
+                    <th className="pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
+                    <th className="pb-4 font-semibold w-[16%]">WAKTU</th>
                     <th className="pb-4 font-semibold w-[10%]">STATUS</th>
                     <th className="pb-4 font-semibold w-[10%] text-center">AKSI</th>
                   </tr>
@@ -479,16 +558,28 @@ export default function LaporanAbsensiPage() {
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.kelasMapel}</td>
+                      <td className="py-4 text-slate-500 font-medium">{row.kelas}</td>
+                      <td className="py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.waktu}</td>
                       <td className="py-4 font-medium text-slate-600">{row.status}</td>
                       <td className="py-4 text-center">
-                        <button 
-                          onClick={() => setDetailModalGuruId(row.guru_id)}
-                          className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          Detail
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          {row.foto_absensi && (
+                            <button
+                              onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
+                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1.5 text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                              title="Lihat Foto"
+                            >
+                              <Camera className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => setDetailModalGuruId(row.guru_id)}
+                            className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                          >
+                            Detail
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )))}
@@ -511,10 +602,10 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards Kehadiran */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
             {/* Card 1: Guru Hadir */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-              <div className="w-13 h-13 rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="18" x="3" y="3" rx="4" />
                   <circle cx="12" cy="10" r="3" />
@@ -522,14 +613,14 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Guru Hadir</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countHadir}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Guru Hadir</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countHadir}</h2>
               </div>
             </div>
 
             {/* Card 2: Izin */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-              <div className="w-13 h-13 rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="14" height="18" x="5" y="3" rx="3" />
                   <path d="M9 9h6" />
@@ -538,14 +629,14 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Izin</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countIzin}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Izin</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countIzin}</h2>
               </div>
             </div>
 
             {/* Card 3: Sakit */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-              <div className="w-13 h-13 rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="18" x="3" y="4" rx="3" />
                   <path d="M16 2v4" />
@@ -556,28 +647,28 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countSakit}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Sakit</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countSakit}</h2>
               </div>
             </div>
 
             {/* Card: Dinas Luar */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-              <div className="w-13 h-13 rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Dinas Luar</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countDinas}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Dinas Luar</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countDinas}</h2>
               </div>
             </div>
 
             {/* Card 4: Tidak Hadir */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-              <div className="w-13 h-13 rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 col-span-2 lg:col-span-1">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="14" x="3" y="5" rx="3" />
                   <path d="M3 10h18" />
@@ -586,8 +677,8 @@ export default function LaporanAbsensiPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-slate-400">Tidak Hadir</p>
-                <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countTidakHadir}</h2>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Tidak Hadir</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countTidakHadir}</h2>
               </div>
             </div>
           </div>
@@ -632,17 +723,36 @@ export default function LaporanAbsensiPage() {
                       <td className="py-4 font-medium text-slate-600">{row.status}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.waktu_masuk}</td>
                       <td className="py-4 text-center">
-                        <button 
-                          onClick={() => setDetailModalGuruId(row.guru_id)}
-                          className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          Detail
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          {(row.foto_absensi || row.file_bukti_izin_sakit) && (
+                            <button
+                              onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
+                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1.5 text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                              title="Lihat Foto / Bukti"
+                            >
+                              <Camera className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => setDetailModalGuruId(row.guru_id)}
+                            className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                          >
+                            Detail
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )))}
                 </tbody>
               </table>
+              {filteredKehadiran.length > 0 && (
+                <Pagination
+                  currentPage={currentPageKehadiran}
+                  totalItems={filteredKehadiran.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPageKehadiran}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -795,6 +905,28 @@ export default function LaporanAbsensiPage() {
           </div>
         );
       })()}
+
+      {/* ── PHOTO OVERLAY ── */}
+      {photoOverlayUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setPhotoOverlayUrl(null)}>
+          <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setPhotoOverlayUrl(null)}
+              className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors border border-white/20"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+            <img 
+              src={photoOverlayUrl} 
+              alt="Bukti Absensi" 
+              className="rounded-xl shadow-2xl object-contain max-h-[85vh] w-auto max-w-full"
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );

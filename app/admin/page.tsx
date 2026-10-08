@@ -78,11 +78,11 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* ── STAT CARDS (3 Cards - Dynamic Responsive Fluid width) ── */}
-      <div className="flex flex-wrap gap-4 lg:gap-5 justify-start items-center">
+      {/* ── STAT CARDS (3 Cards) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
         {/* Card 1: Total Guru */}
-        <div className="flex-1 min-w-[220px] max-w-[290px] bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" strokeWidth="2" strokeLinecap="round" />
               <circle cx="9" cy="7" r="4" stroke="white" strokeWidth="2" />
@@ -91,16 +91,16 @@ export default function AdminDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Total Guru Terdaftar</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Guru</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.totalGuru}
             </h2>
           </div>
         </div>
 
         {/* Card 2: Total Jadwal */}
-        <div className="flex-1 min-w-[220px] max-w-[290px] bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="4" width="18" height="18" rx="3" stroke="white" strokeWidth="2" />
               <path d="M16 2V6M8 2V6M3 10H21" stroke="white" strokeWidth="2" strokeLinecap="round" />
@@ -108,16 +108,16 @@ export default function AdminDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Total Jadwal Terdaftar</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Jadwal</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.totalJadwal}
             </h2>
           </div>
         </div>
 
         {/* Card 3: Total Akun */}
-        <div className="flex-1 min-w-[220px] max-w-[290px] bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-emerald-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full col-span-2 lg:col-span-1">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-emerald-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="2" />
               <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2" />
@@ -125,8 +125,8 @@ export default function AdminDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Total Akun Terdaftar</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Akun</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.totalAkun}
             </h2>
           </div>
