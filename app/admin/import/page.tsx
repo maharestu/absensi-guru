@@ -43,13 +43,13 @@ export default function ImportDataPage() {
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
       const sheetPtkName = wbPtk.SheetNames.includes("PTK") ? "PTK" : wbPtk.SheetNames[0];
-      const dataPtkRaw = XLSX.utils.sheet_to_json<any[]>(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" });
+      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" });
 
       // Cari baris header
       let headerRowIndex = -1;
       for (let i = 0; i < 20; i++) {
         if (!dataPtkRaw[i]) continue;
-        const rowStrings = dataPtkRaw[i].map(c => String(c).trim().toLowerCase());
+        const rowStrings = dataPtkRaw[i].map((c: any) => String(c).trim().toLowerCase());
         if (rowStrings.includes("nama") || rowStrings.includes("nip")) {
           headerRowIndex = i;
           break;
@@ -58,7 +58,7 @@ export default function ImportDataPage() {
 
       if (headerRowIndex === -1) throw new Error("Format file PTK tidak dikenali (Tidak ada kolom Nama/NIP).");
 
-      const headers = dataPtkRaw[headerRowIndex].map(h => String(h).trim().toLowerCase());
+      const headers = dataPtkRaw[headerRowIndex].map((h: any) => String(h).trim().toLowerCase());
       const colNama = headers.indexOf("nama");
       const colNip = headers.indexOf("nip");
       const colNuptk = headers.indexOf("nuptk");
@@ -87,7 +87,7 @@ export default function ImportDataPage() {
       if (!wbKbm.SheetNames.includes("JADWAL KBM")) {
         throw new Error("Sheet 'JADWAL KBM' tidak ditemukan pada file kedua.");
       }
-      const dataKbmRaw = XLSX.utils.sheet_to_json<any[]>(wbKbm.Sheets["JADWAL KBM"], { header: 1, defval: "" });
+      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets["JADWAL KBM"], { header: 1, defval: "" });
 
       const legendaGuru: Record<string, string> = {};
       const legendaMapel: Record<string, string> = {};

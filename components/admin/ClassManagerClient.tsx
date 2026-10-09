@@ -1,13 +1,100 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, Printer } from "lucide-react";
 import { Kelas } from "@/types/schema";
 import { getKelasList, createKelas, updateKelas, deleteKelas } from "@/actions/kelas";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Modal } from "./ui/Modal";
 import { Button } from "../ui/button";
 import Pagination from "@/components/ui/pagination";
+
+const A4Template = ({ classData }: { classData: Kelas }) => {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+  const qrUrl = `${cleanBaseUrl}/absen-qr/${classData.kode_qr || classData.id}`;
+  
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const startYear = currentMonth >= 6 ? currentYear : currentYear - 1;
+  const academicYear = `${startYear}/${startYear + 1}`;
+  const printDate = `Juli ${startYear}`;
+
+  return (
+    <div className="w-[210mm] min-h-[297mm] bg-white text-black p-12 flex flex-col relative box-border mx-auto border border-slate-200 print:border-none shadow-sm print:shadow-none">
+      {/* Outer border for the A4 paper content */}
+      <div className="absolute inset-2 border border-slate-800 pointer-events-none rounded-sm"></div>
+      <div className="absolute inset-3 border border-slate-800 pointer-events-none rounded-sm"></div>
+
+      <div className="relative z-10 flex flex-col h-full px-8 py-8">
+        {/* Kop Surat */}
+        <div className="relative flex items-center justify-center border-b-[3px] border-slate-800 pb-6 mb-8">
+          <div className="absolute left-0 top-0 bottom-6 flex items-center">
+            <img src="/Logo.png" alt="Logo" className="w-24 h-24 object-contain" />
+          </div>
+          <div className="text-center">
+            <h4 className="text-sm font-bold text-slate-700 tracking-wider">PEMERINTAH KABUPATEN KARAWANG</h4>
+            <h3 className="text-lg font-bold text-slate-800 tracking-wide mt-1">DINAS PENDIDIKAN PEMUDA DAN OLAHRAGA</h3>
+            <h2 className="text-2xl font-black text-slate-900 tracking-widest mt-1">SMP NEGERI 8 KARAWANG BARAT</h2>
+            <p className="text-xs text-slate-600 mt-2">Jl. Karangpawitan, Karawang Barat, Jawa Barat - TA {academicYear}</p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-col items-center flex-1">
+          <div className="px-6 py-2 rounded-full border border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 tracking-widest mb-6 text-center">
+            PAPAN IDENTITAS & PRESENSI KBM DIGITAL
+          </div>
+          
+          <h1 className="text-[40px] font-black text-slate-900 uppercase tracking-wider text-center">
+            {classData.nama_kelas}
+          </h1>
+          <p className="text-sm font-medium text-slate-500 mt-2 text-center">
+            Gedung Praktik Lantai 2 • Tahun Ajaran {academicYear}
+          </p>
+
+          <div className="mt-12 p-4 border-[3px] border-slate-200 rounded-3xl bg-white shadow-sm">
+             <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrUrl)}`}
+                alt={`QR Code ${classData.nama_kelas}`}
+                className="w-64 h-64 object-contain mix-blend-multiply"
+             />
+          </div>
+
+          <div className="mt-6 px-6 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 font-mono tracking-wider">
+             QR-RUANG-{(classData.kode_qr || classData.id).toString().slice(0,8).toUpperCase()}
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-auto pt-10 w-full">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-sm text-slate-700">
+               <h5 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                  Petunjuk Presensi Guru Pengajar:
+               </h5>
+               <ol className="list-decimal list-inside space-y-2 text-slate-600 font-medium ml-1">
+                  <li>Buka aplikasi <strong className="text-slate-800">Absensi Guru SMPN 8 Karbar</strong> pada ponsel.</li>
+                  <li>Pilih menu <strong className="text-slate-800">Presensi KBM</strong> lalu arahkan kamera ke QR Code.</li>
+                  <li>Sistem otomatis memverifikasi kehadiran mengajar di kelas ini.</li>
+               </ol>
+            </div>
+          </div>
+
+          {/* Signature */}
+          <div className="w-full flex justify-end mt-12 mb-4">
+             <div className="text-center w-[300px]">
+                <p className="text-sm font-medium text-slate-600">Karawang Barat, {printDate}</p>
+                <p className="text-sm font-medium text-slate-600">Kepala SMP Negeri 8 Karawang Barat</p>
+                <div className="h-24"></div>
+                <p className="text-base font-bold text-slate-900 underline underline-offset-4">MAMAY ABDULLAH, S.Pd., M.Pd.</p>
+                <p className="text-sm text-slate-600 mt-1">NIP. 19700724 199902 1 003</p>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function ClassManagerClient() {
 
@@ -27,6 +114,21 @@ export default function ClassManagerClient() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 11;
+  const [previewScale, setPreviewScale] = useState(0.5);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (typeof window !== "undefined") {
+        // A4 height in pixels at 96 DPI is approx 1123px. Add some padding.
+        const targetHeight = window.innerHeight * 0.60;
+        const newScale = targetHeight / 1150;
+        setPreviewScale(Math.min(newScale, 1));
+      }
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -127,7 +229,8 @@ export default function ClassManagerClient() {
   }
 
   return (
-    <div className="space-y-8">
+    <>
+    <div className="space-y-8 print:hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -252,61 +355,30 @@ export default function ClassManagerClient() {
       </div>
 
       {/* QR Code Modal */}
-      <Modal isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} maxWidth="max-w-md">
+      <Modal isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} maxWidth="max-w-4xl">
         {selectedClass && (
-          <div className="text-center space-y-6 flex flex-col items-center">
-            <div className="space-y-2 text-center w-full">
-              <h2 className="text-xl font-bold text-slate-900 text-left">
-                QR Ruang {selectedClass.nama_kelas}
-              </h2>
-              <p className="text-sm text-slate-500 text-left">
-                Berikut adalah QR Code kelas untuk melakukan absensi.
-              </p>
-            </div>
-
-            {/* QR Image Wrapper */}
-            <div className="bg-[#0f172a] p-4 rounded-3xl w-full flex items-center justify-center aspect-square max-w-[320px]">
-              <div className="bg-white p-4 rounded-xl shadow-inner w-full h-full flex justify-center items-center">
-                {/* Using API for generating dummy QR based on class ID */}
-                {(() => {
-                  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
-                  // Pastikan tidak ada slash berlebih di akhir baseUrl
-                  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
-                  const qrUrl = `${cleanBaseUrl}/absen-qr/${selectedClass.kode_qr || selectedClass.id}`;
-                  
-                  
-// reset page if search changes
-
-  return (
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
-                      alt={`QR Code ${selectedClass.nama_kelas}`}
-                      className="w-full h-full object-contain mix-blend-multiply"
-                    />
-                  );
-                })()}
+          <div className="space-y-6">
+            {/* Header / Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Pratinjau Lembar A4 QR Code</h2>
+                <p className="text-sm text-slate-500 mt-1">Standar ISO 216 (210 x 297 mm) - Siap cetak & tempel pintu kelas</p>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <Button variant="outline" onClick={() => setSelectedClass(null)} fullWidth={false} className="flex-1 sm:flex-none">
+                  Batal
+                </Button>
+                <Button variant="primary" onClick={handlePrintQR} fullWidth={false} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-2 px-6">
+                  <Printer className="w-4 h-4" /> Cetak Dokumen Resmi (A4)
+                </Button>
               </div>
             </div>
 
-            <div className="flex w-full justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedClass(null)}
-                fullWidth={false}
-                className="px-6"
-              >
-                Tutup
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handlePrintQR}
-                fullWidth={false}
-                className="px-6"
-              >
-                Cetak QR
-              </Button>
+            {/* Preview Container - Dynamically scaled to fit exactly within 60vh */}
+            <div className="bg-slate-100 rounded-2xl flex justify-center items-center overflow-hidden border border-slate-200/60 shadow-inner w-full relative h-[60vh]">
+               <div className="print:static print:transform-none" style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
+                 <A4Template classData={selectedClass} />
+               </div>
             </div>
           </div>
         )}
@@ -431,5 +503,11 @@ export default function ClassManagerClient() {
         </div>
       </Modal>
     </div>
+
+    {/* Print-only template */}
+    <div className="hidden print:block w-full h-full bg-white">
+      {selectedClass && <A4Template classData={selectedClass} />}
+    </div>
+    </>
   );
 }
