@@ -152,7 +152,7 @@ export default function AdminSidebar({ isMobileMenuOpen = false, onCloseMobileMe
     <>
       <aside 
         style={{ width: `var(--current-width)` }}
-        className={`fixed md:relative top-0 left-0 h-full bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-50 transition-transform duration-300 md:transition-none shadow-xl md:shadow-none ${
+        className={`print:hidden fixed md:relative top-0 left-0 h-full bg-white border-r border-slate-200 flex flex-col justify-between flex-shrink-0 z-50 transition-transform duration-300 md:transition-none shadow-xl md:shadow-none ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >

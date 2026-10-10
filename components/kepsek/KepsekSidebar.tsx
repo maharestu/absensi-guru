@@ -63,7 +63,7 @@ export default function KepsekSidebar({ isMobileMenuOpen = false, onCloseMobileM
         
         {/* Mobile Close Button & Header */}
         <div className="md:hidden flex items-center justify-between mb-6 pt-2">
-          <span className="font-bold text-slate-800 ml-1">Menu Kepsek</span>
+          <span className="font-bold text-slate-800 ml-1">Menu Kepala Sekolah</span>
           <button onClick={onCloseMobileMenu} className="p-2 -mr-2 text-slate-500 hover:bg-slate-100 rounded-lg active:scale-95">
              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

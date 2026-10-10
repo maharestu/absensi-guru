@@ -18,26 +18,29 @@ const A4Template = ({ classData }: { classData: Kelas }) => {
   const currentMonth = new Date().getMonth();
   const startYear = currentMonth >= 6 ? currentYear : currentYear - 1;
   const academicYear = `${startYear}/${startYear + 1}`;
-  const printDate = `Juli ${startYear}`;
+  
+  const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const currentMonthName = months[currentMonth];
+  const printDate = `${currentMonthName} ${currentYear}`;
 
   return (
-    <div className="w-[210mm] min-h-[297mm] bg-white text-black p-12 flex flex-col relative box-border mx-auto border border-slate-200 print:border-none shadow-sm print:shadow-none">
+    <div className="w-[210mm] h-[296mm] bg-white text-black p-10 flex flex-col relative box-border mx-auto border border-slate-200 print:border-none shadow-sm print:shadow-none overflow-hidden print:w-[210mm] print:h-[296mm] print:overflow-hidden page-break-inside-avoid print:break-after-page">
       {/* Outer border for the A4 paper content */}
       <div className="absolute inset-2 border border-slate-800 pointer-events-none rounded-sm"></div>
       <div className="absolute inset-3 border border-slate-800 pointer-events-none rounded-sm"></div>
 
       <div className="relative z-10 flex flex-col h-full px-8 py-8">
         {/* Kop Surat */}
-        <div className="relative flex items-center justify-center border-b-[3px] border-slate-800 pb-6 mb-8">
-          <div className="absolute left-0 top-0 bottom-6 flex items-center">
-            <img src="/Logo.png" alt="Logo" className="w-24 h-24 object-contain" />
+        <div className="flex items-center justify-between border-b-[3px] border-slate-800 pb-6 mb-8 w-full px-4">
+          <div className="flex-shrink-0">
+            <img src="/Logo.png" alt="Logo" className="w-[100px] h-[100px] object-contain" />
           </div>
-          <div className="text-center">
+          <div className="text-center flex-1 px-6">
             <h4 className="text-sm font-bold text-slate-700 tracking-wider">PEMERINTAH KABUPATEN KARAWANG</h4>
-            <h3 className="text-lg font-bold text-slate-800 tracking-wide mt-1">DINAS PENDIDIKAN PEMUDA DAN OLAHRAGA</h3>
             <h2 className="text-2xl font-black text-slate-900 tracking-widest mt-1">SMP NEGERI 8 KARAWANG BARAT</h2>
             <p className="text-xs text-slate-600 mt-2">Jl. Karangpawitan, Karawang Barat, Jawa Barat - TA {academicYear}</p>
           </div>
+          <div className="w-[100px] flex-shrink-0"></div> {/* Spacer to keep the text perfectly centered */}
         </div>
 
         {/* Content */}
@@ -50,7 +53,7 @@ const A4Template = ({ classData }: { classData: Kelas }) => {
             {classData.nama_kelas}
           </h1>
           <p className="text-sm font-medium text-slate-500 mt-2 text-center">
-            Gedung Praktik Lantai 2 • Tahun Ajaran {academicYear}
+            Tahun Ajaran {academicYear}
           </p>
 
           <div className="mt-12 p-4 border-[3px] border-slate-200 rounded-3xl bg-white shadow-sm">
@@ -73,22 +76,16 @@ const A4Template = ({ classData }: { classData: Kelas }) => {
                   Petunjuk Presensi Guru Pengajar:
                </h5>
                <ol className="list-decimal list-inside space-y-2 text-slate-600 font-medium ml-1">
-                  <li>Buka aplikasi <strong className="text-slate-800">Absensi Guru SMPN 8 Karbar</strong> pada ponsel.</li>
-                  <li>Pilih menu <strong className="text-slate-800">Presensi KBM</strong> lalu arahkan kamera ke QR Code.</li>
-                  <li>Sistem otomatis memverifikasi kehadiran mengajar di kelas ini.</li>
+                  <li>Buka aplikasi kamera bawaan ponsel Anda, atau gunakan menu <strong className="text-slate-800">Absensi Mengajar</strong> di dalam aplikasi guru.</li>
+                  <li>Arahkan kamera untuk memindai QR Code di atas. Pastikan Anda sudah memberi izin akses lokasi (GPS).</li>
+                  <li>Sistem akan otomatis mencocokkan jadwal dan memverifikasi kehadiran mengajar Anda.</li>
                </ol>
             </div>
           </div>
 
-          {/* Signature */}
+          {/* Empty spacer so the layout still stretches nicely if needed, or we just rely on flex */}
           <div className="w-full flex justify-end mt-12 mb-4">
-             <div className="text-center w-[300px]">
-                <p className="text-sm font-medium text-slate-600">Karawang Barat, {printDate}</p>
-                <p className="text-sm font-medium text-slate-600">Kepala SMP Negeri 8 Karawang Barat</p>
-                <div className="h-24"></div>
-                <p className="text-base font-bold text-slate-900 underline underline-offset-4">MAMAY ABDULLAH, S.Pd., M.Pd.</p>
-                <p className="text-sm text-slate-600 mt-1">NIP. 19700724 199902 1 003</p>
-             </div>
+             {/* Signature section removed per user request */}
           </div>
         </div>
       </div>
@@ -105,10 +102,13 @@ export default function ClassManagerClient() {
 
   const [createMode, setCreateMode] = useState(false);
   const [createName, setCreateName] = useState("");
+  const [createError, setCreateError] = useState("");
   const [editingClass, setEditingClass] = useState<Kelas | null>(null);
   const [editName, setEditName] = useState("");
+  const [editError, setEditError] = useState("");
   const [deletingClass, setDeletingClass] = useState<Kelas | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isPrintingAll, setIsPrintingAll] = useState(false);
 
   const { timeString, dateString } = useRealtimeClock();
 
@@ -153,25 +153,46 @@ export default function ClassManagerClient() {
   );
 
   const handlePrintQR = () => {
-    // In a real app, this would trigger a print action or generate a PDF.
     window.print();
+  };
+
+  const handlePrintAllQR = () => {
+    setIsPrintingAll(true);
+    // Beri waktu 500ms agar DOM sempat merender semua gambar QR sebelum dialog print muncul
+    setTimeout(() => {
+      window.print();
+      setIsPrintingAll(false);
+    }, 500);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createName.trim()) return;
+    setCreateError("");
+    const normalizedName = createName.trim();
+    if (!normalizedName) return;
+
+    const isDuplicate = kelasList.some(
+      (k) => k.nama_kelas.toLowerCase() === normalizedName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setCreateError(`Kelas dengan nama "${normalizedName}" sudah ada!`);
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const res = await createKelas({ nama_kelas: createName });
+      const res = await createKelas({ nama_kelas: normalizedName });
       if (res.success) {
         setCreateMode(false);
         setCreateName("");
+        setCreateError("");
         loadData();
       } else {
-        alert("Gagal menambah kelas: " + res.error);
+        setCreateError("Gagal menambah kelas: " + res.error);
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setCreateError("Error: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -179,19 +200,32 @@ export default function ClassManagerClient() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClass || !editName.trim()) return;
+    setEditError("");
+    const normalizedName = editName.trim();
+    if (!editingClass || !normalizedName) return;
+
+    const isDuplicate = kelasList.some(
+      (k) => k.id !== editingClass.id && k.nama_kelas.toLowerCase() === normalizedName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setEditError(`Kelas dengan nama "${normalizedName}" sudah ada!`);
+      return;
+    }
+
     try {
       setSubmitting(true);
-      const res = await updateKelas(editingClass.id, { nama_kelas: editName });
+      const res = await updateKelas(editingClass.id, { nama_kelas: normalizedName });
       if (res.success) {
         setEditingClass(null);
         setEditName("");
+        setEditError("");
         loadData();
       } else {
-        alert("Gagal update kelas: " + res.error);
+        setEditError("Gagal update kelas: " + res.error);
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setEditError("Error: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -274,13 +308,22 @@ export default function ClassManagerClient() {
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
-        <button
-          onClick={() => setCreateMode(true)}
-          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <span>+</span>
-          <span>Tambah Kelas</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3 self-start sm:self-auto w-full sm:w-auto">
+          <button
+            onClick={handlePrintAllQR}
+            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-sm font-semibold text-slate-700 shadow-sm flex items-center justify-center gap-2 transition-all"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Cetak Semua QR</span>
+          </button>
+          <button
+            onClick={() => { setCreateMode(true); setCreateError(""); setCreateName(""); }}
+            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all"
+          >
+            <span>+</span>
+            <span>Tambah Kelas</span>
+          </button>
+        </div>
       </div>
 
       {/* Table List */}
@@ -322,6 +365,7 @@ export default function ClassManagerClient() {
                         onClick={() => {
                           setEditingClass(kelas);
                           setEditName(kelas.nama_kelas);
+                          setEditError("");
                         }}
                         className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer ml-4"
                         title="Edit Kelas"
@@ -385,7 +429,7 @@ export default function ClassManagerClient() {
       </Modal>
 
       {/* Modal Tambah Kelas */}
-      <Modal isOpen={createMode} onClose={() => setCreateMode(false)} maxWidth="max-w-[400px]">
+      <Modal isOpen={createMode} onClose={() => { setCreateMode(false); setCreateError(""); setCreateName(""); }} maxWidth="max-w-[400px]">
         <div className="pb-4 border-b border-slate-100">
           <h3 className="text-[22px] font-bold text-slate-900">Tambah Ruang Kelas</h3>
           <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu simpan perubahan.</p>
@@ -397,16 +441,22 @@ export default function ClassManagerClient() {
               type="text"
               placeholder=""
               value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
+              onChange={(e) => { setCreateName(e.target.value); setCreateError(""); }}
               required
               autoComplete="off"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              className={`w-full px-4 py-2.5 rounded-xl border text-sm text-slate-800 outline-none focus:ring-2 transition-all bg-white ${createError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'}`}
             />
+            {createError && (
+              <span className="text-xs font-semibold text-red-500 mt-1 flex items-center gap-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+                {createError}
+              </span>
+            )}
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setCreateMode(false)}
+              onClick={() => { setCreateMode(false); setCreateError(""); setCreateName(""); }}
               disabled={submitting}
               className="w-[120px] py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
             >
@@ -424,7 +474,7 @@ export default function ClassManagerClient() {
       </Modal>
 
       {/* Modal Edit Kelas */}
-      <Modal isOpen={!!editingClass} onClose={() => setEditingClass(null)} maxWidth="max-w-[400px]">
+      <Modal isOpen={!!editingClass} onClose={() => { setEditingClass(null); setEditError(""); }} maxWidth="max-w-[400px]">
         <div className="pb-4 border-b border-slate-100">
           <h3 className="text-[22px] font-bold text-slate-900">Update Data Ruang Kelas</h3>
           <p className="text-sm text-slate-500 mt-1">Perbarui informasi kelas yang dipilih.</p>
@@ -436,16 +486,22 @@ export default function ClassManagerClient() {
               type="text"
               placeholder=""
               value={editName}
-              onChange={(e) => setEditName(e.target.value)}
+              onChange={(e) => { setEditName(e.target.value); setEditError(""); }}
               required
               autoComplete="off"
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+              className={`w-full px-4 py-2.5 rounded-xl border text-sm text-slate-800 outline-none focus:ring-2 transition-all bg-white ${editError ? 'border-red-400 focus:border-red-500 focus:ring-red-100' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'}`}
             />
+            {editError && (
+              <span className="text-xs font-semibold text-red-500 mt-1 flex items-center gap-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+                {editError}
+              </span>
+            )}
           </div>
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="button"
-              onClick={() => setEditingClass(null)}
+              onClick={() => { setEditingClass(null); setEditError(""); }}
               disabled={submitting}
               className="w-[120px] py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
             >
@@ -506,7 +562,10 @@ export default function ClassManagerClient() {
 
     {/* Print-only template */}
     <div className="hidden print:block w-full h-full bg-white">
-      {selectedClass && <A4Template classData={selectedClass} />}
+      {isPrintingAll 
+        ? kelasList.map((kelas) => <A4Template key={kelas.id} classData={kelas} />)
+        : (selectedClass && <A4Template classData={selectedClass} />)
+      }
     </div>
     </>
   );

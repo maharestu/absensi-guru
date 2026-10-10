@@ -18,3 +18,14 @@ body {
   font-family: var(--font-sans);
 }
 
+@media print {
+  @page {
+    size: A4;
+    margin: 0mm;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+  }
+}
+
