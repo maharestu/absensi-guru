@@ -85,7 +85,7 @@ export default function DashboardGuruPage() {
           {/* Nama & NIP */}
           <div>
             <p className="text-sm font-bold text-slate-900 leading-tight">{namaGuru}</p>
-            <p className="text-xs text-slate-400 mt-0.5">NIP {nipGuru}</p>
+            <p className="text-xs text-slate-400 mt-0.5">NIP/NUPTK {nipGuru}</p>
           </div>
         </div>
 

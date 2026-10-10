@@ -81,6 +81,10 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
 
       const context = canvas.getContext("2d");
       if (context) {
+        // Balik horizontal (Mirror) agar hasil foto sesuai dengan layar preview
+        context.translate(width, 0);
+        context.scale(-1, 1);
+
         // Gambar frame dari video ke canvas
         context.drawImage(video, 0, 0, width, height);
         // Ambil data gambar (base64) dengan format WebP dan kualitas 70%
@@ -107,13 +111,13 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
           </div>
         )}
 
-        {/* Elemen Video */}
+        {/* Elemen Video (Di-mirror menggunakan -scale-x-100) */}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className={`absolute inset-0 w-full h-full object-cover ${hasPermission ? "block" : "hidden"}`}
+          className={`absolute inset-0 w-full h-full object-cover -scale-x-100 ${hasPermission ? "block" : "hidden"}`}
         />
 
         {/* Elemen Canvas (Tersembunyi, hanya untuk proses capture) */}

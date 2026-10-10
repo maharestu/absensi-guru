@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { getAdminStats, getRecentActivities, AdminStats, ActivityItem } from "@/actions/dashboard";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import Pagination from "@/components/ui/pagination";
+import { Search } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { timeString, dateString } = useRealtimeClock();
@@ -15,15 +16,29 @@ export default function AdminDashboardPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // State untuk paginasi
+  // State untuk paginasi & pencarian
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const itemsPerPage = 11;
 
+  // Filter data aktivitas
+  const filteredActivities = activities.filter((act) => 
+    act.aktivitas.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    act.pengguna.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    act.waktu.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    act.status.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Memotong data sesuai halaman
-  const paginatedActivities = activities.slice(
+  const paginatedActivities = filteredActivities.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Reset halaman jika search query berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -135,7 +150,20 @@ export default function AdminDashboardPage() {
 
       {/* ── AKTIVITAS TERBARU TABLE ── */}
       <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Aktivitas Terbaru</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Aktivitas Terbaru</h2>
+          
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari aktivitas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[600px]">
@@ -176,10 +204,10 @@ export default function AdminDashboardPage() {
         </table>
         
         {/* Komponen Paginasi */}
-        {!loading && activities.length > 0 && (
+        {!loading && filteredActivities.length > 0 && (
           <Pagination
             currentPage={currentPage}
-            totalItems={activities.length}
+            totalItems={filteredActivities.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
           />

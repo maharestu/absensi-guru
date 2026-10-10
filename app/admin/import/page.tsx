@@ -63,6 +63,8 @@ export default function ImportDataPage() {
       const colNip = headers.indexOf("nip");
       const colNuptk = headers.indexOf("nuptk");
       const colJenisPtk = headers.indexOf("jenis ptk");
+      const colGelarDepan = headers.indexOf("gelar depan");
+      const colGelarBelakang = headers.indexOf("gelar belakang");
 
       const ptkList: ParsedData["ptk"] = [];
       
@@ -72,8 +74,27 @@ export default function ImportDataPage() {
         const jenisPtk = colJenisPtk !== -1 ? String(row[colJenisPtk]).trim() : "Guru"; // Default Guru jika tak ada kolom
         
         if (jenisPtk.toLowerCase().includes("guru")) {
+          let namaLengkap = String(row[colNama]).trim();
+          
+          if (colGelarDepan !== -1 && row[colGelarDepan]) {
+            const gd = String(row[colGelarDepan]).trim();
+            if (gd && gd !== "-") namaLengkap = `${gd} ${namaLengkap}`;
+          }
+          
+          if (colGelarBelakang !== -1 && row[colGelarBelakang]) {
+            const gb = String(row[colGelarBelakang]).trim();
+            if (gb && gb !== "-") {
+              // Jika sudah ada koma di akhir nama, tidak perlu tambah koma lagi
+              if (namaLengkap.endsWith(",")) {
+                namaLengkap = `${namaLengkap} ${gb}`;
+              } else {
+                namaLengkap = `${namaLengkap}, ${gb}`;
+              }
+            }
+          }
+
           ptkList.push({
-            nama: String(row[colNama]).trim(),
+            nama: namaLengkap,
             nip: colNip !== -1 ? String(row[colNip]).trim() : "",
             nuptk: colNuptk !== -1 ? String(row[colNuptk]).trim() : "",
             jenisPtk
@@ -144,8 +165,9 @@ export default function ImportDataPage() {
           }
 
           const jamRaw = String(row[2]).trim();
-          let jamMulaiStr = "00:00:00";
-          let jamSelesaiStr = "23:59:00";
+          // Jam default untuk mapel tanpa spesifikasi waktu (misalnya BK) - diset ke jam sekolah
+          let jamMulaiStr = "07:00:00";
+          let jamSelesaiStr = "14:00:00";
           if (jamRaw && jamRaw.includes("-")) {
             const parts = jamRaw.split("-").map(s => s.trim().replace(".", ":"));
             if (parts[0]) jamMulaiStr = parts[0].length === 5 ? parts[0] + ":00" : parts[0];

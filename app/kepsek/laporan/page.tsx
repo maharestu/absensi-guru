@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Clock, Calendar, Camera } from "lucide-react";
+import { Clock, Calendar, Camera, Search } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
@@ -82,6 +82,16 @@ function SearchableSelect({
   );
 }
 
+const getStatusColorText = (status: string) => {
+  const s = status.toLowerCase();
+  if (s === "hadir" || s === "mengajar") return "text-blue-600";
+  if (s === "izin") return "text-orange-500";
+  if (s === "sakit") return "text-rose-500";
+  if (s.includes("dinas")) return "text-teal-500";
+  if (s.includes("tidak")) return "text-purple-600";
+  return "text-slate-600";
+};
+
 export default function LaporanAbsensiPage() {
 
   const { timeString, dateString } = useRealtimeClock();
@@ -125,18 +135,28 @@ export default function LaporanAbsensiPage() {
     }
   }, [periodeType]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Filter Data Kehadiran
   const filteredKehadiran = laporanKehadiran.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchStatus = selectedStatus === "all" || r.status.toLowerCase() === selectedStatus.toLowerCase();
-    return matchGuru && matchStatus;
+    const matchSearch = searchQuery === "" || 
+      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      r.status.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchGuru && matchStatus && matchSearch;
   });
 
   // Filter Data Mengajar
   const filteredMengajar = laporanMengajar.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchKelas = selectedKelas === "all" || r.kelas_id === selectedKelas;
-    return matchGuru && matchKelas;
+    const matchSearch = searchQuery === "" || 
+      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      r.kelas.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.mata_pelajaran.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.status.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchGuru && matchKelas && matchSearch;
   });
 
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
@@ -152,6 +172,12 @@ export default function LaporanAbsensiPage() {
     (currentPageMengajar - 1) * itemsPerPage,
     currentPageMengajar * itemsPerPage
   );
+
+  // Reset pagination if search changes
+  useEffect(() => {
+    setCurrentPageKehadiran(1);
+    setCurrentPageMengajar(1);
+  }, [searchQuery]);
 
   // Hitung jumlah statistik Kehadiran secara dinamis
   const countHadir = filteredKehadiran.filter((r) => r.status.toLowerCase() === "hadir").length;
@@ -220,6 +246,7 @@ export default function LaporanAbsensiPage() {
 
   const handleTabChange = (tab: "kehadiran" | "mengajar") => {
     setActiveTab(tab);
+    setSearchQuery(""); // Reset search when switching tabs
   };
 
   const handleExport = () => {
@@ -322,7 +349,7 @@ export default function LaporanAbsensiPage() {
         </div>
 
         {/* Top Badges */}
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           <div className="bg-white border border-slate-200/90 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
             <Clock className="w-[18px] h-[18px] text-slate-800" strokeWidth={2} />
             <span className="text-sm font-semibold text-slate-800">{timeString}</span>
@@ -521,16 +548,28 @@ export default function LaporanAbsensiPage() {
 
           {/* Table Section */}
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h2 className="text-lg font-bold text-slate-900">Rincian Laporan</h2>
-              <button
-                type="button"
-                onClick={handleExport}
-                className="w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
-                style={{ width: 134, height: 44 }}
-              >
-                Ekspor
-              </button>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Cari guru, kelas, mapel..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                >
+                  Ekspor
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
@@ -561,7 +600,7 @@ export default function LaporanAbsensiPage() {
                       <td className="py-4 text-slate-500 font-medium">{row.kelas}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.waktu}</td>
-                      <td className="py-4 font-medium text-slate-600">{row.status}</td>
+                      <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
                       <td className="py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           {row.foto_absensi && (
@@ -685,16 +724,28 @@ export default function LaporanAbsensiPage() {
 
           {/* Table Section Kehadiran */}
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h2 className="text-lg font-bold text-slate-900">Rincian Laporan</h2>
-              <button
-                type="button"
-                onClick={handleExport}
-                className="w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
-                style={{ width: 134, height: 44 }}
-              >
-                Ekspor
-              </button>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Cari guru atau status..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                >
+                  Ekspor
+                </button>
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
@@ -720,7 +771,7 @@ export default function LaporanAbsensiPage() {
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className="py-4 font-medium text-slate-600">{row.status}</td>
+                      <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
                       <td className="py-4 text-slate-500 font-medium">{row.waktu_masuk}</td>
                       <td className="py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -780,7 +831,7 @@ export default function LaporanAbsensiPage() {
               <div className="p-6 pb-4 flex items-start justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">{detailGuru?.nama || "-"}</h2>
-                  <p className="text-sm text-slate-500 mt-1">NIP {detailGuru?.nip || "-"}</p>
+                  <p className="text-sm text-slate-500 mt-1">NIP/NUPTK {detailGuru?.nip || "-"}</p>
                 </div>
                 <button 
                   onClick={() => setDetailModalGuruId(null)}
@@ -838,22 +889,22 @@ export default function LaporanAbsensiPage() {
                       </div>
                       <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
                         <p className="text-[11px] font-semibold text-slate-500 mb-1">Sakit</p>
-                        <p className="text-xl font-bold text-slate-800">{detailSakit}</p>
+                        <p className="text-xl font-bold text-rose-500">{detailSakit}</p>
                         <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                       </div>
                       <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
                         <p className="text-[11px] font-semibold text-slate-500 mb-1">Izin</p>
-                        <p className="text-xl font-bold text-slate-800">{detailIzin}</p>
+                        <p className="text-xl font-bold text-orange-500">{detailIzin}</p>
                         <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                       </div>
                       <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
                         <p className="text-[11px] font-semibold text-slate-500 mb-1">Dinas luar</p>
-                        <p className="text-xl font-bold text-slate-800">{detailDinasLuar}</p>
+                        <p className="text-xl font-bold text-teal-500">{detailDinasLuar}</p>
                         <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                       </div>
                       <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
                         <p className="text-[11px] font-semibold text-slate-500 mb-1">Tidak hadir</p>
-                        <p className="text-xl font-bold text-slate-800">{detailTidakHadir}</p>
+                        <p className="text-xl font-bold text-purple-600">{detailTidakHadir}</p>
                         <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                       </div>
                     </div>
@@ -885,7 +936,7 @@ export default function LaporanAbsensiPage() {
                             <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                               <td className="py-3 px-5 font-semibold text-slate-800">{r.tanggal}</td>
                               <td className="py-3 px-5">
-                                <span className={`font-semibold ${r.status.toLowerCase() === 'hadir' ? 'text-blue-600' : 'text-slate-600'}`}>
+                                <span className={`font-semibold ${getStatusColorText(r.status)}`}>
                                   {r.status}
                                 </span>
                               </td>

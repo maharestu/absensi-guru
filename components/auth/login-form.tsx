@@ -80,13 +80,13 @@ export default function LoginForm() {
             htmlFor="nip"
             className="block text-sm font-semibold text-slate-800"
           >
-            Username / NIP
+            Username / NIP/NUPTK
           </label>
           <input
             id="nip"
             name="nip"
             type="text"
-            placeholder="Masukkan username atau NIP"
+            placeholder="Masukkan username atau NIP/NUPTK"
             value={nip}
             onChange={(e) => {
               setNip(e.target.value);

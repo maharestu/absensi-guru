@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import Pagination from "@/components/ui/pagination";
+import { Search } from "lucide-react";
 import {
   getKepsekStats,
   getKehadiranHariIni,
@@ -11,6 +12,16 @@ import {
   KehadiranHariIni,
   MengajarHariIni,
 } from "@/actions/dashboard";
+
+const getStatusColorText = (status: string) => {
+  const s = status.toLowerCase();
+  if (s === "hadir" || s === "mengajar") return "text-blue-600";
+  if (s === "izin") return "text-orange-500";
+  if (s === "sakit") return "text-rose-500";
+  if (s.includes("dinas")) return "text-teal-500";
+  if (s.includes("tidak")) return "text-purple-600";
+  return "text-slate-600";
+};
 
 export default function KepsekDashboardPage() {
 
@@ -26,20 +37,45 @@ export default function KepsekDashboardPage() {
   const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Pagination states
+  // Pagination states & Search states
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
   const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
+  const [searchKehadiran, setSearchKehadiran] = useState("");
+  const [searchMengajar, setSearchMengajar] = useState("");
   const itemsPerPage = 11;
 
-  const paginatedKehadiran = kehadiran.slice(
+  // Filter Kehadiran
+  const filteredKehadiran = kehadiran.filter(row => 
+    row.nama_guru.toLowerCase().includes(searchKehadiran.toLowerCase()) ||
+    row.status.toLowerCase().includes(searchKehadiran.toLowerCase())
+  );
+
+  // Filter Mengajar
+  const filteredMengajar = mengajar.filter(row => 
+    row.nama_guru.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.kelas.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.mata_pelajaran.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.status.toLowerCase().includes(searchMengajar.toLowerCase())
+  );
+
+  const paginatedKehadiran = filteredKehadiran.slice(
     (currentPageKehadiran - 1) * itemsPerPage,
     currentPageKehadiran * itemsPerPage
   );
 
-  const paginatedMengajar = mengajar.slice(
+  const paginatedMengajar = filteredMengajar.slice(
     (currentPageMengajar - 1) * itemsPerPage,
     currentPageMengajar * itemsPerPage
   );
+
+  // Reset pagination if search changes
+  useEffect(() => {
+    setCurrentPageKehadiran(1);
+  }, [searchKehadiran]);
+
+  useEffect(() => {
+    setCurrentPageMengajar(1);
+  }, [searchMengajar]);
 
   useEffect(() => {
     async function loadData() {
@@ -192,7 +228,19 @@ export default function KepsekDashboardPage() {
 
       {/* ── TABEL: ABSENSI KEHADIRAN HARI INI ── */}
       <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Absensi Kehadiran Hari Ini</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Absensi Kehadiran Hari Ini</h2>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari guru atau status..."
+              value={searchKehadiran}
+              onChange={(e) => setSearchKehadiran(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[500px]">
@@ -204,7 +252,7 @@ export default function KepsekDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {kehadiran.length === 0 ? (
+              {filteredKehadiran.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-6 text-center text-slate-400 font-medium">
                     {loading ? "Memuat kehadiran..." : "Belum ada catatan presensi hari ini."}
@@ -219,7 +267,7 @@ export default function KepsekDashboardPage() {
                     <td className="py-4 text-slate-500 font-medium">
                       {row.waktu_masuk ?? "—"}
                     </td>
-                    <td className="py-4 font-medium text-slate-600">
+                    <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
                     </td>
                   </tr>
@@ -227,10 +275,10 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
-          {!loading && kehadiran.length > 0 && (
+          {!loading && filteredKehadiran.length > 0 && (
             <Pagination
               currentPage={currentPageKehadiran}
-              totalItems={kehadiran.length}
+              totalItems={filteredKehadiran.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPageKehadiran}
             />
@@ -241,7 +289,19 @@ export default function KepsekDashboardPage() {
 
       {/* ── TABEL: ABSENSI MENGAJAR HARI INI ── */}
       <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Absensi Mengajar Hari Ini</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Absensi Mengajar Hari Ini</h2>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari kelas atau mapel..."
+              value={searchMengajar}
+              onChange={(e) => setSearchMengajar(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[700px]">
@@ -255,7 +315,7 @@ export default function KepsekDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {mengajar.length === 0 ? (
+              {filteredMengajar.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
                     {loading ? "Memuat absensi mengajar..." : "Belum ada catatan absensi mengajar hari ini."}
@@ -276,7 +336,7 @@ export default function KepsekDashboardPage() {
                     <td className="py-4 text-slate-500 font-medium">
                       {row.jam_mengajar}
                     </td>
-                    <td className="py-4 font-medium text-emerald-600">
+                    <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
                     </td>
                   </tr>
@@ -284,10 +344,10 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
-          {!loading && mengajar.length > 0 && (
+          {!loading && filteredMengajar.length > 0 && (
             <Pagination
               currentPage={currentPageMengajar}
-              totalItems={mengajar.length}
+              totalItems={filteredMengajar.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPageMengajar}
             />

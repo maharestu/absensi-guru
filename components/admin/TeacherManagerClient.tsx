@@ -189,7 +189,7 @@ export default function TeacherManagerClient() {
         <div className="relative w-full sm:w-[280px]">
           <input
             type="text"
-            placeholder="Cari nama / NIP..."
+            placeholder="Cari nama / NIP/NUPTK..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
@@ -209,7 +209,7 @@ export default function TeacherManagerClient() {
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               <th className="pb-4 font-semibold w-[24%]">NAMA GURU</th>
-              <th className="pb-4 font-semibold w-[16%]">NIP</th>
+              <th className="pb-4 font-semibold w-[16%]">NIP/NUPTK</th>
               <th className="pb-4 font-semibold w-[20%]">JABATAN</th>
               <th className="pb-4 font-semibold w-[18%]">NO. TELEPON</th>
               <th className="pb-4 font-semibold w-[12%]">STATUS</th>

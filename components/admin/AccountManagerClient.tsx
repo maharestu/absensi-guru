@@ -315,7 +315,7 @@ export default function AccountManagerClient() {
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-bold text-slate-900">
                     <div>{akun.nama}</div>
-                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP: {akun.nip}</span>}
+                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP/NUPTK: {akun.nip}</span>}
                   </td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
                   <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
@@ -457,7 +457,7 @@ export default function AccountManagerClient() {
                             className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
                           >
                             <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
-                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
+                            <p className="text-xs text-slate-500">NIP/NUPTK: {guru.nip || "-"}</p>
                           </button>
                       ))}
                       {teachers.filter((g) => g.nama.toLowerCase().includes(editForm.nama.toLowerCase())).length === 0 && (
@@ -625,7 +625,7 @@ export default function AccountManagerClient() {
                             className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
                           >
                             <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
-                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
+                            <p className="text-xs text-slate-500">NIP/NUPTK: {guru.nip || "-"}</p>
                           </button>
                       ))}
                       {teachers.filter((g) => g.nama.toLowerCase().includes(createForm.nama.toLowerCase())).length === 0 && (
@@ -664,7 +664,7 @@ export default function AccountManagerClient() {
 
             {/* NIP */}
             <div className="space-y-2 flex flex-col">
-              <label className="block text-xs font-semibold text-slate-800">NIP</label>
+              <label className="block text-xs font-semibold text-slate-800">NIP/NUPTK</label>
               <input
                 type="text"
                 placeholder=""

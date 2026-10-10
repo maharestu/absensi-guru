@@ -48,7 +48,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
       year: "numeric"
     }),
     nama: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
-    waktu_masuk: row.status === "hadir" 
+    waktu_masuk: row.waktu_submit 
       ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) 
       : "—",
     status: row.status.charAt(0).toUpperCase() + row.status.slice(1),

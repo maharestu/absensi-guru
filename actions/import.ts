@@ -107,6 +107,12 @@ export async function importExcelData(data: ParsedData) {
       // NIP Fallback Logic
       let finalNip = p.nip && p.nip !== "-" ? p.nip : p.nuptk && p.nuptk !== "-" ? p.nuptk : generateTempNip();
       
+      let finalName = p.nama;
+      const kbmNameEntry = Object.values(data.legendaGuru).find(kn => isNameMatch(kn, p.nama));
+      if (kbmNameEntry && kbmNameEntry.includes(",") && !finalName.includes(",")) {
+        finalName = kbmNameEntry;
+      }
+      
       const existingGuru = dbGuruList.find(g => isNameMatch(g.nama, p.nama));
       
       if (!existingGuru) {
@@ -118,11 +124,17 @@ export async function importExcelData(data: ParsedData) {
         dbNipSet.add(finalNip);
 
         gurusToInsert.push({
-          nama: p.nama,
+          nama: finalName,
           nip: finalNip,
           jabatan: "Guru",
           status: "aktif"
         });
+      } else {
+        // Jika guru sudah ada, tetapi belum memiliki gelar, perbarui namanya
+        if (!existingGuru.nama.includes(",") && finalName.includes(",")) {
+          await supabase.from("guru").update({ nama: finalName }).eq("id", existingGuru.id);
+          existingGuru.nama = finalName; // update memori agar proses selanjutnya pakai nama bergelar
+        }
       }
     }
 

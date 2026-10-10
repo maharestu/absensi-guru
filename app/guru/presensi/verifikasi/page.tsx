@@ -52,7 +52,7 @@ function VerifikasiContent() {
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },
     { label: "Nama", value: nama },
-    { label: "NIP", value: nip },
+    { label: "NIP/NUPTK", value: nip },
     { label: "Status Kehadiran", value: statusLabel },
   ];
 

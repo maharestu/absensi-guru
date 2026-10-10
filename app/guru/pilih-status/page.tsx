@@ -223,7 +223,7 @@ export default function PilihStatusPage() {
               <p className="text-sm font-bold text-slate-900 mt-1">{nama}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">NIP</p>
+              <p className="text-xs text-slate-400 font-medium">NIP/NUPTK</p>
               <p className="text-sm font-bold text-slate-900 mt-1">{nip}</p>
             </div>
           </div>

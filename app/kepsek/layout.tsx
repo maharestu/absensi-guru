@@ -52,9 +52,6 @@ export default function KepsekLayout({
           </button>
           <span className="ml-3 font-bold text-slate-800">Dashboard Kepala Sekolah</span>
         </div>
-        <div className="text-[11px] font-bold text-slate-500 tracking-wide">
-          {dateString}
-        </div>
       </div>
 
       {/* Overlay for mobile sidebar */}
