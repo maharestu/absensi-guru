@@ -1,0 +1,31 @@
+[33m30838ab[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelopment2[m[33m)[m feat: update responsive mobile, add tombol cetak semua qr, memperbaiki tampilan qr
+[33m7849d7e[m[33m ([m[1;31morigin/development2[m[33m)[m fitur qr belum selesai
+[33m689be92[m feat: implementasi import ganda PTK dan KBM, merombak UI upload menjadi vertikal, menambahkan block scheduling jadwal pelajaran, menerapkan fuzzy matching anti-duplikat untuk nama guru yang disingkat, membuat fallback guru siluman, serta menyesuaikan format username otomatis menjadi nama.inisial
+[33m9b24837[m fix: Format foto dari absensi mengajar jadi webp, dan kode_qr dari fitur import menjadi random uuid
+[33ma29ac9c[m Menyempurnakan fitur Import Excel untuk otomatis meng-generate NIP, jabatan guru, dan akun pengguna (username & password default). Tampilan halaman Import dirombak menjadi lebih bersih dengan tambahan modal overlay ringkasan data. Selain itu, ditambahkan fitur Bypass Lokasi GPS untuk mempermudah testing presensi, penyeragaman paginasi tabel (11 baris/halaman), serta perbaikan layout dashboard Kepala Sekolah menjadi 100% responsif untuk pengguna mobile.
+[33m56ec18a[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m fix: integrate submit action for teaching attendance
+[33m53f2d26[m fix: update QR payload to full URL pointing to Vercel domain'
+[33mfb4b3bc[m implementasi filter periode dashboard admin, menyesuaikan ux pada modal kelola akun, implementasi fitur absensi mengajar jika guru sudah absen/belum absen kelas
+[33m98cc9e1[m[33m ([m[1;31morigin/backend[m[33m)[m feat: implementasi geofencing dinamis, pemindaian QR eksternal, & integrasi status dinas, serta menghapus form keterangan tambahan pada sakit, izin, dan dinas
+[33m4d00051[m fix: scope absensi sessionStorage cache per guru_id to prevent cross-user leak
+[33mff55660[m Update frontend secara menyeluruh: menambahkan paket QR scanner, integrasi tabel Admin dan Kepala Sekolah, serta memperbaiki tata letak desain
+[33ma0d9737[m Merge branch 'backend' into development2
+[33m66fa33e[m feat: perbaikan fitur absensi & cleanup
+[33m3500182[m fix:menambahkan pengecekan duplikasi absensi langsung dari database sebelum upload foto dan tahapan absensi lainnya. Serta memastikan validasi akses absensi tidak bergantung pada sessionStorage.
+[33mcd68f5d[m feat:Menambahkan seeder jadwal dan kelas, menambahkan auto konversi gambar ke webp, serta membuat bucket untuk menyimpan foto kehadiran
+[33m9383b5b[m feat: add school logo, Dinas Keluar option, keterangan field and validation
+[33m9231e8f[m feat(frontend): update UI figma & optimasi fitur presensi
+[33m3703187[m feat: Integrasi database serta migrasi dari data dummy
+[33m129f0a7[m feat: add kepsek dashboard, realtime clock hook, and fix button width issues
+[33mc2d8f31[m feat: tambah dashboard admin dan kelola guru, jadwal, serta akun
+[33m64e0658[m refactor: rapihkan struktur folder/rute guru & siapkan placeholder backend
+[33mc02533a[m feat: implementasi lengkap fitur absensi mengajar dan perataan rute /login - Pindahkan halaman login ke folder /login dengan fitur otomatis redirect dari / - Pertahankan tampilan responsif dual-mode (mobile clean view & desktop centered card) - Tambahkan data mock ERD untuk kelas, sub-kelas, hari, dan jadwal mengajar - Implementasikan alur absensi mengajar: Tingkat Kelas -> Sub-kelas -> Hari -> Mata Pelajaran - Buat scanner QR code kelas dengan status validasi (Valid & Tidak Valid) - Buat halaman selfie mengajar, verifikasi data, dan status berhasil
+[33mf249da9[m fix page verifikasi kehadiran user sakit/hadir/izin, supaya ga bisa absen 2 kali
+[33ma212404[m fix beberapa layout yang ga sinkron, menambah page ditolak untuk page akses mengajar, menambah efektivitas komponen button
+[33me4fd3f2[m perbaiki page login, fix tombol kembali, fix posisi tombol selesai
+[33ma6aa997[m hampir selesai absensi guru
+[33m662e05d[m add dashboard 2 options
+[33m92e7f4f[m add page izin dan sakit
+[33m16b1734[m add login gagal dan dashboard guru
+[33mce3f022[m Login page
+[33mba25fe5[m Initial commit from Create Next App

@@ -12,16 +12,7 @@ import {
   KehadiranHariIni,
   MengajarHariIni,
 } from "@/actions/dashboard";
-
-const getStatusColorText = (status: string) => {
-  const s = status.toLowerCase();
-  if (s === "hadir" || s === "mengajar") return "text-blue-600";
-  if (s === "izin") return "text-orange-500";
-  if (s === "sakit") return "text-rose-500";
-  if (s.includes("dinas")) return "text-teal-500";
-  if (s.includes("tidak")) return "text-purple-600";
-  return "text-slate-600";
-};
+import { getStatusColorText } from "@/lib/status";
 
 export default function KepsekDashboardPage() {
 
