@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginAction } from "@/actions/auth";
 import { Akun } from "@/types/schema";
@@ -14,6 +14,7 @@ export default function LoginForm() {
 
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,11 +22,18 @@ export default function LoginForm() {
     setHasError(false);
 
     try {
-      // Query ke Supabase via Server Action
+      // Query ke Supabase via Server Action (dan otomatis set HttpOnly Session Cookie)
       const result = await loginAction(nip, password);
 
       if (result.success) {
         login(result.user as Akun);
+        
+        const nextParam = searchParams.get("next");
+        if (nextParam && nextParam.startsWith("/")) {
+          router.push(nextParam);
+          return;
+        }
+
         // Arahkan sesuai role (lowercase sesuai DB schema)
         if (result.user.role === "guru") {
           router.push("/guru");

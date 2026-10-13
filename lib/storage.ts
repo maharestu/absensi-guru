@@ -55,3 +55,33 @@ export async function uploadFotoAbsensi({
 
   return publicUrl;
 }
+
+/**
+ * Hapus foto dari bucket 'foto-absensi'.
+ * Mendukung input berupa relative path ataupun public URL Supabase Storage.
+ */
+export async function deleteFotoAbsensi(pathOrUrl: string): Promise<boolean> {
+  try {
+    if (!pathOrUrl) return false;
+
+    let path = pathOrUrl;
+    if (pathOrUrl.includes("/foto-absensi/")) {
+      const parts = pathOrUrl.split("/foto-absensi/");
+      path = parts[parts.length - 1];
+    }
+
+    const { error } = await supabaseAdmin.storage
+      .from("foto-absensi")
+      .remove([path]);
+
+    if (error) {
+      console.error("Gagal menghapus foto dari storage:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err: any) {
+    console.error("deleteFotoAbsensi Error:", err.message);
+    return false;
+  }
+}
+

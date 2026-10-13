@@ -260,7 +260,7 @@ export default function LaporanAbsensiPage() {
       : "Laporan Absensi Mengajar";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -496,20 +496,20 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[640px] sm:min-w-[800px]">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-4 font-semibold w-[12%]">TANGGAL</th>
-                    <th className="pb-4 font-semibold w-[22%]">NAMA GURU</th>
-                    <th className="pb-4 font-semibold w-[12%]">KELAS</th>
-                    <th className="pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
-                    <th className="pb-4 font-semibold w-[16%]">WAKTU</th>
-                    <th className="pb-4 font-semibold w-[10%]">STATUS</th>
-                    <th className="pb-4 font-semibold w-[10%] text-center">AKSI</th>
+                  <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">TANGGAL</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">KELAS</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">WAKTU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">STATUS</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
+                <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                   {filteredMengajar.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-slate-500">
@@ -519,26 +519,26 @@ export default function LaporanAbsensiPage() {
                   ) : (
                     paginatedMengajar.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.kelas}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.waktu}</td>
-                      <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
-                      <td className="py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.kelas}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu}</td>
+                      <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
+                      <td className="py-2.5 sm:py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                           {row.foto_absensi && (
                             <button
                               onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1.5 text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1 text-xs sm:text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
                               title="Lihat Foto"
                             >
-                              <Camera className="w-4 h-4" />
+                              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                           )}
                           <button 
                             onClick={() => setDetailModalGuruId(row.guru_id)}
-                            className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                           >
                             Detail
                           </button>
@@ -672,45 +672,45 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-[700px]">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-4 font-semibold w-[20%]">TANGGAL</th>
-                    <th className="pb-4 font-semibold w-[35%]">NAMA GURU</th>
-                    <th className="pb-4 font-semibold w-[15%]">STATUS</th>
-                    <th className="pb-4 font-semibold w-[15%]">WAKTU</th>
-                    <th className="pb-4 font-semibold w-[15%] text-center">AKSI</th>
+                  <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">TANGGAL</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[35%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">STATUS</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">WAKTU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">AKSI</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
+                <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                   {filteredKehadiran.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-500">
+                      <td colSpan={5} className="py-8 text-center text-slate-500">
                         Tidak ada data yang sesuai filter.
                       </td>
                     </tr>
                   ) : (
                     paginatedKehadiran.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-4 font-semibold text-slate-800">{row.tanggal}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className={`py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
-                      <td className="py-4 text-slate-500 font-medium">{row.waktu_masuk}</td>
-                      <td className="py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
+                      <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
+                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu_masuk}</td>
+                      <td className="py-2.5 sm:py-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                           {(row.foto_absensi || row.file_bukti_izin_sakit) && (
                             <button
                               onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
-                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1.5 text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
+                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1 text-xs sm:text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
                               title="Lihat Foto / Bukti"
                             >
-                              <Camera className="w-4 h-4" />
+                              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </button>
                           )}
                           <button 
                             onClick={() => setDetailModalGuruId(row.guru_id)}
-                            className="border border-slate-300 rounded-lg px-4 py-1.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                           >
                             Detail
                           </button>

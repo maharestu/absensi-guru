@@ -125,12 +125,12 @@ export function LaporanDetailModal({
               <span className="text-sm text-slate-500">{totalCatatan} catatan</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-slate-50/50">
-                  <tr className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="py-3 px-5 w-[30%]">TANGGAL</th>
-                    <th className="py-3 px-5 w-[40%]">STATUS</th>
-                    <th className="py-3 px-5 w-[30%]">WAKTU MASUK</th>
+                  <tr className="text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                    <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[30%]">TANGGAL</th>
+                    <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[40%]">STATUS</th>
+                    <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[30%]">WAKTU MASUK</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -141,13 +141,13 @@ export function LaporanDetailModal({
                   ) : (
                     detailKehadiran.map(r => (
                       <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-5 font-semibold text-slate-800">{r.tanggal}</td>
-                        <td className="py-3 px-5">
+                        <td className="py-2 sm:py-3 px-3 sm:px-5 font-semibold text-slate-800">{r.tanggal}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-5">
                           <span className={`font-semibold ${getStatusColorText(r.status)}`}>
                             {r.status}
                           </span>
                         </td>
-                        <td className="py-3 px-5 text-slate-500 font-medium">{r.waktu_masuk}</td>
+                        <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-500 font-medium">{r.waktu_masuk}</td>
                       </tr>
                     ))
                   )}

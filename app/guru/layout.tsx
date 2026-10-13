@@ -1,5 +1,9 @@
-import React from "react";
+"use client";
+
+import React, { useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import LogoutIconButton from "@/components/auth/logout-icon-button";
 
 /**
@@ -7,12 +11,36 @@ import LogoutIconButton from "@/components/auth/logout-icon-button";
  * 
  * Membungkus seluruh tampilan fitur guru dalam kontainer mobile-first
  * yang bersih, terpusat, dan responsif.
+ * Dilengkapi dengan proteksi rute dan verifikasi role.
  */
 export default function GuruLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (user?.role === "admin") {
+        router.push("/admin");
+      } else if (user?.role === "kepala_sekolah") {
+        router.push("/kepsek");
+      }
+    }
+  }, [isLoading, isAuthenticated, user, router]);
+
+  if (isLoading || !isAuthenticated || user?.role !== "guru") {
+    return (
+      <div className="w-full min-h-screen bg-[#EEF2F7] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-white flex flex-col justify-start items-center">
       {/* Wrapper Container */}

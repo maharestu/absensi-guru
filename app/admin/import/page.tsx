@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRealtimeClock } from "@/hooks/use-realtime-clock";
-import { Clock, UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X } from "lucide-react";
+import { ClockBadges } from "@/components/admin/ui/ClockBadges";
+import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { importExcelData, ParsedData } from "@/actions/import";
 
 export default function ImportDataPage() {
-  const { timeString } = useRealtimeClock();
-  
+
   const [filePtk, setFilePtk] = useState<File | null>(null);
   const [fileKbm, setFileKbm] = useState<File | null>(null);
 
@@ -33,7 +32,7 @@ export default function ImportDataPage() {
       setImportError("Harap unggah kedua file (Data PTK dan Data Jadwal KBM) terlebih dahulu.");
       return;
     }
-    
+
     setIsParsing(true);
     setImportSuccess(false);
     setImportError("");
@@ -67,20 +66,20 @@ export default function ImportDataPage() {
       const colGelarBelakang = headers.indexOf("gelar belakang");
 
       const ptkList: ParsedData["ptk"] = [];
-      
+
       for (let i = headerRowIndex + 1; i < dataPtkRaw.length; i++) {
         const row = dataPtkRaw[i];
         if (!row || !row[colNama]) continue;
         const jenisPtk = colJenisPtk !== -1 ? String(row[colJenisPtk]).trim() : "Guru"; // Default Guru jika tak ada kolom
-        
+
         if (jenisPtk.toLowerCase().includes("guru")) {
           let namaLengkap = String(row[colNama]).trim();
-          
+
           if (colGelarDepan !== -1 && row[colGelarDepan]) {
             const gd = String(row[colGelarDepan]).trim();
             if (gd && gd !== "-") namaLengkap = `${gd} ${namaLengkap}`;
           }
-          
+
           if (colGelarBelakang !== -1 && row[colGelarBelakang]) {
             const gb = String(row[colGelarBelakang]).trim();
             if (gb && gb !== "-") {
@@ -112,7 +111,7 @@ export default function ImportDataPage() {
 
       const legendaGuru: Record<string, string> = {};
       const legendaMapel: Record<string, string> = {};
-      
+
       for (let i = 0; i < dataKbmRaw.length; i++) {
         const row = dataKbmRaw[i];
         if (row && row[26] && row[27] && String(row[26]).trim() !== "") {
@@ -126,7 +125,7 @@ export default function ImportDataPage() {
         }
       }
 
-      const kelasRow = dataKbmRaw[5]; 
+      const kelasRow = dataKbmRaw[5];
       const kelasesList: string[] = [];
       const colToKelas: Record<number, string> = {};
       if (kelasRow) {
@@ -142,12 +141,12 @@ export default function ImportDataPage() {
       // --- 3. ALGORITMA BLOCK MERGING ---
       const jadwalsList: ParsedData["jadwals"] = [];
       let currentHari = "Senin";
-      
+
       // Kita susuri per kolom kelas, lalu per baris (vertikal)
       for (let col = 3; col <= 25; col++) {
         if (!colToKelas[col]) continue;
         const kelasNama = colToKelas[col];
-        
+
         let currentBlock: any = null;
 
         for (let rowIdx = 7; rowIdx < dataKbmRaw.length; rowIdx++) {
@@ -175,7 +174,7 @@ export default function ImportDataPage() {
           }
 
           const cellVal = String(row[col]).trim();
-          
+
           if (!cellVal || cellVal === "-" || cellVal.toLowerCase().includes("istirahat")) {
             // Putus blok
             if (currentBlock) {
@@ -209,8 +208,8 @@ export default function ImportDataPage() {
               };
             }
           } else {
-             // Nilai lain (misal UPACARA), putus blok
-             if (currentBlock) {
+            // Nilai lain (misal UPACARA), putus blok
+            if (currentBlock) {
               jadwalsList.push(currentBlock);
               currentBlock = null;
             }
@@ -274,25 +273,20 @@ export default function ImportDataPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <Clock className="w-[18px] h-[18px] text-slate-700" strokeWidth={2} />
-            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
-          </div>
-        </div>
+        <ClockBadges />
       </div>
 
       {/* ── UPLOAD AREA ── */}
       <div className="w-full">
         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-6">Unggah 2 Berkas (Wajib)</h2>
-          
+
           <div className="flex flex-col gap-8">
             {/* Upload PTK */}
             <div>
-              <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil PTK (Excel)</h3>
+              <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil (Nama guru, NIP/NUPTK) (Excel)</h3>
               <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru yang ingin diimpor. Pastikan format file sesuai dengan ketentuan.</p>
-              
+
               <div className="relative w-full h-[200px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
                   type="file"
@@ -316,7 +310,7 @@ export default function ImportDataPage() {
             <div>
               <h3 className="text-[16px] font-bold text-slate-900">2. Data Jadwal KBM (Excel)</h3>
               <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM yang ingin diimpor. Pastikan format file sesuai dengan ketentuan.</p>
-              
+
               <div className="relative w-full h-[200px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
                   type="file"

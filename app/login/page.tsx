@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Suspense } from "react";
 import LoginForm from "@/components/auth/login-form";
 
 export default function LoginPage() {
@@ -22,7 +23,9 @@ export default function LoginPage() {
             Sistem Presensi Pendidik & Tenaga Kependidikan
           </p>
         </div>
-        <LoginForm />
+        <Suspense fallback={<div className="py-12 text-center text-sm text-slate-400">Memuat formulir...</div>}>
+          <LoginForm />
+        </Suspense>
 
         {/* Footer / Copyright */}
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">

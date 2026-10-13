@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
+import { requireAdmin } from "@/lib/session";
 
 export type ParsedData = {
   ptk: { nama: string; nip: string; nuptk: string; jenisPtk: string }[];
@@ -56,6 +57,7 @@ function generateTempNip() {
 }
 
 export async function importExcelData(data: ParsedData) {
+  await requireAdmin();
   const supabase = supabaseAdmin;
 
   try {
@@ -100,6 +102,7 @@ export async function importExcelData(data: ParsedData) {
 
     const defaultPasswordHash = await bcrypt.hash("password123", 10);
     const gurusToInsert: any[] = [];
+    const gurusToUpdate: { id: string; nama: string }[] = [];
     const akunsToInsert: any[] = [];
     const ptksLolosFilter = data.ptk.filter(p => p.jenisPtk.toLowerCase().includes("guru"));
 
@@ -130,12 +133,19 @@ export async function importExcelData(data: ParsedData) {
           status: "aktif"
         });
       } else {
-        // Jika guru sudah ada, tetapi belum memiliki gelar, perbarui namanya
+        // Jika guru sudah ada, tetapi belum memiliki gelar, simpan untuk update
         if (!existingGuru.nama.includes(",") && finalName.includes(",")) {
-          await supabase.from("guru").update({ nama: finalName }).eq("id", existingGuru.id);
+          gurusToUpdate.push({ id: existingGuru.id, nama: finalName });
           existingGuru.nama = finalName; // update memori agar proses selanjutnya pakai nama bergelar
         }
       }
+    }
+
+    // Jalankan update nama bergelar secara paralel (tidak serial memblokir perulangan)
+    if (gurusToUpdate.length > 0) {
+      await Promise.all(
+        gurusToUpdate.map((g) => supabase.from("guru").update({ nama: g.nama }).eq("id", g.id))
+      );
     }
 
     // Insert Guru Baru dari PTK
@@ -218,6 +228,59 @@ export async function importExcelData(data: ParsedData) {
       existingJadwal?.map(j => `${j.guru_id}-${j.kelas_id}-${j.mata_pelajaran}-${j.hari}-${j.jam_mulai}-${j.jam_selesai}`)
     );
 
+    // Temukan semua nama guru unik di legenda jadwal yang belum ada di database
+    const missingGuruNamesSet = new Set<string>();
+    for (const j of data.jadwals) {
+      const namaGuruDiLegenda = data.legendaGuru[j.guruKode];
+      if (namaGuruDiLegenda && !dbGuruList.some((g) => isNameMatch(g.nama, namaGuruDiLegenda))) {
+        missingGuruNamesSet.add(namaGuruDiLegenda);
+      }
+    }
+
+    // PENANGANAN GURU SILUMAN SECARA BATCH (GURU ADA DI JADWAL TAPI TIDAK ADA DI PTK)
+    if (missingGuruNamesSet.size > 0) {
+      const ghostGurusToInsert = Array.from(missingGuruNamesSet).map((name) => {
+        let tempNip = generateTempNip();
+        while (dbNipSet.has(tempNip)) {
+          tempNip = generateTempNip();
+        }
+        dbNipSet.add(tempNip);
+        return {
+          nama: name,
+          nip: tempNip,
+          jabatan: "Guru",
+          status: "aktif"
+        };
+      });
+
+      const { data: insertedGhostGurus, error: ghostErr } = await supabase
+        .from("guru")
+        .insert(ghostGurusToInsert)
+        .select("id, nama, nip");
+
+      if (ghostErr) {
+        console.error("Gagal batch insert guru siluman:", ghostErr);
+      } else if (insertedGhostGurus) {
+        const ghostAkunsToInsert: any[] = [];
+        for (const g of insertedGhostGurus) {
+          dbGuruList.push(g);
+          const finalUsernameGhost = generateUniqueUsername(g.nama);
+          ghostAkunsToInsert.push({
+            username: finalUsernameGhost,
+            password_hash: defaultPasswordHash,
+            role: "guru",
+            nama: g.nama,
+            status: "aktif",
+            guru_id: g.id
+          });
+        }
+        if (ghostAkunsToInsert.length > 0) {
+          const { error: ghostAkunErr } = await supabase.from("akun").insert(ghostAkunsToInsert);
+          if (ghostAkunErr) console.error("Gagal batch insert akun guru siluman:", ghostAkunErr);
+        }
+      }
+    }
+
     const jadwalsToInsert: any[] = [];
 
     for (const j of data.jadwals) {
@@ -227,37 +290,8 @@ export async function importExcelData(data: ParsedData) {
 
       if (!namaGuruDiLegenda || !kelasId) continue;
 
-      let guruDb = dbGuruList.find(g => isNameMatch(g.nama, namaGuruDiLegenda));
-
-      // PENANGANAN GURU SILUMAN (GURU ADA DI JADWAL TAPI TIDAK ADA DI PTK)
-      if (!guruDb) {
-        const tempNip = generateTempNip();
-        const { data: newGhostGuru, error: ghostErr } = await supabase
-          .from("guru")
-          .insert([{ nama: namaGuruDiLegenda, nip: tempNip, jabatan: "Guru", status: "aktif" }])
-          .select("id, nama, nip")
-          .single();
-        
-        if (ghostErr) {
-          console.error("Gagal membuat guru siluman:", ghostErr);
-          continue;
-        }
-        
-        guruDb = newGhostGuru;
-        dbGuruList.push(guruDb); // Masukkan ke list memori agar tidak dibuat ganda di iterasi jadwal berikutnya
-
-        const finalUsernameGhost = generateUniqueUsername(guruDb.nama);
-
-        // Buat akun juga
-        await supabase.from("akun").insert([{
-          username: finalUsernameGhost, // Pakai username format nama.inisial
-          password_hash: defaultPasswordHash,
-          role: "guru",
-          nama: guruDb.nama,
-          status: "aktif",
-          guru_id: guruDb.id
-        }]);
-      }
+      const guruDb = dbGuruList.find((g) => isNameMatch(g.nama, namaGuruDiLegenda));
+      if (!guruDb) continue;
 
       const hariEnum = j.hari.toLowerCase(); // 'senin', 'selasa', dst.
       const key = `${guruDb.id}-${kelasId}-${namaMapelDiLegenda}-${hariEnum}-${j.jamMulai}-${j.jamSelesai}`;

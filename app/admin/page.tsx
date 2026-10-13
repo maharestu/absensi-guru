@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { getAdminStats, getRecentActivities, AdminStats, ActivityItem } from "@/actions/dashboard";
-import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { ClockBadges } from "@/components/admin/ui/ClockBadges";
 import Pagination from "@/components/ui/pagination";
 import { Search } from "lucide-react";
 
 export default function AdminDashboardPage() {
-  const { timeString, dateString } = useRealtimeClock();
   const [stats, setStats] = useState<AdminStats>({
     totalGuru: 0,
     totalJadwal: 0,
@@ -71,26 +70,7 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        {/* Top Badges (Waktu & Tanggal Realtime) */}
-        <div className="flex items-center gap-3">
-          {/* Jam Badge */}
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-700">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-              <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
-          </div>
-
-          {/* Tanggal Badge */}
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-700">
-              <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2" />
-              <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span className="text-sm font-semibold text-slate-700">{dateString}</span>
-          </div>
-        </div>
+        <ClockBadges />
       </div>
 
       {/* ── STAT CARDS (3 Cards) ── */}

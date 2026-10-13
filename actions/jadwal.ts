@@ -7,6 +7,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { Jadwal, JadwalWithDetail } from "@/types/schema";
+import { requireAdmin } from "@/lib/session";
 
 export async function getJadwalList(): Promise<JadwalWithDetail[]> {
   const { data, error } = await supabaseAdmin
@@ -83,6 +84,7 @@ export async function getJadwalByGuruAndHari(
 }
 
 export async function createJadwal(input: Omit<Jadwal, "id" | "created_at">) {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("jadwal")
     .insert(input)
@@ -94,6 +96,7 @@ export async function createJadwal(input: Omit<Jadwal, "id" | "created_at">) {
 }
 
 export async function updateJadwal(id: string, input: Partial<Jadwal>) {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("jadwal")
     .update(input)
@@ -105,11 +108,100 @@ export async function updateJadwal(id: string, input: Partial<Jadwal>) {
   return data;
 }
 
-export async function deleteJadwal(id: string) {
-  const { error } = await supabaseAdmin
-    .from("jadwal")
-    .delete()
-    .eq("id", id);
+export async function checkJadwalRelations(
+  id?: string
+): Promise<{ hasRelations: boolean; details: string[]; warningMessage?: string }> {
+  try {
+    let absensiQuery = supabaseAdmin.from("absensi_mengajar").select("id", { count: "exact", head: true });
 
-  if (error) throw new Error(error.message);
+    if (id) {
+      absensiQuery = absensiQuery.eq("jadwal_id", id);
+    } else {
+      absensiQuery = absensiQuery.not("jadwal_id", "is", null);
+    }
+
+    const { count } = await absensiQuery;
+    const details: string[] = [];
+
+    if ((count ?? 0) > 0) {
+      details.push(`${count} catatan riwayat presensi mengajar guru`);
+    }
+
+    return {
+      hasRelations: details.length > 0,
+      details,
+      warningMessage:
+        details.length > 0
+          ? `Jadwal masih terhubung dengan ${details.join(", ")}.`
+          : undefined,
+    };
+  } catch (err: any) {
+    console.error("checkJadwalRelations Error:", err);
+    return { hasRelations: false, details: [] };
+  }
 }
+
+export async function deleteJadwal(
+  id: string
+): Promise<{ success: boolean; error?: string; isRelationError?: boolean }> {
+  try {
+    await requireAdmin();
+    const rel = await checkJadwalRelations(id);
+    if (rel.hasRelations) {
+      return {
+        success: false,
+        isRelationError: true,
+        error: `Jadwal ini tidak dapat dihapus karena sudah memiliki ${rel.details.join(" serta ")}. Harap hapus catatan absensi mengajar terkait terlebih dahulu.`,
+      };
+    }
+
+    const { error } = await supabaseAdmin.from("jadwal").delete().eq("id", id);
+    if (error) {
+      if (error.code === "23503") {
+        return {
+          success: false,
+          isRelationError: true,
+          error: "Jadwal ini masih memiliki riwayat presensi mengajar.",
+        };
+      }
+      throw error;
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteAllJadwal(
+  forceCascade = false
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    if (!forceCascade) {
+      const rel = await checkJadwalRelations();
+      if (rel.hasRelations) {
+        return {
+          success: false,
+          error: "Terdapat jadwal yang sudah memiliki riwayat absensi mengajar.",
+        };
+      }
+      const { error } = await supabaseAdmin.from("jadwal").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+      return { success: true };
+    }
+
+    // Force Cascade:
+    // 1. Hapus riwayat absensi mengajar
+    await supabaseAdmin.from("absensi_mengajar").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    // 2. Hapus seluruh jadwal
+    const { error } = await supabaseAdmin.from("jadwal").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) throw error;
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteAllJadwal Error:", err);
+    return { success: false, error: err.message };
+  }
+}
+

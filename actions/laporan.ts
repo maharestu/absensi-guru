@@ -30,7 +30,8 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
   let query = supabaseAdmin
     .from("absensi_masuk")
     .select("id, guru_id, tanggal, waktu_submit, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
-    .order("waktu_submit", { ascending: false });
+    .order("waktu_submit", { ascending: false })
+    .limit(1500);
 
   if (startDate) query = query.gte("tanggal", startDate);
   if (endDate) query = query.lte("tanggal", endDate);
@@ -61,7 +62,8 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
   let query = supabaseAdmin
     .from("absensi_mengajar")
     .select("id, tanggal, waktu_submit, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru_id, kelas_id, guru(nama), kelas(nama_kelas))")
-    .order("waktu_submit", { ascending: false });
+    .order("waktu_submit", { ascending: false })
+    .limit(1500);
 
   if (startDate) query = query.gte("tanggal", startDate);
   if (endDate) query = query.lte("tanggal", endDate);

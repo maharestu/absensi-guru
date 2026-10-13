@@ -1,97 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Edit2, Trash2, Printer } from "lucide-react";
 import { Kelas } from "@/types/schema";
-import { getKelasList, createKelas, updateKelas, deleteKelas } from "@/actions/kelas";
-import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { getKelasList, createKelas, updateKelas, deleteKelas, deleteAllKelas, checkKelasRelations } from "@/actions/kelas";
+import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { Button } from "../ui/button";
 import Pagination from "@/components/ui/pagination";
-
-const A4Template = ({ classData }: { classData: Kelas }) => {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
-  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
-  const qrUrl = `${cleanBaseUrl}/absen-qr/${classData.kode_qr || classData.id}`;
-  
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth();
-  const startYear = currentMonth >= 6 ? currentYear : currentYear - 1;
-  const academicYear = `${startYear}/${startYear + 1}`;
-  
-  const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-  const currentMonthName = months[currentMonth];
-  const printDate = `${currentMonthName} ${currentYear}`;
-
-  return (
-    <div className="w-[210mm] h-[296mm] bg-white text-black p-10 flex flex-col relative box-border mx-auto border border-slate-200 print:border-none shadow-sm print:shadow-none overflow-hidden print:w-[210mm] print:h-[296mm] print:overflow-hidden page-break-inside-avoid print:break-after-page">
-      {/* Outer border for the A4 paper content */}
-      <div className="absolute inset-2 border border-slate-800 pointer-events-none rounded-sm"></div>
-      <div className="absolute inset-3 border border-slate-800 pointer-events-none rounded-sm"></div>
-
-      <div className="relative z-10 flex flex-col h-full px-8 py-8">
-        {/* Kop Surat */}
-        <div className="flex items-center justify-between border-b-[3px] border-slate-800 pb-6 mb-8 w-full px-4">
-          <div className="flex-shrink-0">
-            <img src="/Logo.png" alt="Logo" className="w-[100px] h-[100px] object-contain" />
-          </div>
-          <div className="text-center flex-1 px-6">
-            <h4 className="text-sm font-bold text-slate-700 tracking-wider">PEMERINTAH KABUPATEN KARAWANG</h4>
-            <h2 className="text-2xl font-black text-slate-900 tracking-widest mt-1">SMP NEGERI 8 KARAWANG BARAT</h2>
-            <p className="text-xs text-slate-600 mt-2">Jl. Karangpawitan, Karawang Barat, Jawa Barat - TA {academicYear}</p>
-          </div>
-          <div className="w-[100px] flex-shrink-0"></div> {/* Spacer to keep the text perfectly centered */}
-        </div>
-
-        {/* Content */}
-        <div className="flex flex-col items-center flex-1">
-          <div className="px-6 py-2 rounded-full border border-slate-300 bg-slate-50 text-xs font-bold text-slate-600 tracking-widest mb-6 text-center">
-            PAPAN IDENTITAS & PRESENSI KBM DIGITAL
-          </div>
-          
-          <h1 className="text-[40px] font-black text-slate-900 uppercase tracking-wider text-center">
-            {classData.nama_kelas}
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-2 text-center">
-            Tahun Ajaran {academicYear}
-          </p>
-
-          <div className="mt-12 p-4 border-[3px] border-slate-200 rounded-3xl bg-white shadow-sm">
-             <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrUrl)}`}
-                alt={`QR Code ${classData.nama_kelas}`}
-                className="w-64 h-64 object-contain mix-blend-multiply"
-             />
-          </div>
-
-          <div className="mt-6 px-6 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 font-mono tracking-wider">
-             QR-RUANG-{(classData.kode_qr || classData.id).toString().slice(0,8).toUpperCase()}
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-auto pt-10 w-full">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-sm text-slate-700">
-               <h5 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
-                  Petunjuk Presensi Guru Pengajar:
-               </h5>
-               <ol className="list-decimal list-inside space-y-2 text-slate-600 font-medium ml-1">
-                  <li>Buka aplikasi kamera bawaan ponsel Anda, atau gunakan menu <strong className="text-slate-800">Absensi Mengajar</strong> di dalam aplikasi guru.</li>
-                  <li>Arahkan kamera untuk memindai QR Code di atas. Pastikan Anda sudah memberi izin akses lokasi (GPS).</li>
-                  <li>Sistem akan otomatis mencocokkan jadwal dan memverifikasi kehadiran mengajar Anda.</li>
-               </ol>
-            </div>
-          </div>
-
-          {/* Empty spacer so the layout still stretches nicely if needed, or we just rely on flex */}
-          <div className="w-full flex justify-end mt-12 mb-4">
-             {/* Signature section removed per user request */}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { DeleteSingleModal } from "./ui/DeleteSingleModal";
+import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
+import { ClassA4PrintTemplate } from "./ClassA4PrintTemplate";
 
 export default function ClassManagerClient() {
 
@@ -107,10 +26,18 @@ export default function ClassManagerClient() {
   const [editName, setEditName] = useState("");
   const [editError, setEditError] = useState("");
   const [deletingClass, setDeletingClass] = useState<Kelas | null>(null);
+  const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+
+  // States untuk Hapus Semua
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isCheckingRelations, setIsCheckingRelations] = useState(false);
+  const [relationAudit, setRelationAudit] = useState<RelationAuditResult | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [isPrintingAll, setIsPrintingAll] = useState(false);
-
-  const { timeString, dateString } = useRealtimeClock();
+  const [isPreparingPrint, setIsPreparingPrint] = useState(false);
+  const defaultTitleRef = useRef<string>("Kelola Ruang Kelas | Admin Sistem Absensi");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 11;
@@ -152,18 +79,46 @@ export default function ClassManagerClient() {
     (k.nama_kelas || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  useEffect(() => {
+    if (typeof document !== "undefined" && document.title) {
+      defaultTitleRef.current = document.title;
+    }
+  }, []);
+
   const handlePrintQR = () => {
+    if (!selectedClass) return;
+    const cleanClassName = selectedClass.nama_kelas
+      .trim()
+      .replace(/^kelas\s*/i, "")
+      .replace(/\s+/g, "_");
+    document.title = `Qr_kelas_${cleanClassName}`;
     window.print();
   };
 
   const handlePrintAllQR = () => {
+    if (isPreparingPrint) return;
+    document.title = "Qr_Seluruh_Kelas";
+    setIsPreparingPrint(true);
     setIsPrintingAll(true);
-    // Beri waktu 500ms agar DOM sempat merender semua gambar QR sebelum dialog print muncul
+
+    // Beri waktu 350ms agar seluruh QR SVG selesai dirender di DOM sebelum dialog cetak browser muncul
     setTimeout(() => {
+      setIsPreparingPrint(false);
       window.print();
-      setIsPrintingAll(false);
-    }, 500);
+    }, 350);
   };
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrintingAll(false);
+      setIsPreparingPrint(false);
+      if (typeof document !== "undefined") {
+        document.title = defaultTitleRef.current;
+      }
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,19 +190,53 @@ export default function ClassManagerClient() {
     if (!deletingClass) return;
     try {
       setSubmitting(true);
+      setSingleDeleteError(null);
       const res = await deleteKelas(deletingClass.id);
       if (res.success) {
         setDeletingClass(null);
         loadData();
       } else {
-        alert("Gagal menghapus kelas: " + res.error);
+        setSingleDeleteError(res.error || "Gagal menghapus kelas.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setSingleDeleteError(err.message || "Error saat menghapus kelas.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleOpenDeleteAll = async () => {
+    setIsDeleteAllOpen(true);
+    setIsCheckingRelations(true);
+    setRelationAudit(null);
+    try {
+      const audit = await checkKelasRelations();
+      setRelationAudit(audit);
+    } catch (e) {
+      console.error(e);
+      setRelationAudit({ hasRelations: false, details: [] });
+    } finally {
+      setIsCheckingRelations(false);
+    }
+  };
+
+  const handleConfirmDeleteAll = async (forceCascade: boolean) => {
+    try {
+      setIsDeletingAll(true);
+      const res = await deleteAllKelas(forceCascade);
+      if (res.success) {
+        setIsDeleteAllOpen(false);
+        loadData();
+      } else {
+        alert("Gagal menghapus seluruh kelas: " + (res.error || ""));
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
 
     const paginatedList = filteredKelas.slice(
     (currentPage - 1) * itemsPerPage,
@@ -276,25 +265,7 @@ export default function ClassManagerClient() {
           </p>
         </div>
 
-        {/* Badges */}
-        <div className="flex items-center gap-3">
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-500">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-              <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
-          </div>
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-500">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" />
-              <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" />
-              <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" />
-              <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" />
-            </svg>
-            <span className="text-sm font-semibold text-slate-700">{dateString}</span>
-          </div>
-        </div>
+        <ClockBadges />
       </div>
 
       {/* Search Input Box */}
@@ -311,20 +282,31 @@ export default function ClassManagerClient() {
         <div className="flex flex-col sm:flex-row items-center gap-3 self-start sm:self-auto w-full sm:w-auto">
           <button
             onClick={handlePrintAllQR}
-            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-sm font-semibold text-slate-700 shadow-sm flex items-center justify-center gap-2 transition-all"
+            disabled={isPreparingPrint}
+            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-white border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-sm font-semibold text-slate-700 shadow-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
           >
-            <Printer className="w-4 h-4" />
-            <span>Cetak Semua QR</span>
+            <Printer className={`w-4 h-4 ${isPreparingPrint ? "animate-spin" : ""}`} />
+            <span>{isPreparingPrint ? "Menyiapkan Dokumen..." : "Cetak Semua QR"}</span>
           </button>
           <button
             onClick={() => { setCreateMode(true); setCreateError(""); setCreateName(""); }}
-            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all"
+            className="px-5 py-2.5 w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+</span>
             <span>Tambah Kelas</span>
           </button>
+          <button
+            type="button"
+            onClick={handleOpenDeleteAll}
+            disabled={kelasList.length === 0}
+            className="px-4 py-2.5 w-full sm:w-auto rounded-xl border border-red-200/90 bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-semibold text-red-600 shadow-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Hapus Semua</span>
+          </button>
         </div>
       </div>
+
 
       {/* Table List */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
@@ -421,7 +403,7 @@ export default function ClassManagerClient() {
             {/* Preview Container - Dynamically scaled to fit exactly within 60vh */}
             <div className="bg-slate-100 rounded-2xl flex justify-center items-center overflow-hidden border border-slate-200/60 shadow-inner w-full relative h-[60vh]">
                <div className="print:static print:transform-none" style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
-                 <A4Template classData={selectedClass} />
+                 <ClassA4PrintTemplate classData={selectedClass} />
                </div>
             </div>
           </div>
@@ -518,53 +500,40 @@ export default function ClassManagerClient() {
         </form>
       </Modal>
 
-      {/* Modal Hapus Kelas */}
-      <Modal isOpen={!!deletingClass} onClose={() => setDeletingClass(null)} maxWidth="max-w-md">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
-            <span className="text-2xl font-bold leading-none">!</span>
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
-            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-          </div>
-        </div>
-        <p className="text-sm text-slate-700 mt-6">
-          Apakah Anda yakin ingin menghapus data yang dipilih?
-        </p>
-        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3 mt-4">
-          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
-          <p className="text-sm font-bold text-slate-900">
-            {deletingClass?.nama_kelas}
-          </p>
-        </div>
-        <div className="border-t border-slate-100 mt-6" />
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setDeletingClass(null)}
-            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleDelete}
-            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
-          >
-            {submitting ? "Menghapus..." : "Hapus Data"}
-          </button>
-        </div>
-      </Modal>
+      {/* Modal Hapus Satu Kelas */}
+      <DeleteSingleModal
+        isOpen={!!deletingClass}
+        onClose={() => {
+          setDeletingClass(null);
+          setSingleDeleteError(null);
+        }}
+        onConfirm={handleDelete}
+        title="Hapus Ruang Kelas"
+        itemName={deletingClass?.nama_kelas}
+        isDeleting={submitting}
+        errorRelation={singleDeleteError}
+        onClearError={() => setSingleDeleteError(null)}
+      />
+
+      {/* Modal Hapus Semua Kelas */}
+      <DeleteAllModal
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={handleConfirmDeleteAll}
+        title="Hapus Semua Ruang Kelas"
+        entityName="ruang kelas"
+        totalCount={kelasList.length}
+        isChecking={isCheckingRelations}
+        relationInfo={relationAudit}
+        isDeleting={isDeletingAll}
+      />
     </div>
 
     {/* Print-only template */}
     <div className="hidden print:block w-full h-full bg-white">
       {isPrintingAll 
-        ? kelasList.map((kelas) => <A4Template key={kelas.id} classData={kelas} />)
-        : (selectedClass && <A4Template classData={selectedClass} />)
+        ? kelasList.map((kelas) => <ClassA4PrintTemplate key={kelas.id} classData={kelas} />)
+        : (selectedClass && <ClassA4PrintTemplate classData={selectedClass} />)
       }
     </div>
     </>

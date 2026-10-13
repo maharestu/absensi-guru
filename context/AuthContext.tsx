@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Akun } from "@/types/schema";
+import { logoutAction, getCurrentUserAction } from "@/actions/auth";
 
 interface AuthContextType {
   user: Akun | null;
   isAuthenticated: boolean;
   login: (userData: Omit<Akun, "password_hash">) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -21,31 +22,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Pulihkan sesi dari localStorage saat halaman dimuat
+  // Sinkronisasikan sesi dengan server cookie saat komponen dimuat
   useEffect(() => {
-    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedUser) {
+    let isMounted = true;
+
+    async function syncSession() {
       try {
-        setUser(JSON.parse(storedUser));
+        const serverUser = await getCurrentUserAction();
+        if (isMounted) {
+          if (serverUser) {
+            setUser(serverUser as Akun);
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(serverUser));
+          } else {
+            setUser(null);
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          }
+        }
       } catch (error) {
-        console.error("Gagal memuat sesi user:", error);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+        console.error("Gagal sinkronisasi sesi dari server:", error);
+        // Fallback aman dari localStorage jika terjadi kendala jaringan sesaat
+        const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (storedUser && isMounted) {
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            setUser(null);
+          }
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
-    setIsLoading(false);
+
+    syncSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Dipanggil setelah loginAction berhasil — data user sudah diverifikasi server
+  // Dipanggil setelah loginAction berhasil
   const login = (userData: Omit<Akun, "password_hash">) => {
     setUser(userData as Akun);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
     // Bersihkan semua cache absensi di sessionStorage agar tidak bocor ke user berikutnya
     sessionStorage.clear();
+    try {
+      await logoutAction();
+    } catch (e) {
+      console.error("Gagal menjalankan logout server:", e);
+    }
     router.push("/login");
   };
 

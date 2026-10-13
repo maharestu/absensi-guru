@@ -7,9 +7,10 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { isWithinGeofence } from "@/lib/geo";
 import { getLokasiSekolah } from "@/actions/pengaturan";
-import { uploadFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
+import { uploadFotoAbsensi, deleteFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 import { STATUS_MASUK } from "@/lib/status";
 import { getHariWIB, getTodayWIB, getJamWIB } from "@/lib/date";
+import { getSession } from "@/lib/session";
 
 export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
   try {
@@ -41,10 +42,7 @@ export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string)
     const { data, error } = await supabaseAdmin
       .from("absensi_mengajar")
       .select("jadwal_id")
-      .eq("tanggal", tanggal)
-      // Kita perlu join ke jadwal untuk mengecek guru_id, tapi karena biasanya kita query jadwalnya dulu
-      // dan hanya ambil ID nya, kita bisa kembalikan semuanya untuk hari ini, lalu filter di client.
-      // Lebih baik kita query semua absen hari ini lalu biarkan client memfilternya sesuai jadwal yang tampil.
+      .eq("tanggal", tanggal);
       
     if (error) {
       console.error("Error getAbsensiMengajarHariIni:", error);
@@ -60,14 +58,17 @@ export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string)
 
 export async function submitPresensiMasukAction(formData: FormData) {
   try {
-    const guruId = formData.get("guruId") as string;
-    const tanggal = formData.get("tanggal") as string;
+    // Ambil identitas guru langsung dari sesi server (mencegah manipulasi IDOR)
+    const session = await getSession();
+    const guruId = session?.guru_id || (formData.get("guruId") as string);
+    // Verifikasi tanggal menggunakan waktu server WIB
+    const tanggal = getTodayWIB();
     const status = formData.get("status") as string;
     const file = formData.get("file") as File;
     const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
     const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
 
-    if (!guruId || !tanggal || !status || !file) {
+    if (!guruId || !status || !file) {
       throw new Error("Data presensi tidak lengkap.");
     }
 
@@ -106,45 +107,53 @@ export async function submitPresensiMasukAction(formData: FormData) {
       }
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    
-    // Upload foto ke Supabase Storage
-    const publicUrl = await uploadFotoAbsensi({
-      buffer,
-      guruId,
-      kategori: status as KategoriAbsensi,
-      tanggal,
-    });
+    let uploadedPhotoUrl: string | null = null;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      
+      // Upload foto ke Supabase Storage
+      const publicUrl = await uploadFotoAbsensi({
+        buffer,
+        guruId,
+        kategori: status as KategoriAbsensi,
+        tanggal,
+      });
+      uploadedPhotoUrl = publicUrl;
 
-    // Insert ke database
-    const insertData: any = {
-      guru_id: guruId,
-      tanggal,
-      status,
-    };
+      // Insert ke database
+      const insertData: any = {
+        guru_id: guruId,
+        tanggal,
+        status,
+      };
 
-    if (status === "hadir") {
-      insertData.foto_absensi = publicUrl;
-      if (latitude && longitude) {
-        insertData.latitude = latitude;
-        insertData.longitude = longitude;
+      if (status === "hadir") {
+        insertData.foto_absensi = publicUrl;
+        if (latitude && longitude) {
+          insertData.latitude = latitude;
+          insertData.longitude = longitude;
+        }
+      } else {
+        insertData.file_bukti_izin_sakit = publicUrl;
       }
-    } else {
-      insertData.file_bukti_izin_sakit = publicUrl;
-    }
 
-    const { error } = await supabaseAdmin
-      .from("absensi_masuk")
-      .insert(insertData);
+      const { error } = await supabaseAdmin
+        .from("absensi_masuk")
+        .insert(insertData);
 
-    if (error) {
-      if (error.code === '23505') {
-        throw new Error("Anda sudah melakukan absensi untuk tanggal ini.");
+      if (error) {
+        if (uploadedPhotoUrl) await deleteFotoAbsensi(uploadedPhotoUrl);
+        if (error.code === '23505') {
+          throw new Error("Anda sudah melakukan absensi untuk tanggal ini.");
+        }
+        throw new Error(error.message);
       }
-      throw new Error(error.message);
-    }
 
-    return { success: true };
+      return { success: true };
+    } catch (innerError: any) {
+      if (uploadedPhotoUrl) await deleteFotoAbsensi(uploadedPhotoUrl);
+      throw innerError;
+    }
   } catch (error: any) {
     console.error("Presensi Error:", error.message);
     return { success: false, error: error.message };
@@ -153,7 +162,8 @@ export async function submitPresensiMasukAction(formData: FormData) {
 
 export async function submitPresensiMengajarAction(formData: FormData) {
   try {
-    const guruId = formData.get("guruId") as string;
+    const session = await getSession();
+    const guruId = session?.guru_id || (formData.get("guruId") as string);
     const jadwalId = formData.get("jadwalId") as string;
     const file = formData.get("file") as File;
     const tanggal = getTodayWIB(); // Abaikan tanggal dari client
@@ -185,34 +195,42 @@ export async function submitPresensiMengajarAction(formData: FormData) {
       throw new Error(`Anda hanya dapat absen pada rentang ${jadwal.jam_mulai.substring(0,5)} - ${jadwal.jam_selesai.substring(0,5)} WIB.`);
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    let uploadedPhotoUrl: string | null = null;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Upload foto
-    const publicUrl = await uploadFotoAbsensi({
-      buffer,
-      guruId,
-      kategori: "mengajar",
-      tanggal,
-      jadwalId,
-    });
-
-    // Insert ke database
-    const { error } = await supabaseAdmin
-      .from("absensi_mengajar")
-      .insert({
-        jadwal_id: jadwalId,
+      // Upload foto
+      const publicUrl = await uploadFotoAbsensi({
+        buffer,
+        guruId,
+        kategori: "mengajar",
         tanggal,
-        foto_absensi: publicUrl,
+        jadwalId,
       });
+      uploadedPhotoUrl = publicUrl;
 
-    if (error) {
-      if (error.code === '23505') {
-        throw new Error("Anda sudah absensi mengajar untuk kelas ini pada tanggal ini.");
+      // Insert ke database
+      const { error } = await supabaseAdmin
+        .from("absensi_mengajar")
+        .insert({
+          jadwal_id: jadwalId,
+          tanggal,
+          foto_absensi: publicUrl,
+        });
+
+      if (error) {
+        if (uploadedPhotoUrl) await deleteFotoAbsensi(uploadedPhotoUrl);
+        if (error.code === '23505') {
+          throw new Error("Anda sudah absensi mengajar untuk kelas ini pada tanggal ini.");
+        }
+        throw new Error(error.message);
       }
-      throw new Error(error.message);
-    }
 
-    return { success: true };
+      return { success: true };
+    } catch (innerError: any) {
+      if (uploadedPhotoUrl) await deleteFotoAbsensi(uploadedPhotoUrl);
+      throw innerError;
+    }
   } catch (error: any) {
     console.error("Presensi Mengajar Error:", error.message);
     return { success: false, error: error.message };
