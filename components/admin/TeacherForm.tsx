@@ -57,11 +57,11 @@ export default function TeacherForm({
         {/* NIP */}
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-slate-800">
-            NIP (Nomor Induk Pegawai)
+            NIP/NUPTK
           </label>
           <Input
             type="text"
-            placeholder="Masukkan NIP"
+            placeholder="Masukkan NIP/NUPTK"
             value={form.nip}
             onChange={(e) => setForm({ ...form, nip: e.target.value })}
             required

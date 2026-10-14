@@ -9,15 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.117.2",
     "@types/bcryptjs": "^2.4.6",
+    "@types/qrcode": "^1.5.6",
     "bcryptjs": "^3.0.3",
     "jsqr": "^1.4.0",
     "lucide-react": "^1.48.0",
     "next": "16.3.5",
+    "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

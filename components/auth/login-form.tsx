@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginAction } from "@/actions/auth";
 import { Akun } from "@/types/schema";
@@ -14,6 +14,7 @@ export default function LoginForm() {
 
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,11 +22,18 @@ export default function LoginForm() {
     setHasError(false);
 
     try {
-      // Query ke Supabase via Server Action
+      // Query ke Supabase via Server Action (dan otomatis set HttpOnly Session Cookie)
       const result = await loginAction(nip, password);
 
       if (result.success) {
         login(result.user as Akun);
+        
+        const nextParam = searchParams.get("next");
+        if (nextParam && nextParam.startsWith("/")) {
+          router.push(nextParam);
+          return;
+        }
+
         // Arahkan sesuai role (lowercase sesuai DB schema)
         if (result.user.role === "guru") {
           router.push("/guru");
@@ -46,17 +54,6 @@ export default function LoginForm() {
 
   return (
     <div className="w-full">
-      {/* Header - Rata tengah sesuai Figma */}
-      <header className="mb-8 text-center">
-        <h1 className="text-[28px] font-bold tracking-tight text-slate-900">
-          Selamat Datang
-        </h1>
-        <p className="mt-2 text-sm text-slate-500 leading-relaxed max-w-xs sm:max-w-sm mx-auto">
-          {hasError
-            ? "Periksa kembali data yang Anda masukkan."
-            : "Gunakan username dan password untuk mengakses dashboard sekolah."}
-        </p>
-      </header>
 
       <form onSubmit={handleSubmit} className="w-full space-y-5">
         {/* Error Alert */}
@@ -91,13 +88,13 @@ export default function LoginForm() {
             htmlFor="nip"
             className="block text-sm font-semibold text-slate-800"
           >
-            Username / NIP
+            Username / NIP/NUPTK
           </label>
           <input
             id="nip"
             name="nip"
             type="text"
-            placeholder="Masukkan username atau NIP"
+            placeholder="Masukkan username atau NIP/NUPTK"
             value={nip}
             onChange={(e) => {
               setNip(e.target.value);

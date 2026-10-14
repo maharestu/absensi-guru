@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { getJadwalList, createJadwal, updateJadwal, deleteJadwal } from "@/actions/jadwal";
+import { getJadwalList, createJadwal, updateJadwal, deleteJadwal, deleteAllJadwal, checkJadwalRelations } from "@/actions/jadwal";
 import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
 import { Guru, Kelas, JadwalWithDetail, HariJadwal } from "@/types/schema";
-import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { ClockBadges } from "./ui/ClockBadges";
 import { Edit2, Trash2 } from "lucide-react";
 import ScheduleForm, { ScheduleFormData } from "./ScheduleForm";
+import Pagination from "@/components/ui/pagination";
+import { DeleteSingleModal } from "./ui/DeleteSingleModal";
+import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 
 const HARI_OPTIONS: { value: HariJadwal; label: string }[] = [
   { value: "senin", label: "Senin" },
@@ -18,6 +21,7 @@ const HARI_OPTIONS: { value: HariJadwal; label: string }[] = [
 ];
 
 export default function ScheduleManagerClient() {
+
   const [schedules, setSchedules] = useState<JadwalWithDetail[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -32,6 +36,13 @@ export default function ScheduleManagerClient() {
   // Modal states
   const [editingSchedule, setEditingSchedule] = useState<JadwalWithDetail | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<JadwalWithDetail | null>(null);
+  const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+
+  // States untuk Hapus Semua
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isCheckingRelations, setIsCheckingRelations] = useState(false);
+  const [relationAudit, setRelationAudit] = useState<RelationAuditResult | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Form state for Create Schedule
   const [createForm, setCreateForm] = useState({
@@ -53,9 +64,12 @@ export default function ScheduleManagerClient() {
     mata_pelajaran: "",
   });
 
-  // Realtime clock & date
-  const { timeString, dateString } = useRealtimeClock();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadAllData = async () => {
     try {
       const [jData, gData, kData] = await Promise.all([
@@ -104,13 +118,50 @@ export default function ScheduleManagerClient() {
     if (!deletingSchedule) return;
     try {
       setSubmitting(true);
-      await deleteJadwal(deletingSchedule.id);
-      setSchedules((prev) => prev.filter((s) => s.id !== deletingSchedule.id));
-      setDeletingSchedule(null);
+      setSingleDeleteError(null);
+      const res = await deleteJadwal(deletingSchedule.id);
+      if (res.success) {
+        setSchedules((prev) => prev.filter((s) => s.id !== deletingSchedule.id));
+        setDeletingSchedule(null);
+      } else {
+        setSingleDeleteError(res.error || "Gagal menghapus jadwal.");
+      }
     } catch (err: any) {
-      alert("Gagal menghapus jadwal: " + err.message);
+      setSingleDeleteError(err.message || "Error saat menghapus jadwal.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleOpenDeleteAll = async () => {
+    setIsDeleteAllOpen(true);
+    setIsCheckingRelations(true);
+    setRelationAudit(null);
+    try {
+      const audit = await checkJadwalRelations();
+      setRelationAudit(audit);
+    } catch (e) {
+      console.error(e);
+      setRelationAudit({ hasRelations: false, details: [] });
+    } finally {
+      setIsCheckingRelations(false);
+    }
+  };
+
+  const handleConfirmDeleteAll = async (forceCascade: boolean) => {
+    try {
+      setIsDeletingAll(true);
+      const res = await deleteAllJadwal(forceCascade);
+      if (res.success) {
+        setIsDeleteAllOpen(false);
+        await loadAllData();
+      } else {
+        alert(res.error || "Gagal menghapus seluruh data jadwal.");
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -187,6 +238,11 @@ export default function ScheduleManagerClient() {
     }
   };
 
+    const paginatedList = filteredSchedules.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) {
     return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data jadwal...</div>;
   }
@@ -196,6 +252,9 @@ export default function ScheduleManagerClient() {
   // ═══════════════════════════════════════════════════════════
   // VIEW: DAFTAR JADWAL
   // ═══════════════════════════════════════════════════════════
+  
+// reset page if search changes
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -209,15 +268,7 @@ export default function ScheduleManagerClient() {
           </p>
         </div>
 
-        {/* Badges */}
-        <div className="flex items-center gap-3">
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
-          </div>
-          <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
-            <span className="text-sm font-semibold text-slate-700">{dateString}</span>
-          </div>
-        </div>
+        <ClockBadges />
       </div>
 
       {/* Filter / Search Bar */}
@@ -232,13 +283,25 @@ export default function ScheduleManagerClient() {
           />
         </div>
 
-        <button
-          onClick={() => setViewMode("create")}
-          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto cursor-pointer"
-        >
-          <span>+</span>
-          <span>Tambah Jadwal</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setViewMode("create")}
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>+</span>
+            <span>Tambah Jadwal</span>
+          </button>
+          <button
+            type="button"
+            disabled={schedules.length === 0}
+            onClick={handleOpenDeleteAll}
+            className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-bold text-red-600 border border-red-200/80 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Hapus Semua Data Jadwal"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Hapus Semua</span>
+          </button>
+        </div>
       </div>
 
       {/* Table Data Jadwal */}
@@ -262,7 +325,7 @@ export default function ScheduleManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredSchedules.map((jadwal) => (
+              paginatedList.map((jadwal) => (
                 <tr key={jadwal.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-semibold text-slate-900 capitalize">
                     {jadwal.hari}
@@ -302,48 +365,45 @@ export default function ScheduleManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredSchedules.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredSchedules.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
-      {/* MODAL: HAPUS JADWAL */}
-      {deletingSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95 duration-150">
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">Hapus Data Jadwal?</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-            </div>
-            <p className="text-sm font-semibold text-slate-700">
-              Apakah Anda yakin ingin menghapus jadwal ini?
-            </p>
-            <div className="bg-[#f8fafc] border border-slate-100 p-4 rounded-xl">
-              <p className="text-sm font-bold text-slate-900">
-                {deletingSchedule.mata_pelajaran} - {deletingSchedule.kelas?.nama_kelas}
-              </p>
-              <p className="text-xs text-slate-400 mt-1 capitalize">
-                {deletingSchedule.hari} ({deletingSchedule.jam_mulai.slice(0, 5)} - {deletingSchedule.jam_selesai.slice(0, 5)})
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => setDeletingSchedule(null)}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleConfirmDelete}
-                className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm transition-all disabled:opacity-50"
-              >
-                {submitting ? "Menghapus..." : "Hapus Data"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL: HAPUS JADWAL TUNGGAL */}
+      <DeleteSingleModal
+        isOpen={!!deletingSchedule}
+        onClose={() => {
+          setDeletingSchedule(null);
+          setSingleDeleteError(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Data Jadwal"
+        itemName={deletingSchedule ? `${deletingSchedule.mata_pelajaran} - ${deletingSchedule.kelas?.nama_kelas || ""} (${deletingSchedule.hari})` : ""}
+        isDeleting={submitting}
+        errorRelation={singleDeleteError}
+        onClearError={() => setSingleDeleteError(null)}
+      />
+
+      {/* MODAL: HAPUS SEMUA JADWAL */}
+      <DeleteAllModal
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={handleConfirmDeleteAll}
+        title="Hapus Semua Jadwal"
+        entityName="jadwal pelajaran"
+        totalCount={schedules.length}
+        isChecking={isCheckingRelations}
+        relationInfo={relationAudit}
+        isDeleting={isDeletingAll}
+      />
 
       {/* MODAL: UPDATE JADWAL */}
       {editingSchedule && (

@@ -28,8 +28,8 @@ export default function AbsensiMengajarBerhasilPage() {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-[#EEF2F7] px-6 pt-30 pb-10">
-      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg shadow-green-200 mb-5">
+    <div className="flex flex-col items-center min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg shadow-green-200 mb-5 mt-30">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path
             d="M5 13L9 17L19 7"

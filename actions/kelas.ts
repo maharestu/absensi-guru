@@ -7,6 +7,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { Kelas } from "@/types/schema";
+import { requireAdmin } from "@/lib/session";
 
 export async function getKelasList(): Promise<Kelas[]> {
   const { data, error } = await supabaseAdmin
@@ -40,6 +41,7 @@ export async function getKelasById(id: string): Promise<Kelas | null> {
 
 export async function createKelas(payload: { nama_kelas: string }): Promise<{ success: boolean; data?: Kelas; error?: string }> {
   try {
+    await requireAdmin();
     const kode_qr = crypto.randomUUID();
     
     const { data, error } = await supabaseAdmin
@@ -56,6 +58,7 @@ export async function createKelas(payload: { nama_kelas: string }): Promise<{ su
 
 export async function updateKelas(id: string, payload: { nama_kelas: string }): Promise<{ success: boolean; data?: Kelas; error?: string }> {
   try {
+    await requireAdmin();
     const { data, error } = await supabaseAdmin
       .from("kelas")
       .update(payload)
@@ -69,15 +72,108 @@ export async function updateKelas(id: string, payload: { nama_kelas: string }): 
   }
 }
 
-export async function deleteKelas(id: string): Promise<{ success: boolean; error?: string }> {
+export async function checkKelasRelations(
+  id?: string
+): Promise<{ hasRelations: boolean; details: string[]; warningMessage?: string }> {
   try {
-    const { error } = await supabaseAdmin
-      .from("kelas")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
+    let jadwalQuery = supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true });
+
+    if (id) {
+      jadwalQuery = jadwalQuery.eq("kelas_id", id);
+    } else {
+      jadwalQuery = jadwalQuery.not("kelas_id", "is", null);
+    }
+
+    const { count: jadwalCount } = await jadwalQuery;
+    const details: string[] = [];
+
+    if ((jadwalCount ?? 0) > 0) {
+      details.push(`${jadwalCount} jadwal mata pelajaran KBM`);
+    }
+
+    return {
+      hasRelations: details.length > 0,
+      details,
+      warningMessage:
+        details.length > 0
+          ? `Ruang kelas masih digunakan pada ${details.join(", ")}.`
+          : undefined,
+    };
+  } catch (err: any) {
+    console.error("checkKelasRelations Error:", err);
+    return { hasRelations: false, details: [] };
+  }
+}
+
+export async function deleteKelas(
+  id: string
+): Promise<{ success: boolean; error?: string; isRelationError?: boolean }> {
+  try {
+    await requireAdmin();
+    const rel = await checkKelasRelations(id);
+    if (rel.hasRelations) {
+      return {
+        success: false,
+        isRelationError: true,
+        error: `Ruang kelas ini tidak dapat dihapus karena masih digunakan pada ${rel.details.join(" serta ")}. Harap hapus atau ubah jadwal terkait terlebih dahulu.`,
+      };
+    }
+
+    const { error } = await supabaseAdmin.from("kelas").delete().eq("id", id);
+    if (error) {
+      if (error.code === "23503") {
+        return {
+          success: false,
+          isRelationError: true,
+          error: "Kelas ini masih digunakan pada jadwal pelajaran.",
+        };
+      }
+      throw error;
+    }
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
 }
+
+export async function deleteAllKelas(
+  forceCascade = false
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    if (!forceCascade) {
+      const rel = await checkKelasRelations();
+      if (rel.hasRelations) {
+        return {
+          success: false,
+          error: "Terdapat data kelas yang masih memiliki jadwal pelajaran aktif.",
+        };
+      }
+      const { error } = await supabaseAdmin.from("kelas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      if (error) throw error;
+      return { success: true };
+    }
+
+    // Force Cascade:
+    // 1. Ambil seluruh id jadwal yang terkait kelas
+    const { data: jadwalList } = await supabaseAdmin.from("jadwal").select("id");
+    const jadwalIds = jadwalList?.map((j) => j.id) || [];
+
+    if (jadwalIds.length > 0) {
+      // Hapus absensi mengajar terkait jadwal tersebut
+      await supabaseAdmin.from("absensi_mengajar").delete().in("jadwal_id", jadwalIds);
+      // Hapus jadwal
+      await supabaseAdmin.from("jadwal").delete().in("id", jadwalIds);
+    }
+
+    // Hapus seluruh kelas
+    const { error } = await supabaseAdmin.from("kelas").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) throw error;
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteAllKelas Error:", err);
+    return { success: false, error: err.message };
+  }
+}
+

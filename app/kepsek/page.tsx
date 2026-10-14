@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import Pagination from "@/components/ui/pagination";
+import { Search } from "lucide-react";
 import {
   getKepsekStats,
   getKehadiranHariIni,
@@ -10,8 +12,10 @@ import {
   KehadiranHariIni,
   MengajarHariIni,
 } from "@/actions/dashboard";
+import { getStatusColorText } from "@/lib/status";
 
 export default function KepsekDashboardPage() {
+
   const { timeString, dateString } = useRealtimeClock();
   const [stats, setStats] = useState<KepsekStats>({
     guruHadir: 0,
@@ -23,6 +27,46 @@ export default function KepsekDashboardPage() {
   const [kehadiran, setKehadiran] = useState<KehadiranHariIni[]>([]);
   const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination states & Search states
+  const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
+  const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
+  const [searchKehadiran, setSearchKehadiran] = useState("");
+  const [searchMengajar, setSearchMengajar] = useState("");
+  const itemsPerPage = 11;
+
+  // Filter Kehadiran
+  const filteredKehadiran = kehadiran.filter(row => 
+    row.nama_guru.toLowerCase().includes(searchKehadiran.toLowerCase()) ||
+    row.status.toLowerCase().includes(searchKehadiran.toLowerCase())
+  );
+
+  // Filter Mengajar
+  const filteredMengajar = mengajar.filter(row => 
+    row.nama_guru.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.kelas.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.mata_pelajaran.toLowerCase().includes(searchMengajar.toLowerCase()) ||
+    row.status.toLowerCase().includes(searchMengajar.toLowerCase())
+  );
+
+  const paginatedKehadiran = filteredKehadiran.slice(
+    (currentPageKehadiran - 1) * itemsPerPage,
+    currentPageKehadiran * itemsPerPage
+  );
+
+  const paginatedMengajar = filteredMengajar.slice(
+    (currentPageMengajar - 1) * itemsPerPage,
+    currentPageMengajar * itemsPerPage
+  );
+
+  // Reset pagination if search changes
+  useEffect(() => {
+    setCurrentPageKehadiran(1);
+  }, [searchKehadiran]);
+
+  useEffect(() => {
+    setCurrentPageMengajar(1);
+  }, [searchMengajar]);
 
   useEffect(() => {
     async function loadData() {
@@ -44,8 +88,10 @@ export default function KepsekDashboardPage() {
     loadData();
   }, []);
 
+  
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -58,7 +104,7 @@ export default function KepsekDashboardPage() {
         </div>
 
         {/* Top Badges (Waktu & Tanggal Realtime) */}
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           {/* Jam Badge */}
           <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs flex items-center gap-2.5">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-slate-700">
@@ -80,10 +126,10 @@ export default function KepsekDashboardPage() {
       </div>
 
       {/* ── STAT CARDS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
         {/* Card 1: Guru Hadir */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="18" x="3" y="3" rx="4" />
               <circle cx="12" cy="10" r="3" />
@@ -91,16 +137,16 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Guru Hadir</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Guru Hadir</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.guruHadir}
             </h2>
           </div>
         </div>
 
         {/* Card 2: Izin */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="14" height="18" x="5" y="3" rx="3" />
               <path d="M9 9h6" />
@@ -109,16 +155,16 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Izin</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Izin</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.izin}
             </h2>
           </div>
         </div>
 
         {/* Card 3: Sakit */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="18" x="3" y="4" rx="3" />
               <path d="M16 2v4" />
@@ -129,32 +175,32 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Sakit</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Sakit</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.sakit}
             </h2>
           </div>
         </div>
 
         {/* Card: Dinas Luar */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Dinas Luar</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Dinas Luar</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.dinas}
             </h2>
           </div>
         </div>
 
         {/* Card: Belum Absen */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center gap-4">
-          <div className="w-13 h-13 rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 col-span-2 lg:col-span-1">
+          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="14" x="3" y="5" rx="3" />
               <path d="M3 10h18" />
@@ -163,8 +209,8 @@ export default function KepsekDashboardPage() {
             </svg>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-400">Belum Absen</p>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Belum Absen</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
               {loading ? "..." : stats.belumAbsen}
             </h2>
           </div>
@@ -173,34 +219,46 @@ export default function KepsekDashboardPage() {
 
       {/* ── TABEL: ABSENSI KEHADIRAN HARI INI ── */}
       <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Absensi Kehadiran Hari Ini</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Absensi Kehadiran Hari Ini</h2>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari guru atau status..."
+              value={searchKehadiran}
+              onChange={(e) => setSearchKehadiran(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[500px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[440px] sm:min-w-[500px]">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-4 font-semibold w-[45%]">NAMA GURU</th>
-                <th className="pb-4 font-semibold w-[30%]">WAKTU MASUK</th>
-                <th className="pb-4 font-semibold w-[25%]">STATUS</th>
+              <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[45%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[30%]">WAKTU MASUK</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[25%]">STATUS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {kehadiran.length === 0 ? (
+            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+              {filteredKehadiran.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-6 text-center text-slate-400 font-medium">
                     {loading ? "Memuat kehadiran..." : "Belum ada catatan presensi hari ini."}
                   </td>
                 </tr>
               ) : (
-                kehadiran.map((row) => (
+                paginatedKehadiran.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-4 font-semibold text-slate-800">
+                    <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
                     </td>
-                    <td className="py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.waktu_masuk ?? "—"}
                     </td>
-                    <td className="py-4 font-medium text-slate-600">
+                    <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
                     </td>
                   </tr>
@@ -208,47 +266,68 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          {!loading && filteredKehadiran.length > 0 && (
+            <Pagination
+              currentPage={currentPageKehadiran}
+              totalItems={filteredKehadiran.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPageKehadiran}
+            />
+          )}
+
         </div>
       </div>
 
       {/* ── TABEL: ABSENSI MENGAJAR HARI INI ── */}
       <div>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Absensi Mengajar Hari Ini</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Absensi Mengajar Hari Ini</h2>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari kelas atau mapel..."
+              value={searchMengajar}
+              onChange={(e) => setSearchMengajar(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[700px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-[700px]">
             <thead>
-              <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-4 font-semibold w-[25%]">NAMA GURU</th>
-                <th className="pb-4 font-semibold w-[20%]">MATA PELAJARAN</th>
-                <th className="pb-4 font-semibold w-[15%]">KELAS</th>
-                <th className="pb-4 font-semibold w-[20%]">JAM MENGAJAR</th>
-                <th className="pb-4 font-semibold w-[20%]">STATUS</th>
+              <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[25%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">MATA PELAJARAN</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">KELAS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">JAM MENGAJAR</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">STATUS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {mengajar.length === 0 ? (
+            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+              {filteredMengajar.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
                     {loading ? "Memuat absensi mengajar..." : "Belum ada catatan absensi mengajar hari ini."}
                   </td>
                 </tr>
               ) : (
-                mengajar.map((row) => (
+                paginatedMengajar.map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-4 font-semibold text-slate-800">
+                    <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
                     </td>
-                    <td className="py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.mata_pelajaran}
                     </td>
-                    <td className="py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.kelas}
                     </td>
-                    <td className="py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.jam_mengajar}
                     </td>
-                    <td className="py-4 font-medium text-emerald-600">
+                    <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
                     </td>
                   </tr>
@@ -256,6 +335,17 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          {!loading && filteredMengajar.length > 0 && (
+            <Pagination
+              currentPage={currentPageMengajar}
+              totalItems={filteredMengajar.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPageMengajar}
+            />
+          )}
+
+
+
         </div>
       </div>
     </div>

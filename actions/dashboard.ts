@@ -137,13 +137,12 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
     id: row.id,
     // @ts-expect-error — supabase join returns nested object
     nama_guru: row.guru?.nama ?? "-",
-    waktu_masuk:
-      row.status === "hadir"
-        ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : null,
+    waktu_masuk: row.waktu_submit
+      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : null,
     status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
   }));
 }

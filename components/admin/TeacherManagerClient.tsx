@@ -2,13 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { Guru } from "@/types/schema";
-import { getGuruList, createGuru, updateGuru, deleteGuru } from "@/actions/guru";
+import { getGuruList, createGuru, updateGuru, deleteGuru, deleteAllGuru, checkGuruRelations } from "@/actions/guru";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2 } from "lucide-react";
 import TeacherForm, { TeacherFormData } from "./TeacherForm";
+import Pagination from "@/components/ui/pagination";
+import { DeleteSingleModal } from "./ui/DeleteSingleModal";
+import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 
 export default function TeacherManagerClient() {
+
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -17,6 +21,13 @@ export default function TeacherManagerClient() {
   const [viewMode, setViewMode] = useState<"list" | "create">("list");
   const [editingTeacher, setEditingTeacher] = useState<Guru | null>(null);
   const [deletingTeacher, setDeletingTeacher] = useState<Guru | null>(null);
+  const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+
+  // States untuk Hapus Semua
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isCheckingRelations, setIsCheckingRelations] = useState(false);
+  const [relationAudit, setRelationAudit] = useState<RelationAuditResult | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     nama: "",
@@ -36,6 +47,12 @@ export default function TeacherManagerClient() {
 
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadTeachers = async () => {
     try {
       const data = await getGuruList();
@@ -64,19 +81,53 @@ export default function TeacherManagerClient() {
     if (!deletingTeacher) return;
     try {
       setSubmitting(true);
+      setSingleDeleteError(null);
       const res = await deleteGuru(deletingTeacher.id);
       if (res.success) {
         setTeachers((prev) => prev.filter((t) => t.id !== deletingTeacher.id));
         setDeletingTeacher(null);
       } else {
-        alert("Gagal menghapus guru: " + (res.error || ""));
+        setSingleDeleteError(res.error || "Gagal menghapus data guru.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setSingleDeleteError(err.message || "Terjadi kesalahan saat menghapus data guru.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const handleOpenDeleteAll = async () => {
+    setIsDeleteAllOpen(true);
+    setIsCheckingRelations(true);
+    setRelationAudit(null);
+    try {
+      const audit = await checkGuruRelations();
+      setRelationAudit(audit);
+    } catch (e) {
+      console.error(e);
+      setRelationAudit({ hasRelations: false, details: [] });
+    } finally {
+      setIsCheckingRelations(false);
+    }
+  };
+
+  const handleConfirmDeleteAll = async (forceCascade: boolean) => {
+    try {
+      setIsDeletingAll(true);
+      const res = await deleteAllGuru(forceCascade);
+      if (res.success) {
+        setTeachers([]);
+        setIsDeleteAllOpen(false);
+      } else {
+        alert("Gagal menghapus semua data guru: " + (res.error || ""));
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
 
   const handleOpenEdit = (guru: Guru) => {
     setEditingTeacher(guru);
@@ -155,9 +206,17 @@ export default function TeacherManagerClient() {
     }
   };
 
+    const paginatedList = filteredTeachers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data guru...</div>;
 
 
+
+  
+// reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -173,27 +232,39 @@ export default function TeacherManagerClient() {
         <div className="relative w-full sm:w-[280px]">
           <input
             type="text"
-            placeholder="Cari nama / NIP..."
+            placeholder="Cari nama / NIP/NUPTK..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
-        <button
-          onClick={() => setViewMode("create")}
-          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <span>+</span>
-          <span>Tambah Guru</span>
-        </button>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 self-start sm:self-auto w-full sm:w-auto">
+          <button
+            onClick={() => setViewMode("create")}
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>+</span>
+            <span>Tambah Guru</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenDeleteAll}
+            disabled={teachers.length === 0}
+            className="px-4 py-2.5 rounded-xl border border-red-200/90 bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-semibold text-red-600 shadow-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Hapus Semua</span>
+          </button>
+        </div>
       </div>
+
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               <th className="pb-4 font-semibold w-[24%]">NAMA GURU</th>
-              <th className="pb-4 font-semibold w-[16%]">NIP</th>
+              <th className="pb-4 font-semibold w-[16%]">NIP/NUPTK</th>
               <th className="pb-4 font-semibold w-[20%]">JABATAN</th>
               <th className="pb-4 font-semibold w-[18%]">NO. TELEPON</th>
               <th className="pb-4 font-semibold w-[12%]">STATUS</th>
@@ -208,7 +279,7 @@ export default function TeacherManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredTeachers.map((guru) => (
+              paginatedList.map((guru) => (
                 <tr key={guru.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-bold text-slate-900">{guru.nama}</td>
                   <td className="py-4 text-slate-500 font-medium">{guru.nip}</td>
@@ -240,54 +311,44 @@ export default function TeacherManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredTeachers.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredTeachers.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
-      <Modal isOpen={!!deletingTeacher} onClose={() => setDeletingTeacher(null)} maxWidth="max-w-md">
-        {/* Header: ikon + judul sejajar */}
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
-            <span className="text-2xl font-bold leading-none">!</span>
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
-            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-          </div>
-        </div>
+      <DeleteSingleModal
+        isOpen={!!deletingTeacher}
+        onClose={() => {
+          setDeletingTeacher(null);
+          setSingleDeleteError(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Data Guru"
+        itemName={deletingTeacher?.nama}
+        isDeleting={submitting}
+        errorRelation={singleDeleteError}
+        onClearError={() => setSingleDeleteError(null)}
+      />
 
-        {/* Pertanyaan konfirmasi */}
-        <p className="text-sm text-slate-700">
-          Apakah Anda yakin ingin menghapus data yang dipilih?
-        </p>
+      <DeleteAllModal
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={handleConfirmDeleteAll}
+        title="Hapus Semua Data Guru"
+        entityName="guru"
+        totalCount={teachers.length}
+        isChecking={isCheckingRelations}
+        relationInfo={relationAudit}
+        isDeleting={isDeletingAll}
+      />
 
-        {/* Card data terpilih */}
-        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3">
-          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
-          <p className="text-sm font-bold text-slate-900">{deletingTeacher?.nama}</p>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-slate-100" />
-
-        {/* Tombol — rata kanan, lebar auto */}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setDeletingTeacher(null)}
-            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleConfirmDelete}
-            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
-          >
-            {submitting ? "Menghapus..." : "Hapus Data"}
-          </button>
-        </div>
-      </Modal>
 
       <Modal isOpen={!!editingTeacher} onClose={() => setEditingTeacher(null)} maxWidth="max-w-3xl">
         <div>

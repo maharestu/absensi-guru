@@ -13,7 +13,7 @@ export default function AbsenQrPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const kode = (params.kode as string) || "";
+  const kode = (params.kode_qr as string) || "";
 
   const [flowState, setFlowState] = useState<FlowState>("LOADING");
   const [errorMessage, setErrorMessage] = useState("");

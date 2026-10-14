@@ -2,12 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import type { AdminAkunItem } from "@/types/admin";
-import { getAkunList, createAkun, updateAkun, deleteAkun } from "@/actions/akun";
+import { getAkunList, createAkun, updateAkun, deleteAkun, deleteAllAkun, checkAkunRelations } from "@/actions/akun";
 import { getGuruList } from "@/actions/guru";
 import { Guru } from "@/types/schema";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { ChevronDown, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
+import Pagination from "@/components/ui/pagination";
+import { useAuth } from "@/context/AuthContext";
+import { DeleteSingleModal } from "./ui/DeleteSingleModal";
+import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 const ROLE_OPTIONS: AdminAkunItem["role"][] = ["guru", "admin", "kepala_sekolah"];
 const STATUS_OPTIONS: AdminAkunItem["status"][] = ["aktif", "nonaktif"];
@@ -19,6 +24,8 @@ const ROLE_LABEL: Record<AdminAkunItem["role"], string> = {
 };
 
 export default function AccountManagerClient() {
+  const { user } = useAuth();
+
   const [accounts, setAccounts] = useState<AdminAkunItem[]>([]);
   const [teachers, setTeachers] = useState<Guru[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,6 +35,13 @@ export default function AccountManagerClient() {
   const [viewMode, setViewMode] = useState<"list" | "create">("list");
   const [editingAccount, setEditingAccount] = useState<AdminAkunItem | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<AdminAkunItem | null>(null);
+  const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+
+  // States untuk Hapus Semua
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [isCheckingRelations, setIsCheckingRelations] = useState(false);
+  const [relationAudit, setRelationAudit] = useState<RelationAuditResult | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     nama: "",
@@ -50,9 +64,13 @@ export default function AccountManagerClient() {
 
   const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
-  const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
-  const [showEditTeacherDropdown, setShowEditTeacherDropdown] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 11;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]); 
   const loadData = async () => {
     try {
       const [accList, guruList] = await Promise.all([
@@ -87,17 +105,50 @@ export default function AccountManagerClient() {
     if (!deletingAccount) return;
     try {
       setSubmitting(true);
-      const res = await deleteAkun(deletingAccount.id);
+      setSingleDeleteError(null);
+      const res = await deleteAkun(deletingAccount.id, user?.id);
       if (res.success) {
         setAccounts((prev) => prev.filter((a) => a.id !== deletingAccount.id));
         setDeletingAccount(null);
       } else {
-        alert("Gagal menghapus akun: " + (res.error || ""));
+        setSingleDeleteError(res.error || "Gagal menghapus akun.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setSingleDeleteError(err.message || "Error saat menghapus akun.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleOpenDeleteAll = async () => {
+    setIsDeleteAllOpen(true);
+    setIsCheckingRelations(true);
+    setRelationAudit(null);
+    try {
+      const audit = await checkAkunRelations(user?.id);
+      setRelationAudit(audit);
+    } catch (e) {
+      console.error(e);
+      setRelationAudit({ hasRelations: false, details: [] });
+    } finally {
+      setIsCheckingRelations(false);
+    }
+  };
+
+  const handleConfirmDeleteAll = async (forceCascade: boolean) => {
+    try {
+      setIsDeletingAll(true);
+      const res = await deleteAllAkun(user?.id);
+      if (res.success) {
+        setIsDeleteAllOpen(false);
+        await loadData();
+      } else {
+        alert(res.error || "Gagal menghapus seluruh akun.");
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -243,9 +294,22 @@ export default function AccountManagerClient() {
     }
   };
 
+    const paginatedList = filteredAccounts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const teacherOptions = teachers.map((t) => ({
+    value: t.id,
+    label: `${t.nama} (NIP: ${t.nip || "-"})`,
+  }));
+
   if (!isLoaded) return <div className="min-h-[400px] flex items-center justify-center text-slate-400">Memuat data akun...</div>;
 
 
+
+  
+// reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -267,13 +331,25 @@ export default function AccountManagerClient() {
             className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
           />
         </div>
-        <button
-          onClick={() => setViewMode("create")}
-          className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <span>+</span>
-          <span>Tambah Akun</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setViewMode("create")}
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>+</span>
+            <span>Tambah Akun</span>
+          </button>
+          <button
+            type="button"
+            disabled={accounts.length === 0}
+            onClick={handleOpenDeleteAll}
+            className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-bold text-red-600 border border-red-200/80 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Hapus Semua Data Akun"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Hapus Semua</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
@@ -295,11 +371,11 @@ export default function AccountManagerClient() {
                 </td>
               </tr>
             ) : (
-              filteredAccounts.map((akun) => (
+              paginatedList.map((akun) => (
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-4 font-bold text-slate-900">
                     <div>{akun.nama}</div>
-                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP: {akun.nip}</span>}
+                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP/NUPTK: {akun.nip}</span>}
                   </td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
                   <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
@@ -329,56 +405,45 @@ export default function AccountManagerClient() {
             )}
           </tbody>
         </table>
+        {/* Komponen Paginasi */}
+        {filteredAccounts.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredAccounts.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
+
       </div>
 
-      <Modal isOpen={!!deletingAccount} onClose={() => setDeletingAccount(null)} maxWidth="max-w-md">
-        {/* Header: ikon + judul sejajar */}
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-md shadow-red-200 flex-shrink-0">
-            <span className="text-2xl font-bold leading-none">!</span>
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-900 leading-tight">Hapus Data?</h3>
-            <p className="text-sm text-slate-400 mt-0.5">Tindakan ini tidak dapat dibatalkan.</p>
-          </div>
-        </div>
+      {/* Modal Hapus Satu Akun */}
+      <DeleteSingleModal
+        isOpen={!!deletingAccount}
+        onClose={() => {
+          setDeletingAccount(null);
+          setSingleDeleteError(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Data Akun"
+        itemName={deletingAccount ? `${deletingAccount.nama} (${deletingAccount.username})` : ""}
+        isDeleting={submitting}
+        errorRelation={singleDeleteError}
+        onClearError={() => setSingleDeleteError(null)}
+      />
 
-        {/* Pertanyaan konfirmasi */}
-        <p className="text-sm text-slate-700">
-          Apakah Anda yakin ingin menghapus data yang dipilih?
-        </p>
-
-        {/* Card data terpilih */}
-        <div className="bg-[#f0f4f9] rounded-xl px-4 py-3">
-          <p className="text-xs text-slate-400 font-medium mb-1">Data terpilih</p>
-          <p className="text-sm font-bold text-slate-900">
-            {deletingAccount?.nama} • {deletingAccount?.username}
-          </p>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-slate-100" />
-
-        {/* Tombol — rata kanan */}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setDeletingAccount(null)}
-            className="min-w-[110px] px-6 py-2.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors text-center"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={handleConfirmDelete}
-            className="px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-sm font-bold text-white shadow-sm shadow-red-200 transition-all disabled:opacity-50"
-          >
-            {submitting ? "Menghapus..." : "Hapus Data"}
-          </button>
-        </div>
-      </Modal>
+      {/* Modal Hapus Semua Akun */}
+      <DeleteAllModal
+        isOpen={isDeleteAllOpen}
+        onClose={() => setIsDeleteAllOpen(false)}
+        onConfirm={handleConfirmDeleteAll}
+        title="Hapus Semua Akun"
+        entityName="akun pengguna"
+        totalCount={accounts.length}
+        isChecking={isCheckingRelations}
+        relationInfo={relationAudit}
+        isDeleting={isDeletingAll}
+      />
 
       <Modal isOpen={!!editingAccount} onClose={() => setEditingAccount(null)} maxWidth="max-w-2xl">
         <div>
@@ -390,58 +455,12 @@ export default function AccountManagerClient() {
             <div className="space-y-1.5 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
               {editForm.role === "guru" ? (
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Ketik untuk mencari nama..."
-                    value={editForm.nama}
-                    onFocus={() => setShowEditTeacherDropdown(true)}
-                    onBlur={() => setShowEditTeacherDropdown(false)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setShowEditTeacherDropdown(true);
-                      const found = teachers.find((t) => t.nama.toLowerCase() === val.toLowerCase());
-                      if (found) {
-                        handleSelectTeacherForEdit(found.id);
-                      } else {
-                        // Jika mengetik sendiri (custom)
-                        setEditForm({ ...editForm, nama: val });
-                      }
-                    }}
-                    required
-                    autoComplete="off"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                  <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform ${showEditTeacherDropdown ? 'rotate-180' : ''}`} />
-                  
-                  {/* Custom Dropdown UI */}
-                  {showEditTeacherDropdown && (
-                    <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                      {teachers
-                        .filter((g) => g.nama.toLowerCase().includes(editForm.nama.toLowerCase()))
-                        .map((guru) => (
-                          <button
-                            key={guru.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              handleSelectTeacherForEdit(guru.id);
-                              setShowEditTeacherDropdown(false);
-                            }}
-                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
-                          >
-                            <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
-                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
-                          </button>
-                      ))}
-                      {teachers.filter((g) => g.nama.toLowerCase().includes(editForm.nama.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-3 text-sm text-red-500 text-center font-medium">
-                          Data guru "{editForm.nama}" tidak ditemukan di sistem.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect
+                  options={teacherOptions}
+                  value={teachers.find((t) => t.nama.trim().toLowerCase() === editForm.nama.trim().toLowerCase())?.id || ""}
+                  onChange={handleSelectTeacherForEdit}
+                  placeholder={editForm.nama || "Pilih guru..."}
+                />
               ) : (
                 <input
                   type="text"
@@ -558,58 +577,12 @@ export default function AccountManagerClient() {
             <div className="space-y-2 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
               {createForm.role === "guru" ? (
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Ketik untuk mencari nama..."
-                    value={createForm.nama}
-                    onFocus={() => setShowTeacherDropdown(true)}
-                    onBlur={() => setShowTeacherDropdown(false)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setShowTeacherDropdown(true);
-                      const found = teachers.find((t) => t.nama.toLowerCase() === val.toLowerCase());
-                      if (found) {
-                        handleSelectTeacher(found.id);
-                      } else {
-                        // Jika mengetik sendiri (custom)
-                        setCreateForm({ ...createForm, nama: val, guru_id: null, nip: "", username: "" });
-                      }
-                    }}
-                    required
-                    autoComplete="off"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white"
-                  />
-                  <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none transition-transform ${showTeacherDropdown ? 'rotate-180' : ''}`} />
-                  
-                  {/* Custom Dropdown UI */}
-                  {showTeacherDropdown && (
-                    <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                      {teachers
-                        .filter((g) => g.nama.toLowerCase().includes(createForm.nama.toLowerCase()))
-                        .map((guru) => (
-                          <button
-                            key={guru.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()} // Mencegah input kehilangan fokus (blur) sebelum onClick dipicu
-                            onClick={() => {
-                              handleSelectTeacher(guru.id);
-                              setShowTeacherDropdown(false);
-                            }}
-                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors"
-                          >
-                            <p className="text-sm font-bold text-slate-900">{guru.nama}</p>
-                            <p className="text-xs text-slate-500">NIP: {guru.nip || "-"}</p>
-                          </button>
-                      ))}
-                      {teachers.filter((g) => g.nama.toLowerCase().includes(createForm.nama.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-3 text-sm text-red-500 text-center font-medium">
-                          Data guru "{createForm.nama}" tidak ditemukan di sistem.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <SearchableSelect
+                  options={teacherOptions}
+                  value={createForm.guru_id || ""}
+                  onChange={handleSelectTeacher}
+                  placeholder="Pilih guru..."
+                />
               ) : (
                 <input
                   type="text"
@@ -638,7 +611,7 @@ export default function AccountManagerClient() {
 
             {/* NIP */}
             <div className="space-y-2 flex flex-col">
-              <label className="block text-xs font-semibold text-slate-800">NIP</label>
+              <label className="block text-xs font-semibold text-slate-800">NIP/NUPTK</label>
               <input
                 type="text"
                 placeholder=""

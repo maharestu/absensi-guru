@@ -12,8 +12,8 @@ import { formatJamIndo, formatTanggalIndo } from "@/lib/format";
  */
 export function useRealtimeClock() {
   const [now, setNow] = useState<Date | null>(null);
-  const [timeString, setTimeString] = useState<string>("06:30");
-  const [dateString, setDateString] = useState<string>("17 September 2026");
+  const [timeString, setTimeString] = useState<string>("");
+  const [dateString, setDateString] = useState<string>("");
 
   useEffect(() => {
     const updateRealtime = () => {
