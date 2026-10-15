@@ -21,6 +21,7 @@ export default function SakitPage() {
       reader.onloadend = () => {
         const base64data = reader.result as string;
         sessionStorage.setItem("absensi_captured_photo", base64data);
+        sessionStorage.setItem("absensi_photo_status", "sakit");
         setPreviewUrl(base64data);
       };
     } catch (err) {
@@ -28,6 +29,12 @@ export default function SakitPage() {
       setPreviewUrl(url);
     }
     if (showError) setShowError(false);
+  };
+
+  const handleBack = () => {
+    sessionStorage.removeItem("absensi_captured_photo");
+    sessionStorage.removeItem("absensi_photo_status");
+    router.push("/guru/pilih-status");
   };
 
   const handleLanjutkan = async () => {
@@ -43,7 +50,7 @@ export default function SakitPage() {
   return (
     <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
       <PageHeader
-        backHref="/guru/pilih-status"
+        onBack={handleBack}
         title="Bukti Keterangan Sakit"
         subtitle="Unggah foto surat keterangan sakit yang jelas dan terbaca."
       />

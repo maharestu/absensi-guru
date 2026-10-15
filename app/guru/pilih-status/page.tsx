@@ -158,12 +158,22 @@ export default function PilihStatusPage() {
     
     if (typeof window !== "undefined") {
       checkStatus();
+      // Bersihkan sisa draft foto/koordinat saat guru membuka menu pilih status
+      sessionStorage.removeItem("absensi_captured_photo");
+      sessionStorage.removeItem("absensi_photo_status");
+      sessionStorage.removeItem("absensi_lat");
+      sessionStorage.removeItem("absensi_lng");
     }
     
     return () => { isMounted = false; };
   }, [user]);
 
   const handleSelect = (statusId: string) => {
+    // Bersihkan draft sebelumnya sebelum masuk ke alur status baru
+    sessionStorage.removeItem("absensi_captured_photo");
+    sessionStorage.removeItem("absensi_photo_status");
+    sessionStorage.removeItem("absensi_lat");
+    sessionStorage.removeItem("absensi_lng");
     router.push(`/guru/presensi/${statusId}`);
   };
 

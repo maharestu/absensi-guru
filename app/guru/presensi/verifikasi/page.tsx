@@ -134,6 +134,7 @@ function VerifikasiContent() {
 
       // Bersihkan session storage
       sessionStorage.removeItem("absensi_captured_photo");
+      sessionStorage.removeItem("absensi_photo_status");
       sessionStorage.removeItem("absensi_lat");
       sessionStorage.removeItem("absensi_lng");
       sessionStorage.removeItem("absensi_jadwal_id");
