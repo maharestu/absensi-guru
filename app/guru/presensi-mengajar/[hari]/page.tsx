@@ -95,7 +95,7 @@ export default function DaftarJadwalHarianPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref="/guru/presensi-mengajar"
         title={`Jadwal ${hariLabel}`}
@@ -134,10 +134,10 @@ export default function DaftarJadwalHarianPage() {
                 key={j.id}
                 onClick={() => handleSelectJadwal(j.id, status)}
                 disabled={isDisabled}
-                className={`w-full rounded-2xl border shadow-sm px-6 py-5 flex items-center justify-between text-left transition-all duration-150 ${
+                className={`w-full rounded-2xl border shadow-sm px-6 py-5 flex items-center justify-between text-left transition-all duration-150 touch-manipulation ${
                   isDisabled 
                     ? "bg-slate-50 border-slate-200 opacity-80 cursor-not-allowed" 
-                    : "bg-white border-slate-100 active:scale-[0.98] hover:shadow-md"
+                    : "bg-white border-slate-100 active:scale-[0.98] hover:shadow-md cursor-pointer"
                 }`}
               >
                 <div>

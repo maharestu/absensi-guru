@@ -154,7 +154,7 @@ function ScanQrKelasContent() {
     : `/guru/presensi-mengajar`;
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       {scanState === "IDLE" || scanState === "SCANNING" ? (
         <PageHeader
           backHref={backHref}
@@ -177,7 +177,7 @@ function ScanQrKelasContent() {
 
       {(scanState === "IDLE" || scanState === "SCANNING") && (
         <>
-          <div className="relative w-full h-[520px] bg-[#0f172a] rounded-[24px] overflow-hidden shadow-lg flex items-center justify-center border border-slate-800">
+          <div className="relative w-full aspect-[3/4] max-h-[60vh] min-h-[350px] bg-[#0f172a] rounded-[24px] overflow-hidden shadow-lg flex items-center justify-center border border-slate-800">
             <video
               ref={videoRef}
               autoPlay

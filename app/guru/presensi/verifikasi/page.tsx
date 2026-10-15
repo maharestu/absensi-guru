@@ -135,7 +135,7 @@ function VerifikasiContent() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref={backHref}
         title="Verifikasi Absensi"

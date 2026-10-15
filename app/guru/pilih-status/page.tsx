@@ -191,7 +191,7 @@ export default function PilihStatusPage() {
     const nip = user?.nip ?? "-";
     const nama = user?.nama ?? "-";
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
         <PageHeader
           title="Absensi Hari Ini"
           subtitle="Status absensi kehadiran sudah tercatat."
@@ -251,7 +251,7 @@ export default function PilihStatusPage() {
 
   // Tampilan pilihan status (jika belum absen)
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref="/guru"
         title="Pilih Status Kehadiran"
@@ -264,7 +264,7 @@ export default function PilihStatusPage() {
           <button
             key={option.id}
             onClick={() => handleSelect(option.id)}
-            className="w-full flex items-center gap-4 bg-white rounded-2xl px-4 py-4 shadow-sm border border-slate-100 active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left"
+            className="w-full flex items-center gap-4 bg-white rounded-2xl px-4 py-4 shadow-sm border border-slate-100 active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left touch-manipulation cursor-pointer"
           >
             <div
               className={`w-12 h-12 rounded-2xl ${option.bgColor} flex items-center justify-center flex-shrink-0`}

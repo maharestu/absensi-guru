@@ -30,11 +30,21 @@ export default function LoginPage() {
         <Suspense fallback={<div className="py-12 text-center text-sm text-slate-400">Memuat formulir...</div>}>
           <LoginForm />
         </Suspense>
+
+        {/* Bottom Bar / Footer (Khusus Mode Desktop: di dalam Card) */}
+        <div className="hidden sm:block mt-8 pt-6 border-t border-slate-100 text-center">
+          <p className="text-[12px] text-slate-500 font-medium">
+            &copy; {currentYear} SMP Negeri 8 Karawang Barat. All rights reserved.
+          </p>
+          <p className="text-[11px] text-[#94a3b8] mt-1 font-medium">
+            Karawang Barat, Jawa Barat &bull; TA {currentYear}/{currentYear + 1}
+          </p>
+        </div>
       </div>
 
-      {/* Bottom Bar / Footer di Paling Bawah Layar */}
-      <footer className="w-full text-center py-4 mt-auto">
-        <div className="max-w-sm sm:max-w-md mx-auto pt-4 sm:pt-0 sm:border-t-0 border-t border-slate-200/60">
+      {/* Bottom Bar / Footer (Khusus Mode Mobile: di Paling Bawah Layar) */}
+      <footer className="w-full text-center py-4 mt-auto sm:hidden">
+        <div className="max-w-sm mx-auto pt-4 border-t border-slate-200/60">
           <p className="text-[12px] text-slate-500 font-medium">
             &copy; {currentYear} SMP Negeri 8 Karawang Barat. All rights reserved.
           </p>

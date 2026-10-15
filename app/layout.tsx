@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,13 @@ import { AuthProvider } from "@/context/AuthContext";
 export const metadata: Metadata = {
   title: "Masuk ke Absensi | Sistem Absensi Guru",
   description: "Gunakan NIP dan password Anda untuk melakukan absensi guru.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

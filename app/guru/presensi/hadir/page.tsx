@@ -52,7 +52,7 @@ export default function HadirPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         onBack={handleBack}
         title={capturedImage ? "Ambil Foto Absensi" : "Ambil Foto Kehadiran"}
@@ -66,7 +66,7 @@ export default function HadirPage() {
           </div>
         ) : (
           <div className="w-full max-w-[354px] flex flex-col">
-            <div className="w-full h-[430px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60">
+            <div className="w-full aspect-[3/4] max-h-[56vh] min-h-[320px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={capturedImage}

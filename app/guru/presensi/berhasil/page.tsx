@@ -38,8 +38,8 @@ function BerhasilContent() {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
-      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-30">
+    <div className="flex flex-col items-center min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-8 sm:mt-14">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -62,7 +62,7 @@ function BerhasilContent() {
         </div>
       </div>
 
-      <div className="w-full max-w-[354px] mt-20">
+      <div className="w-full max-w-[354px] mt-8 sm:mt-12">
         <Button onClick={handleSelesai}>
           Selesai
         </Button>

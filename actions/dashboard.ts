@@ -60,7 +60,10 @@ export interface MengajarHariIni {
 
 export async function getAdminStats(): Promise<AdminStats> {
   const [guruRes, jadwalRes, akunRes] = await Promise.all([
-    supabaseAdmin.from("guru").select("id", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("guru")
+      .select("id", { count: "exact", head: true })
+      .ilike("jabatan", "%guru%"),
     supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("akun").select("id", { count: "exact", head: true }),
   ]);

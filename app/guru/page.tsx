@@ -56,7 +56,7 @@ export default function DashboardGuruPage() {
   const nipGuru = user?.nip ?? "-";
 
   return (
-    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-6 min-h-full">
+    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-14 min-h-full">
 
       {/* ── Header ── */}
       <header className="mb-6">
@@ -101,7 +101,7 @@ export default function DashboardGuruPage() {
           <button
             key={item.id}
             onClick={() => router.push(item.href)}
-            className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 flex items-start gap-4 active:scale-[0.98] hover:shadow-md transition-all duration-150 text-left"
+            className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 flex items-start gap-4 active:scale-[0.98] hover:shadow-md transition-all duration-150 text-left touch-manipulation cursor-pointer"
           >
             <div
               className={`w-14 h-14 rounded-2xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}

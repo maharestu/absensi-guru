@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
+import Button from "@/components/ui/button";
 
 function FotoSelfieKelasContent() {
   const router = useRouter();
@@ -82,7 +83,7 @@ function FotoSelfieKelasContent() {
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-14">
       <PageHeader
         backHref={`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}${hariQuery}`}
         title="Ambil Foto Mengajar"
@@ -109,13 +110,27 @@ function FotoSelfieKelasContent() {
             )}
           </div>
 
-          <div className="w-full mt-auto pt-8 flex flex-col gap-4">
+          {/* Tombol Capture Lingkaran (Sama persis seperti Absensi Kehadiran) */}
+          <div className="w-full mt-auto pt-6 flex justify-center items-center">
             <button
+              type="button"
               onClick={handleTakePhoto}
-              disabled={!hasPermission}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-2xl font-bold shadow-sm transition-all"
+              disabled={hasPermission !== true}
+              className={`relative w-20 h-20 rounded-full border-[3px] flex items-center justify-center bg-transparent active:scale-95 transition-all touch-manipulation ${
+                hasPermission === true
+                  ? "border-slate-300 cursor-pointer"
+                  : "border-slate-200 opacity-40 cursor-not-allowed"
+              }`}
+              aria-label="Ambil foto"
             >
-              Ambil Foto
+              {/* Inner circle biru */}
+              <div
+                className={`w-[60px] h-[60px] rounded-full transition-all ${
+                  hasPermission === true
+                    ? "bg-blue-600 shadow-md shadow-blue-600/30"
+                    : "bg-slate-400"
+                }`}
+              />
             </button>
           </div>
         </>
@@ -130,19 +145,13 @@ function FotoSelfieKelasContent() {
             />
           </div>
 
-          <div className="w-full mt-auto pt-8 flex flex-col gap-4">
-            <button
-              onClick={handleContinue}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-sm transition-all"
-            >
+          <div className="w-full mt-auto pt-6 flex flex-col gap-3">
+            <Button onClick={handleContinue}>
               Lanjutkan
-            </button>
-            <button
-              onClick={handleRetake}
-              className="w-full py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 rounded-2xl font-bold shadow-sm transition-all"
-            >
+            </Button>
+            <Button variant="outline" onClick={handleRetake}>
               Ulangi
-            </button>
+            </Button>
           </div>
         </>
       )}

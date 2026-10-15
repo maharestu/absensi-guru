@@ -94,7 +94,7 @@ function VerifikasiMengajarContent() {
     : null;
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-6">
+    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-14">
       {/* Header Baru */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
@@ -195,7 +195,7 @@ function VerifikasiMengajarContent() {
         <button
           onClick={handleSubmit}
           disabled={loading || isSubmitting}
-          className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-[16px] font-bold shadow-sm transition-all"
+          className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-[16px] font-bold shadow-sm transition-all touch-manipulation"
         >
           {isSubmitting ? "Mengirim..." : "Kirim"}
         </button>

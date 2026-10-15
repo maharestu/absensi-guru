@@ -161,7 +161,7 @@ export default function PresensiMengajarPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref="/guru"
         title="Absensi Mengajar"
@@ -193,7 +193,7 @@ export default function PresensiMengajarPage() {
             <button
               key={hariId}
               onClick={() => handleSelectHari(hariId)}
-              className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left"
+              className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left touch-manipulation cursor-pointer"
             >
               <div>
                 <span className="text-base font-bold text-slate-900">

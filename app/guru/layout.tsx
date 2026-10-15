@@ -11,9 +11,9 @@ import LogoutIconButton from "@/components/auth/logout-icon-button";
  * 
  * Membungkus seluruh tampilan fitur guru dalam kontainer mobile-first
  * yang bersih, terpusat, dan responsif.
- * Menggunakan arsitektur App Shell dengan h-[100dvh] presisi agar tidak ada
- * phantom scroll ke area kosong pada mobile browser, sekaligus tetap mendukung
- * scrolling konten secara mulus pada perangkat berlayar kecil.
+ * Mendukung natural document scrolling agar guru dapat bebas menggulir layar,
+ * menggunakan gestur multi-touch (pinch-to-zoom 2 jari) tanpa risiko macet/terjebak,
+ * dengan Top App Bar yang tetap sticky di bagian atas.
  */
 export default function GuruLayout({
   children,
@@ -39,6 +39,7 @@ export default function GuruLayout({
 
   // Reset scroll position ke atas setiap kali berpindah halaman
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
     if (mainRef.current) {
       mainRef.current.scrollTop = 0;
     }
@@ -46,18 +47,18 @@ export default function GuruLayout({
 
   if (isLoading || !isAuthenticated || user?.role !== "guru") {
     return (
-      <div className="w-full h-screen h-[100dvh] bg-[#EEF2F7] flex items-center justify-center">
+      <div className="w-full min-h-screen min-h-[100dvh] bg-[#EEF2F7] flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-screen h-[100dvh] bg-white flex flex-col justify-start items-center overflow-hidden">
+    <div className="w-full min-h-screen min-h-[100dvh] bg-[#EEF2F7] sm:bg-slate-200/70 flex flex-col justify-start items-center overflow-x-hidden">
       {/* Wrapper Container (Mobile Center Column) */}
-      <div className="w-full max-w-md h-full bg-[#EEF2F7] relative flex flex-col shadow-xs overflow-hidden">
-        {/* Top App Bar — Terkunci kokoh di posisi atas */}
-        <header className="flex-shrink-0 w-full bg-white px-5 py-3.5 flex items-center justify-between border-b border-slate-200 z-50 shadow-xs">
+      <div className="w-full max-w-md min-h-screen min-h-[100dvh] bg-[#EEF2F7] relative flex flex-col shadow-sm">
+        {/* Top App Bar — Melekat sticky di posisi atas */}
+        <header className="sticky top-0 w-full bg-white/95 backdrop-blur-sm px-5 py-3.5 flex items-center justify-between border-b border-slate-200 z-50 shadow-xs flex-shrink-0">
           <div className="flex items-center gap-3">
             <Image
               src="/Logo.png"
@@ -75,8 +76,8 @@ export default function GuruLayout({
           <LogoutIconButton />
         </header>
 
-        {/* Main Content Area — Scrollable hanya jika konten melebihi sisa tinggi layar */}
-        <main ref={mainRef} className="flex-1 w-full overflow-y-auto overscroll-y-contain">
+        {/* Main Content Area — Mengikuti natural scroll dokumen tanpa nested container trapping */}
+        <main ref={mainRef} className="flex-1 w-full flex flex-col">
           {children}
         </main>
       </div>

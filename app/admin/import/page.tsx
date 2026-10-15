@@ -11,7 +11,7 @@ export default function ImportDataPage() {
   const [filePtk, setFilePtk] = useState<File | null>(null);
   const [fileKbm, setFileKbm] = useState<File | null>(null);
 
-  const [importMode, setImportMode] = useState<"ai" | "template">("ai");
+  const [importMode, setImportMode] = useState<"template" | "ai">("template");
 
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [aiSummary, setAiSummary] = useState<AIImportSummary | null>(null);
@@ -42,15 +42,15 @@ export default function ImportDataPage() {
 
     try {
       if (importMode === "ai") {
-        // --- 1. PROSES DENGAN AI (FLEKSIBEL / DINAMIS) ---
+        // --- 1. PROSES DENGAN AI (CADANGAN / FLEKSIBEL) ---
         const bufferPtk = await filePtk.arrayBuffer();
         const wbPtk = XLSX.read(bufferPtk, { type: "array" });
-        const sheetPtkName = wbPtk.SheetNames.includes("PTK") ? "PTK" : wbPtk.SheetNames[0];
+        const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
         const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
 
         const bufferKbm = await fileKbm.arrayBuffer();
         const wbKbm = XLSX.read(bufferKbm, { type: "array" });
-        const sheetKbmName = wbKbm.SheetNames.includes("JADWAL KBM") ? "JADWAL KBM" : wbKbm.SheetNames[0];
+        const sheetKbmName = wbKbm.SheetNames.find((s: string) => s.toLowerCase() === "jadwal kbm" || s.toLowerCase().includes("kbm") || s.toLowerCase().includes("jadwal")) || wbKbm.SheetNames[0];
         const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
 
         const res = await parseExcelWithAIAction(dataPtkRaw, dataKbmRaw);
@@ -66,7 +66,7 @@ export default function ImportDataPage() {
       // --- 2. PROSES DENGAN TEMPLATE STANDAR SMPN 8 (LOKAL) ---
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
-      const sheetPtkName = wbPtk.SheetNames.includes("PTK") ? "PTK" : wbPtk.SheetNames[0];
+      const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
       const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
 
       // Cari baris header
@@ -128,10 +128,8 @@ export default function ImportDataPage() {
       // PROSES FILE JADWAL KBM
       const bufferKbm = await fileKbm.arrayBuffer();
       const wbKbm = XLSX.read(bufferKbm, { type: "array" });
-      if (!wbKbm.SheetNames.includes("JADWAL KBM")) {
-        throw new Error("Sheet 'JADWAL KBM' tidak ditemukan pada file kedua.");
-      }
-      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets["JADWAL KBM"], { header: 1, defval: "" }) as any[][];
+      const sheetKbmName = wbKbm.SheetNames.find((s: string) => s.toLowerCase() === "jadwal kbm" || s.toLowerCase().includes("kbm") || s.toLowerCase().includes("jadwal")) || wbKbm.SheetNames[0];
+      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
 
       const legendaGuru: Record<string, string> = {};
       const legendaMapel: Record<string, string> = {};
@@ -149,30 +147,42 @@ export default function ImportDataPage() {
         }
       }
 
-      const kelasRow = dataKbmRaw[5];
+      // Deteksi baris header kelas (misal baris yang memuat 7A, 8A, 9A)
+      let headerKbmRowIndex = 5;
+      for (let i = 0; i < Math.min(15, dataKbmRaw.length); i++) {
+        if (!dataKbmRaw[i]) continue;
+        const str = dataKbmRaw[i].map((c: any) => String(c).trim()).join(" ");
+        if (str.includes("7A") || str.includes("8A") || str.includes("9A")) {
+          headerKbmRowIndex = i;
+          break;
+        }
+      }
+
+      const kelasRow = dataKbmRaw[headerKbmRowIndex];
       const kelasesList: string[] = [];
       const colToKelas: Record<number, string> = {};
       if (kelasRow) {
-        for (let col = 3; col <= 25; col++) {
+        for (let col = 3; col < kelasRow.length; col++) {
           const namaKelas = String(kelasRow[col]).trim();
-          if (namaKelas) {
-            kelasesList.push(namaKelas);
+          if (namaKelas && (namaKelas.startsWith("7") || namaKelas.startsWith("8") || namaKelas.startsWith("9"))) {
+            if (!kelasesList.includes(namaKelas)) {
+              kelasesList.push(namaKelas);
+            }
             colToKelas[col] = namaKelas;
           }
         }
       }
 
-      // ALGORITMA BLOCK MERGING
+      // ALGORITMA BLOCK MERGING (Sintesis Blok Jadwal Mengajar)
       const jadwalsList: ParsedData["jadwals"] = [];
       let currentHari = "senin";
 
-      for (let col = 3; col <= 25; col++) {
-        if (!colToKelas[col]) continue;
+      for (const colStr of Object.keys(colToKelas)) {
+        const col = parseInt(colStr, 10);
         const kelasNama = colToKelas[col];
-
         let currentBlock: any = null;
 
-        for (let rowIdx = 7; rowIdx < dataKbmRaw.length; rowIdx++) {
+        for (let rowIdx = headerKbmRowIndex + 1; rowIdx < dataKbmRaw.length; rowIdx++) {
           const row = dataKbmRaw[rowIdx];
           if (!row) continue;
 
@@ -189,14 +199,22 @@ export default function ImportDataPage() {
           let jamMulaiStr = "07:00:00";
           let jamSelesaiStr = "14:00:00";
           if (jamRaw && jamRaw.includes("-")) {
-            const parts = jamRaw.split("-").map(s => s.trim().replace(".", ":"));
+            const parts = jamRaw.split("-").map((s) => s.trim().replace(".", ":"));
             if (parts[0]) jamMulaiStr = parts[0].length === 5 ? parts[0] + ":00" : parts[0];
             if (parts[1]) jamSelesaiStr = parts[1].length === 5 ? parts[1] + ":00" : parts[1];
           }
 
           const cellVal = String(row[col]).trim();
+          const isBreakOrEmpty =
+            !cellVal ||
+            cellVal === "-" ||
+            cellVal.toLowerCase().includes("istirahat") ||
+            cellVal.toLowerCase().includes("upacara") ||
+            cellVal.toLowerCase().includes("literasi") ||
+            cellVal.toLowerCase().includes("dhuha") ||
+            cellVal.toLowerCase().includes("senam");
 
-          if (!cellVal || cellVal === "-" || cellVal.toLowerCase().includes("istirahat")) {
+          if (isBreakOrEmpty) {
             if (currentBlock) {
               jadwalsList.push(currentBlock);
               currentBlock = null;
@@ -209,7 +227,13 @@ export default function ImportDataPage() {
             const guruKode = match[1];
             const mapelKode = match[2].toUpperCase();
 
-            if (currentBlock && currentBlock.guruKode === guruKode && currentBlock.mapelKode === mapelKode && currentBlock.hari === currentHari) {
+            if (
+              currentBlock &&
+              currentBlock.guruKode === guruKode &&
+              currentBlock.mapelKode === mapelKode &&
+              currentBlock.hari === currentHari &&
+              currentBlock.kelasNama === kelasNama
+            ) {
               currentBlock.jamSelesai = jamSelesaiStr;
             } else {
               if (currentBlock) {
@@ -221,7 +245,7 @@ export default function ImportDataPage() {
                 kelasNama,
                 hari: currentHari,
                 jamMulai: jamMulaiStr,
-                jamSelesai: jamSelesaiStr
+                jamSelesai: jamSelesaiStr,
               };
             }
           } else {
@@ -321,10 +345,25 @@ export default function ImportDataPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Pilih Metode Analisis</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Pilih apakah ingin menggunakan analisis AI dinamis atau aturan template baku.</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Gunakan Import Standar untuk template resmi SMPN 8 (instan & presisi 100%), atau gunakan AI sebagai cadangan jika tata letak berkas berbeda.
+              </p>
             </div>
 
             <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+              <button
+                type="button"
+                onClick={() => setImportMode("template")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  importMode === "template"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
+                Import Standar (Utama)
+                <span className="bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Rekomendasi</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setImportMode("ai")}
@@ -335,20 +374,8 @@ export default function ImportDataPage() {
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                AI Cerdas (Dinamis)
-                <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Gratis</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportMode("template")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  importMode === "template"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
-                Template Standar SMPN 8
+                Import AI (Cadangan)
+                <span className="bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Fleksibel</span>
               </button>
             </div>
           </div>

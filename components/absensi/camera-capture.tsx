@@ -103,7 +103,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   return (
     <div className="flex flex-col items-center w-full">
       {/* Area Kamera */}
-      <div className="relative w-full h-[430px] bg-slate-900 rounded-[24px] overflow-hidden shadow-lg flex flex-col items-center justify-center">
+      <div className="relative w-full aspect-[3/4] max-h-[58vh] min-h-[320px] bg-slate-900 rounded-[24px] overflow-hidden shadow-lg flex flex-col items-center justify-center">
         {hasPermission === null && (
           <div className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 border-3 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -126,7 +126,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
             <button
               type="button"
               onClick={startCamera}
-              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-xl shadow-md transition-all"
+              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-xl shadow-md transition-all touch-manipulation"
             >
               Coba Lagi
             </button>
@@ -152,7 +152,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
           type="button"
           onClick={handleCapture}
           disabled={hasPermission !== true}
-          className={`relative w-20 h-20 rounded-full border-[3px] flex items-center justify-center bg-transparent active:scale-95 transition-all
+          className={`relative w-20 h-20 rounded-full border-[3px] flex items-center justify-center bg-transparent active:scale-95 transition-all touch-manipulation
             ${hasPermission === true ? "border-slate-300 cursor-pointer" : "border-slate-200 opacity-40 cursor-not-allowed"}
           `}
           aria-label="Ambil foto"
