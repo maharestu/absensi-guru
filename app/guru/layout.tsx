@@ -44,9 +44,9 @@ export default function GuruLayout({
   return (
     <div className="w-full min-h-screen bg-white flex flex-col justify-start items-center">
       {/* Wrapper Container */}
-      <div className="w-full max-w-md min-h-screen bg-[#EEF2F7] relative flex flex-col overflow-hidden">
-        {/* Top App Bar */}
-        <header className="w-full bg-white px-5 py-3.5 flex items-center justify-between border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      <div className="w-full max-w-md min-h-screen bg-[#EEF2F7] relative flex flex-col shadow-xs">
+        {/* Top App Bar — Fixed/Sticky di posisi atas */}
+        <header className="w-full bg-white px-5 py-3.5 flex items-center justify-between border-b border-slate-200 sticky top-0 z-50 shadow-xs">
           <div className="flex items-center gap-3">
             <Image
               src="/Logo.png"
@@ -65,9 +65,9 @@ export default function GuruLayout({
         </header>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto">
+        <main className="flex-1 w-full">
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );

@@ -260,14 +260,14 @@ export default function TeacherManagerClient() {
 
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px]">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-              <th className="pb-4 font-semibold w-[24%]">NAMA GURU</th>
-              <th className="pb-4 font-semibold w-[16%]">NIP/NUPTK</th>
-              <th className="pb-4 font-semibold w-[20%]">JABATAN</th>
-              <th className="pb-4 font-semibold w-[18%]">NO. TELEPON</th>
-              <th className="pb-4 font-semibold w-[12%]">STATUS</th>
+              <th className="pb-4 font-semibold w-[22%] pr-4">NAMA GURU</th>
+              <th className="pb-4 font-semibold w-[22%] pr-8">NIP/NUPTK</th>
+              <th className="pb-4 font-semibold w-[20%] pr-4">JABATAN</th>
+              <th className="pb-4 font-semibold w-[15%] pr-4">NO. TELEPON</th>
+              <th className="pb-4 font-semibold w-[11%]">STATUS</th>
               <th className="pb-4 font-semibold text-right w-[10%]"></th>
             </tr>
           </thead>
@@ -281,10 +281,10 @@ export default function TeacherManagerClient() {
             ) : (
               paginatedList.map((guru) => (
                 <tr key={guru.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-bold text-slate-900">{guru.nama}</td>
-                  <td className="py-4 text-slate-500 font-medium">{guru.nip}</td>
-                  <td className="py-4 text-slate-500 font-medium">{guru.jabatan || "-"}</td>
-                  <td className="py-4 text-slate-500 font-medium">{guru.no_telepon || "-"}</td>
+                  <td className="py-4 font-bold text-slate-900 pr-4">{guru.nama}</td>
+                  <td className="py-4 text-slate-500 font-medium pr-8">{guru.nip}</td>
+                  <td className="py-4 text-slate-500 font-medium pr-4">{guru.jabatan || "-"}</td>
+                  <td className="py-4 text-slate-500 font-medium pr-4">{guru.no_telepon || "-"}</td>
                   <td className="py-4 font-medium text-slate-600">
                     {guru.status?.toLowerCase() === "aktif" ? "Aktif" : "Nonaktif"}
                   </td>
