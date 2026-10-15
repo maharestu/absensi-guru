@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { getDynamicDateTime } from "@/lib/format";
+import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
+import { formatJamWIB, getTodayWIB } from "@/lib/date";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
@@ -121,11 +122,10 @@ export default function PilihStatusPage() {
 
       try {
         const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
-        // Gunakan tanggal lokal
-        const now = new Date();
-        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+        // Gunakan tanggal WIB agar sinkron dengan server
+        const todayWIB = getTodayWIB();
         
-        const result = await cekStatusAbsensiHariIni(user.guru_id, localDate);
+        const result = await cekStatusAbsensiHariIni(user.guru_id, todayWIB);
         
         if (isMounted) {
           if (result.completed) {
@@ -134,8 +134,8 @@ export default function PilihStatusPage() {
             sessionStorage.setItem("absensi_guru_id", user.guru_id);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
-            const timeStr = dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
-            const dateStr = dbDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+            const timeStr = formatJamWIB(dbDate);
+            const dateStr = formatTanggalLengkap(dbDate);
             
             sessionStorage.setItem("absensi_time", timeStr);
             sessionStorage.setItem("absensi_date", dateStr);

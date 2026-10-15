@@ -8,16 +8,7 @@ import { JadwalWithDetail } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { submitPresensiMengajarAction } from "@/actions/presensi";
 import { hitungKeterlambatan, formatJamWIB, TOLERANSI_TERLAMBAT_MENIT } from "@/lib/date";
-
-/** Format tanggal ke "Senin, 7 September 2026" */
-function formatTanggal(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+import { formatTanggalLengkap } from "@/lib/format";
 
 function VerifikasiMengajarContent() {
   const router = useRouter();
@@ -96,7 +87,7 @@ function VerifikasiMengajarContent() {
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
   const backHref = `/guru/presensi-mengajar/foto?jadwal_id=${jadwalId}${hariQuery}`;
   const now = new Date();
-  const todayFormatted = formatTanggal(now);
+  const todayFormatted = formatTanggalLengkap(now);
   const waktuAbsenStr = `${formatJamWIB(now)} WIB`;
   const ketInfo = jadwal?.jam_mulai
     ? hitungKeterlambatan(now, jadwal.jam_mulai, TOLERANSI_TERLAMBAT_MENIT)

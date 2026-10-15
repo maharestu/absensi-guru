@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { getDynamicDateTime } from "@/lib/format";
 const STATUS_TITLES: Record<string, string> = {
   hadir: "Absensi Kehadiran",
   izin: "Absensi Izin",
@@ -19,27 +20,16 @@ function BerhasilContent() {
   const status = searchParams.get("status") ?? "hadir";
   const title = STATUS_TITLES[status] ?? "Absensi";
 
-  const now = new Date();
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-  ];
-  const dayName = days[now.getDay()];
-  const date = now.getDate();
-  const month = months[now.getMonth()];
-  const year = now.getFullYear();
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-  const formattedDateTime = `${dayName}, ${date} ${month} ${year} • ${hours}:${minutes} WIB`;
+  const dynamic = getDynamicDateTime();
+  const formattedDateTime = `${dynamic.date} • ${dynamic.time}`;
 
   const handleSelesai = () => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("absensi_captured_photo");
       sessionStorage.setItem("absensi_completed", "true");
       sessionStorage.setItem("absensi_status", status);
-      sessionStorage.setItem("absensi_time", `${hours}:${minutes} WIB`);
-      sessionStorage.setItem("absensi_date", `${dayName}, ${date} ${month} ${year}`);
+      sessionStorage.setItem("absensi_time", dynamic.time);
+      sessionStorage.setItem("absensi_date", dynamic.date);
       if (user?.guru_id) {
         sessionStorage.setItem("absensi_guru_id", user.guru_id);
       }

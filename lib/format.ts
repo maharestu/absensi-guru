@@ -5,11 +5,15 @@
  * Satu sumber kebenaran agar tidak ada duplikasi formatter di seluruh proyek.
  */
 
+const TZ_JAKARTA = "Asia/Jakarta";
+
 /**
- * Format tanggal ke "17 September 2026" (tanpa hari).
+ * Format tanggal ke "17 September 2026" (tanpa hari) dalam zona WIB.
  */
-export function formatTanggalIndo(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
+export function formatTanggalIndo(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("id-ID", {
+    timeZone: TZ_JAKARTA,
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -17,10 +21,12 @@ export function formatTanggalIndo(date: Date): string {
 }
 
 /**
- * Format tanggal ke "Senin, 17 September 2026" (dengan hari).
+ * Format tanggal ke "Senin, 17 September 2026" (dengan hari) dalam zona WIB.
  */
-export function formatTanggalLengkap(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
+export function formatTanggalLengkap(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("id-ID", {
+    timeZone: TZ_JAKARTA,
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -29,36 +35,31 @@ export function formatTanggalLengkap(date: Date): string {
 }
 
 /**
- * Format jam ke "06:30".
+ * Format jam ke "06:30" (WIB).
  */
-export function formatJamIndo(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
+export function formatJamIndo(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ_JAKARTA,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
 }
 
 /**
- * Mendapatkan tanggal dan waktu saat ini dalam format Indonesia.
+ * Mendapatkan tanggal dan waktu saat ini dalam format Indonesia (WIB).
  * Digunakan untuk tampilan absensi kehadiran.
  *
  * @returns { date: "Senin, 7 September 2026", time: "06:30 WIB" }
  */
-export function getDynamicDateTime(): { date: string; time: string } {
-  const now = new Date();
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-  ];
-  const dayName = days[now.getDay()];
-  const date = now.getDate();
-  const month = months[now.getMonth()];
-  const year = now.getFullYear();
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
+export function getDynamicDateTime(dateInput: Date | string = new Date()): { date: string; time: string } {
+  const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const dateStr = formatTanggalLengkap(d);
+  const timeStr = formatJamIndo(d);
 
   return {
-    date: `${dayName}, ${date} ${month} ${year}`,
-    time: `${hours}:${minutes} WIB`,
+    date: dateStr,
+    time: `${timeStr} WIB`,
   };
 }

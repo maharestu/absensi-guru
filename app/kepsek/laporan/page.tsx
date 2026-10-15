@@ -41,20 +41,22 @@ export default function LaporanAbsensiPage() {
   useEffect(() => {
     const today = new Date();
     if (periodeType === "today") {
-      const d = today.toLocaleDateString('en-CA');
+      const d = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       setStartDate(d);
       setEndDate(d);
     } else if (periodeType === "last_7_days") {
-      const dEnd = today.toLocaleDateString('en-CA');
+      const dEnd = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       const start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const dStart = start.toLocaleDateString('en-CA');
+      const dStart = start.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       setStartDate(dStart);
       setEndDate(dEnd);
     } else if (periodeType === "this_month") {
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const parts = formatter.formatToParts(today);
+      const y = parts.find(p => p.type === 'year')?.value || String(today.getFullYear());
+      const m = parts.find(p => p.type === 'month')?.value || String(today.getMonth() + 1).padStart(2, '0');
       setStartDate(`${y}-${m}-01`);
-      const lastDay = new Date(y, today.getMonth() + 1, 0).getDate();
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
       setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
     }
   }, [periodeType]);
@@ -143,7 +145,7 @@ export default function LaporanAbsensiPage() {
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
-      const formatted = d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+      const formatted = d.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "long", year: "numeric" });
       return formatted.replace(/ /g, "-");
     } catch {
       return dateStr;

@@ -98,10 +98,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
     // @ts-expect-error — nested join
     pengguna: row.guru?.nama ?? "Guru",
     waktu: row.waktu_submit
-      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatJamWIB(row.waktu_submit)
       : "-",
     status: "Berhasil",
   }));

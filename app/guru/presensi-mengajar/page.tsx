@@ -7,6 +7,8 @@ import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
+import { formatTanggalLengkap } from "@/lib/format";
+import { formatJamWIB, getTodayWIB } from "@/lib/date";
 const HARI_LABEL: Record<string, string> = {
   senin: "Senin",
   selasa: "Selasa",
@@ -51,10 +53,9 @@ export default function PresensiMengajarPage() {
 
       try {
         const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
-        const now = new Date();
-        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+        const todayWIB = getTodayWIB();
         
-        const result = await cekStatusAbsensiHariIni(user.guru_id, localDate);
+        const result = await cekStatusAbsensiHariIni(user.guru_id, todayWIB);
         
         if (isMounted) {
           if (result.completed) {
@@ -63,8 +64,8 @@ export default function PresensiMengajarPage() {
             sessionStorage.setItem("absensi_guru_id", user.guru_id);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
-            sessionStorage.setItem("absensi_time", dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
-            sessionStorage.setItem("absensi_date", dbDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+            sessionStorage.setItem("absensi_time", formatJamWIB(dbDate));
+            sessionStorage.setItem("absensi_date", formatTanggalLengkap(dbDate));
             
             setCanAccess(result.status === "hadir");
           } else {

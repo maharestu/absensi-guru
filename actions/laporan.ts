@@ -1,6 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { formatJamWIB } from "@/lib/date";
 
 export interface LaporanKehadiran {
   id: string;
@@ -44,13 +45,14 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     id: row.id,
     guru_id: row.guru_id ?? "",
     tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
+      timeZone: "Asia/Jakarta",
       day: "2-digit",
       month: "short",
       year: "numeric"
     }),
     nama: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
     waktu_masuk: row.waktu_submit 
-      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) 
+      ? formatJamWIB(row.waktu_submit)
       : "—",
     status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
     foto_absensi: row.foto_absensi,
@@ -82,6 +84,7 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
       guru_id: jadwal?.guru_id ?? "",
       kelas_id: jadwal?.kelas_id ?? "",
       tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
+        timeZone: "Asia/Jakarta",
         day: "2-digit",
         month: "short",
         year: "numeric"
