@@ -56,7 +56,7 @@ export default function DashboardGuruPage() {
   const nipGuru = user?.nip ?? "-";
 
   return (
-    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-10 min-h-full">
+    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-6 min-h-full">
 
       {/* ── Header ── */}
       <header className="mb-6">

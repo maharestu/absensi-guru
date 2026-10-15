@@ -149,9 +149,9 @@ export default function AdminDashboardPage() {
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
               <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-4 font-semibold w-[35%]">AKTIVITAS</th>
-                <th className="pb-4 font-semibold w-[25%]">PENGGUNA</th>
-                <th className="pb-4 font-semibold w-[20%]">WAKTU</th>
+                <th className="pb-4 font-semibold w-[22%]">AKTIVITAS</th>
+                <th className="pb-4 font-semibold w-[36%]">PENGGUNA</th>
+                <th className="pb-4 font-semibold w-[22%]">WAKTU</th>
                 <th className="pb-4 font-semibold w-[20%]">STATUS</th>
               </tr>
             </thead>
