@@ -2,16 +2,19 @@
 
 import React, { useState } from "react";
 import { ClockBadges } from "@/components/admin/ui/ClockBadges";
-import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X, Sparkles } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { importExcelData, ParsedData } from "@/actions/import";
+import { parseExcelWithAIAction, AIImportSummary } from "@/actions/ai-import";
 
 export default function ImportDataPage() {
-
   const [filePtk, setFilePtk] = useState<File | null>(null);
   const [fileKbm, setFileKbm] = useState<File | null>(null);
 
+  const [importMode, setImportMode] = useState<"ai" | "template">("ai");
+
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+  const [aiSummary, setAiSummary] = useState<AIImportSummary | null>(null);
   const [isParsing, setIsParsing] = useState(false);
 
   const [isImporting, setIsImporting] = useState(false);
@@ -38,11 +41,33 @@ export default function ImportDataPage() {
     setImportError("");
 
     try {
-      // --- 1. PROSES FILE PTK ---
+      if (importMode === "ai") {
+        // --- 1. PROSES DENGAN AI (FLEKSIBEL / DINAMIS) ---
+        const bufferPtk = await filePtk.arrayBuffer();
+        const wbPtk = XLSX.read(bufferPtk, { type: "array" });
+        const sheetPtkName = wbPtk.SheetNames.includes("PTK") ? "PTK" : wbPtk.SheetNames[0];
+        const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
+
+        const bufferKbm = await fileKbm.arrayBuffer();
+        const wbKbm = XLSX.read(bufferKbm, { type: "array" });
+        const sheetKbmName = wbKbm.SheetNames.includes("JADWAL KBM") ? "JADWAL KBM" : wbKbm.SheetNames[0];
+        const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
+
+        const res = await parseExcelWithAIAction(dataPtkRaw, dataKbmRaw);
+        if (!res.success || !res.data) {
+          throw new Error(res.error || "Gagal memproses file dengan AI.");
+        }
+
+        setParsedData(res.data);
+        setAiSummary(res.summary ?? null);
+        return;
+      }
+
+      // --- 2. PROSES DENGAN TEMPLATE STANDAR SMPN 8 (LOKAL) ---
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
       const sheetPtkName = wbPtk.SheetNames.includes("PTK") ? "PTK" : wbPtk.SheetNames[0];
-      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" });
+      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
 
       // Cari baris header
       let headerRowIndex = -1;
@@ -70,7 +95,7 @@ export default function ImportDataPage() {
       for (let i = headerRowIndex + 1; i < dataPtkRaw.length; i++) {
         const row = dataPtkRaw[i];
         if (!row || !row[colNama]) continue;
-        const jenisPtk = colJenisPtk !== -1 ? String(row[colJenisPtk]).trim() : "Guru"; // Default Guru jika tak ada kolom
+        const jenisPtk = colJenisPtk !== -1 ? String(row[colJenisPtk]).trim() : "Guru";
 
         if (jenisPtk.toLowerCase().includes("guru")) {
           let namaLengkap = String(row[colNama]).trim();
@@ -83,7 +108,6 @@ export default function ImportDataPage() {
           if (colGelarBelakang !== -1 && row[colGelarBelakang]) {
             const gb = String(row[colGelarBelakang]).trim();
             if (gb && gb !== "-") {
-              // Jika sudah ada koma di akhir nama, tidak perlu tambah koma lagi
               if (namaLengkap.endsWith(",")) {
                 namaLengkap = `${namaLengkap} ${gb}`;
               } else {
@@ -101,13 +125,13 @@ export default function ImportDataPage() {
         }
       }
 
-      // --- 2. PROSES FILE JADWAL KBM ---
+      // PROSES FILE JADWAL KBM
       const bufferKbm = await fileKbm.arrayBuffer();
       const wbKbm = XLSX.read(bufferKbm, { type: "array" });
       if (!wbKbm.SheetNames.includes("JADWAL KBM")) {
         throw new Error("Sheet 'JADWAL KBM' tidak ditemukan pada file kedua.");
       }
-      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets["JADWAL KBM"], { header: 1, defval: "" });
+      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets["JADWAL KBM"], { header: 1, defval: "" }) as any[][];
 
       const legendaGuru: Record<string, string> = {};
       const legendaMapel: Record<string, string> = {};
@@ -138,11 +162,10 @@ export default function ImportDataPage() {
         }
       }
 
-      // --- 3. ALGORITMA BLOCK MERGING ---
+      // ALGORITMA BLOCK MERGING
       const jadwalsList: ParsedData["jadwals"] = [];
-      let currentHari = "Senin";
+      let currentHari = "senin";
 
-      // Kita susuri per kolom kelas, lalu per baris (vertikal)
       for (let col = 3; col <= 25; col++) {
         if (!colToKelas[col]) continue;
         const kelasNama = colToKelas[col];
@@ -153,7 +176,6 @@ export default function ImportDataPage() {
           const row = dataKbmRaw[rowIdx];
           if (!row) continue;
 
-          // Update hari (kolom 0)
           const hariRaw = String(row[0]).trim();
           if (hariRaw) {
             if (hariRaw.toLowerCase().includes("senin")) currentHari = "senin";
@@ -164,7 +186,6 @@ export default function ImportDataPage() {
           }
 
           const jamRaw = String(row[2]).trim();
-          // Jam default untuk mapel tanpa spesifikasi waktu (misalnya BK) - diset ke jam sekolah
           let jamMulaiStr = "07:00:00";
           let jamSelesaiStr = "14:00:00";
           if (jamRaw && jamRaw.includes("-")) {
@@ -176,7 +197,6 @@ export default function ImportDataPage() {
           const cellVal = String(row[col]).trim();
 
           if (!cellVal || cellVal === "-" || cellVal.toLowerCase().includes("istirahat")) {
-            // Putus blok
             if (currentBlock) {
               jadwalsList.push(currentBlock);
               currentBlock = null;
@@ -190,14 +210,11 @@ export default function ImportDataPage() {
             const mapelKode = match[2].toUpperCase();
 
             if (currentBlock && currentBlock.guruKode === guruKode && currentBlock.mapelKode === mapelKode && currentBlock.hari === currentHari) {
-              // Lanjutkan blok (merge jam selesai)
               currentBlock.jamSelesai = jamSelesaiStr;
             } else {
-              // Simpan blok lama
               if (currentBlock) {
                 jadwalsList.push(currentBlock);
               }
-              // Mulai blok baru
               currentBlock = {
                 guruKode,
                 mapelKode,
@@ -208,19 +225,38 @@ export default function ImportDataPage() {
               };
             }
           } else {
-            // Nilai lain (misal UPACARA), putus blok
             if (currentBlock) {
               jadwalsList.push(currentBlock);
               currentBlock = null;
             }
           }
         }
-        // Simpan sisa blok di akhir baris
         if (currentBlock) {
           jadwalsList.push(currentBlock);
         }
       }
 
+      // Hitung total guru unik dari KEDUA file (PTK + Legenda KBM)
+      const ptkNames = ptkList.map(p => p.nama.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      const kbmTeacherNames = Object.values(legendaGuru);
+      let extraKbm = 0;
+      for (const kn of kbmTeacherNames) {
+        const cleanK = kn.split(",")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+        const match = ptkNames.some(pn => pn === cleanK || pn.includes(cleanK) || cleanK.includes(pn));
+        if (!match) extraKbm++;
+      }
+
+      const summary: AIImportSummary = {
+        totalPtkGuru: ptkList.length,
+        totalKbmGuru: kbmTeacherNames.length,
+        extraKbmGuru: extraKbm,
+        totalGuruCombined: ptkList.length + extraKbm,
+        totalKelas: kelasesList.length,
+        totalJadwalBlok: jadwalsList.length,
+        totalMapel: Object.keys(legendaMapel).length,
+      };
+
+      setAiSummary(summary);
       setParsedData({
         ptk: ptkList,
         legendaGuru,
@@ -248,6 +284,7 @@ export default function ImportDataPage() {
       if (result.success) {
         setImportSuccess(true);
         setParsedData(null);
+        setAiSummary(null);
         setFilePtk(null);
         setFileKbm(null);
       } else {
@@ -269,7 +306,7 @@ export default function ImportDataPage() {
             Import Data Ganda
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Unggah File PTK dan File Jadwal KBM untuk sinkronisasi data sekolah.
+            Unggah File PTK dan File Jadwal KBM untuk sinkronisasi data sekolah secara otomatis.
           </p>
         </div>
 
@@ -279,15 +316,50 @@ export default function ImportDataPage() {
       {/* ── UPLOAD AREA ── */}
       <div className="w-full">
         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8">
-          <h2 className="text-lg font-bold text-slate-900 mb-6">Unggah 2 Berkas (Wajib)</h2>
+          
+          {/* Mode Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Pilih Metode Analisis</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Pilih apakah ingin menggunakan analisis AI dinamis atau aturan template baku.</p>
+            </div>
+
+            <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+              <button
+                type="button"
+                onClick={() => setImportMode("ai")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  importMode === "ai"
+                    ? "bg-white text-blue-600 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                AI Cerdas (Dinamis)
+                <span className="bg-blue-100 text-blue-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Gratis</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportMode("template")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  importMode === "template"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                Template Standar SMPN 8
+              </button>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-8">
             {/* Upload PTK */}
             <div>
-              <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil (Nama guru, NIP/NUPTK) (Excel)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru yang ingin diimpor. Pastikan format file sesuai dengan ketentuan.</p>
+              <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil Guru / PTK (Excel / CSV)</h3>
+              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru yang ingin diimpor. Format kolom akan disesuaikan otomatis.</p>
 
-              <div className="relative w-full h-[200px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
+              <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
                   type="file"
                   accept=".csv, .xls, .xlsx"
@@ -308,10 +380,10 @@ export default function ImportDataPage() {
 
             {/* Upload Jadwal */}
             <div>
-              <h3 className="text-[16px] font-bold text-slate-900">2. Data Jadwal KBM (Excel)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM yang ingin diimpor. Pastikan format file sesuai dengan ketentuan.</p>
+              <h3 className="text-[16px] font-bold text-slate-900">2. Data Jadwal KBM (Excel / CSV)</h3>
+              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM yang ingin diimpor. Format kolom dan legenda akan dipetakan otomatis.</p>
 
-              <div className="relative w-full h-[200px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
+              <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
                   type="file"
                   accept=".csv, .xls, .xlsx"
@@ -335,10 +407,23 @@ export default function ImportDataPage() {
             <button
               onClick={processBothFiles}
               disabled={isParsing || !filePtk || !fileKbm}
-              className="px-6 h-12 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md"
+              className={`px-6 h-12 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed ${
+                importMode === "ai"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 disabled:from-slate-300 disabled:to-slate-300"
+                  : "bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
+              }`}
             >
-              {isParsing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <UploadCloud className="w-5 h-5 mr-2" />}
-              Proses File
+              {isParsing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  {importMode === "ai" ? "AI Sedang Menganalisis..." : "Memproses File..."}
+                </>
+              ) : (
+                <>
+                  {importMode === "ai" ? <Sparkles className="w-5 h-5 mr-2" /> : <UploadCloud className="w-5 h-5 mr-2" />}
+                  {importMode === "ai" ? "Proses File dengan AI Cerdas" : "Proses File (Template Standar)"}
+                </>
+              )}
             </button>
           </div>
 
@@ -358,49 +443,77 @@ export default function ImportDataPage() {
         </div>
       </div>
 
-      {/* ── MODAL OVERLAY (PREVIEW) ── */}
+      {/* ── MODAL OVERLAY (RINGKASAN ANALISIS DARI KEDUA FILE) ── */}
       {parsedData && !importSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setParsedData(null)}></div>
-          <div className="relative bg-white rounded-3xl w-full max-w-[500px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-3xl w-full max-w-[520px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between p-6 pb-2">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
-                <p className="text-[13px] text-slate-500 mt-1">Periksa hasil penyatuan jadwal (Block Scheduling) sebelum import.</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
+                  {importMode === "ai" && (
+                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> AI Cerdas
+                    </span>
+                  )}
+                </div>
+                <p className="text-[13px] text-slate-500 mt-1">Periksa hasil penyatuan jadwal dan total guru dari kedua file sebelum import.</p>
               </div>
-              <button onClick={() => setParsedData(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors">
+              <button onClick={() => setParsedData(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-6 pt-4 space-y-5">
               <div className="grid grid-cols-2 gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                {/* Total Guru Gabungan Kedua File (Sesuai Permintaan User) */}
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500">GURU (DARI PTK)</p>
-                  <p className="text-lg font-bold text-slate-900">{parsedData.ptk.length}</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">TOTAL GURU (KEDUA FILE)</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {aiSummary?.totalGuruCombined ?? parsedData.ptk.length}
+                  </p>
+                  <p className="text-[10px] text-slate-500 leading-tight">
+                    {parsedData.ptk.length} dari PTK • {aiSummary?.extraKbmGuru ?? 0} dari Jadwal KBM
+                  </p>
                 </div>
+
+                {/* Total Ruang Kelas */}
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500">RUANG KELAS</p>
-                  <p className="text-lg font-bold text-slate-900">{parsedData.kelases.length}</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">RUANG KELAS</p>
+                  <p className="text-2xl font-bold text-slate-900">{parsedData.kelases.length}</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Kelas terdeteksi</p>
                 </div>
+
+                {/* Total Blok Jadwal KBM */}
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500">BLOK JADWAL KBM</p>
-                  <p className="text-lg font-bold text-blue-600">{parsedData.jadwals.length}</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">BLOK JADWAL KBM</p>
+                  <p className="text-2xl font-bold text-blue-600">{parsedData.jadwals.length}</p>
                   <p className="text-[10px] text-slate-400 leading-tight">Jam berurutan telah disatukan</p>
                 </div>
+
+                {/* Total Mata Pelajaran */}
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500">MATA PELAJARAN</p>
-                  <p className="text-lg font-bold text-slate-900">{Object.keys(parsedData.legendaMapel).length}</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">MATA PELAJARAN</p>
+                  <p className="text-2xl font-bold text-slate-900">{Object.keys(parsedData.legendaMapel).length}</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Mata pelajaran terdaftar</p>
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setParsedData(null)}
+                  className="px-5 h-12 border border-slate-200 text-slate-700 text-[14px] font-bold rounded-[14px] hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Batal
+                </button>
                 <button
                   onClick={handleImport}
                   disabled={isImporting}
-                  className="px-8 h-12 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-400 text-white text-[15px] font-bold rounded-[14px] flex items-center justify-center transition-all shadow-md shadow-blue-500/20"
+                  className="px-8 h-12 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-400 text-white text-[15px] font-bold rounded-[14px] flex items-center justify-center transition-all shadow-md shadow-blue-500/20 cursor-pointer"
                 >
-                  {isImporting ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Loading...</> : "Eksekusi Import"}
+                  {isImporting ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Menyimpan...</> : "Eksekusi Import"}
                 </button>
               </div>
             </div>
