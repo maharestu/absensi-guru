@@ -77,10 +77,8 @@ export default function LokasiPage() {
   };
 
   const handleContinue = () => {
-    // Inject dummy coordinates for bypass if not set
-    if (!sessionStorage.getItem("absensi_lat")) {
-      sessionStorage.setItem("absensi_lat", sekolahLat.toString());
-      sessionStorage.setItem("absensi_lng", sekolahLng.toString());
+    if (scanState !== "SUCCESS" || !sessionStorage.getItem("absensi_lat")) {
+      return;
     }
     router.push("/guru/presensi/verifikasi?status=hadir");
   };
@@ -139,12 +137,6 @@ export default function LokasiPage() {
             >
               {scanState === "SCANNING" ? "Memindai..." : "Scan Lokasi"}
             </Button>
-            <button 
-              onClick={handleContinue}
-              className="text-[13px] font-bold text-slate-400 hover:text-slate-600 underline text-center w-full transition-colors"
-            >
-              Lewati (Bypass Lokasi)
-            </button>
           </div>
         </>
       )}

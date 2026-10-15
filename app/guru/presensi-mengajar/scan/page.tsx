@@ -139,13 +139,6 @@ function ScanQrKelasContent() {
     };
   }, [scanState]);
 
-  // Tombol bypass untuk keperluan testing (mock success)
-  const handleBypass = () => {
-    setScanState("SCANNING");
-    setTimeout(() => {
-      setScanState("SUCCESS");
-    }, 1000);
-  };
 
   const handleRetake = () => {
     setScanState("IDLE");
@@ -222,15 +215,10 @@ function ScanQrKelasContent() {
             )}
           </div>
 
-          <div className="w-full mt-auto pt-8 flex flex-col gap-3">
-            <Button
-              onClick={handleBypass}
-              variant="outline"
-              disabled={scanState === "SCANNING"}
-              className="border-slate-300 text-slate-500 hover:bg-slate-50"
-            >
-              Bypass Verifikasi (Testing)
-            </Button>
+          <div className="w-full mt-auto pt-6 text-center">
+            <p className="text-xs text-slate-400">
+              Posisikan QR code kelas di dalam kotak pemindai
+            </p>
           </div>
         </>
       )}

@@ -60,7 +60,10 @@ export async function submitPresensiMasukAction(formData: FormData) {
   try {
     // Ambil identitas guru langsung dari sesi server (mencegah manipulasi IDOR)
     const session = await getSession();
-    const guruId = session?.guru_id || (formData.get("guruId") as string);
+    if (!session?.guru_id) {
+      throw new Error("Sesi tidak valid atau Anda tidak terdaftar sebagai guru.");
+    }
+    const guruId = session.guru_id;
     // Verifikasi tanggal menggunakan waktu server WIB
     const tanggal = getTodayWIB();
     const status = formData.get("status") as string;
@@ -163,7 +166,10 @@ export async function submitPresensiMasukAction(formData: FormData) {
 export async function submitPresensiMengajarAction(formData: FormData) {
   try {
     const session = await getSession();
-    const guruId = session?.guru_id || (formData.get("guruId") as string);
+    if (!session?.guru_id) {
+      throw new Error("Sesi tidak valid atau Anda tidak terdaftar sebagai guru.");
+    }
+    const guruId = session.guru_id;
     const jadwalId = formData.get("jadwalId") as string;
     const file = formData.get("file") as File;
     const tanggal = getTodayWIB(); // Abaikan tanggal dari client

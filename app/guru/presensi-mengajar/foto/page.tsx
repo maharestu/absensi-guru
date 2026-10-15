@@ -67,20 +67,14 @@ function FotoSelfieKelasContent() {
     }
   };
 
-  const handleBypass = () => {
-    // 1x1 transparent png
-    const dummyImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-    setPhoto(dummyImage);
-  };
 
   const handleRetake = () => {
     setPhoto(null);
   };
 
   const handleContinue = () => {
-    if (photo) {
-      sessionStorage.setItem("absensi_mengajar_photo", photo);
-    }
+    if (!photo) return;
+    sessionStorage.setItem("absensi_mengajar_photo", photo);
     const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
     router.push(`/guru/presensi-mengajar/verifikasi?jadwal_id=${jadwalId}${hariQuery}`);
   };
@@ -116,12 +110,6 @@ function FotoSelfieKelasContent() {
           </div>
 
           <div className="w-full mt-auto pt-8 flex flex-col gap-4">
-            <button
-              onClick={handleBypass}
-              className="text-[13px] text-slate-400 hover:text-slate-600 mx-auto underline transition-colors"
-            >
-              Bypass (Testing)
-            </button>
             <button
               onClick={handleTakePhoto}
               disabled={!hasPermission}

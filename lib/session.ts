@@ -14,10 +14,15 @@ export interface SessionPayload {
   expiresAt: number; // Unix timestamp in ms
 }
 
-const SECRET_KEY_RAW =
-  process.env.SESSION_SECRET ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "absensi-guru-fallback-secret-2026-default-key";
+function getSecretKeyRaw(): string {
+  const secret = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) {
+    throw new Error(
+      "SESSION_SECRET atau SUPABASE_SERVICE_ROLE_KEY harus disetel dalam environment variable!"
+    );
+  }
+  return secret;
+}
 
 /**
  * Mendapatkan CryptoKey untuk HMAC-SHA256 (Web Crypto API kompatibel dengan Node & Edge)
@@ -26,7 +31,7 @@ async function getCryptoKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   return crypto.subtle.importKey(
     "raw",
-    encoder.encode(SECRET_KEY_RAW),
+    encoder.encode(getSecretKeyRaw()),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"]
