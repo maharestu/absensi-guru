@@ -234,12 +234,12 @@ export default function KepsekDashboardPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[440px] sm:min-w-[500px]">
+          <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[600px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[45%]">NAMA GURU</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[30%]">WAKTU MASUK</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[25%]">STATUS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[35%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[45%]">WAKTU MASUK</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -255,8 +255,22 @@ export default function KepsekDashboardPage() {
                     <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
                     </td>
-                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
-                      {row.waktu_masuk ?? "—"}
+                    <td className="py-2.5 sm:py-4 text-slate-700 font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{row.waktu_masuk ?? "—"}</span>
+                        {row.status.toLowerCase() === "hadir" && row.waktu_masuk && row.keterangan_terlambat && (
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                              row.terlambat
+                                ? "bg-rose-50 text-rose-600 border border-rose-200/80"
+                                : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${row.terlambat ? "bg-rose-500" : "bg-emerald-500"}`} />
+                            {row.keterangan_terlambat}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
@@ -295,20 +309,21 @@ export default function KepsekDashboardPage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-[700px]">
+          <table className="w-full text-left border-collapse min-w-[650px] sm:min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[25%]">NAMA GURU</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">MATA PELAJARAN</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">KELAS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">JAM MENGAJAR</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">STATUS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">KELAS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[24%]">WAKTU ABSENSI</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">JAM MENGAJAR</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
               {filteredMengajar.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="py-6 text-center text-slate-400 font-medium">
                     {loading ? "Memuat absensi mengajar..." : "Belum ada catatan absensi mengajar hari ini."}
                   </td>
                 </tr>
@@ -323,6 +338,23 @@ export default function KepsekDashboardPage() {
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.kelas}
+                    </td>
+                    <td className="py-2.5 sm:py-4 text-slate-700 font-medium">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{row.waktu_absen}</span>
+                        {row.keterangan_terlambat && (
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                              row.terlambat
+                                ? "bg-rose-50 text-rose-600 border border-rose-200/80"
+                                : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${row.terlambat ? "bg-rose-500" : "bg-emerald-500"}`} />
+                            {row.keterangan_terlambat}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.jam_mengajar}

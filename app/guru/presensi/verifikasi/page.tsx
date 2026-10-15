@@ -6,6 +6,7 @@ import PageHeader from "@/components/ui/page-header";
 import VerificationCard from "@/components/absensi/verification-card";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { hitungKeterlambatan, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT } from "@/lib/date";
 
 /** Format tanggal ke "Senin, 7 September 2026" */
 function formatTanggal(date: Date): string {
@@ -49,11 +50,37 @@ function VerifikasiContent() {
   const nama = user?.nama ?? "-";
   const nip = user?.nip ?? "-";
 
+  // Hitung keterlambatan saat status hadir
+  const ketInfo = hitungKeterlambatan(new Date(), JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },
     { label: "Nama", value: nama },
     { label: "NIP/NUPTK", value: nip },
     { label: "Status Kehadiran", value: statusLabel },
+    ...(status === "hadir"
+      ? [
+          {
+            label: "Keterangan",
+            value: (
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold ${
+                  ketInfo.terlambat
+                    ? "bg-rose-50 text-rose-600 border border-rose-200"
+                    : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    ketInfo.terlambat ? "bg-rose-500" : "bg-emerald-500"
+                  }`}
+                />
+                {ketInfo.label}
+              </span>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const handleSubmit = async () => {

@@ -7,6 +7,7 @@ import { getJadwalById } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
 import { useAuth } from "@/context/AuthContext";
 import { submitPresensiMengajarAction } from "@/actions/presensi";
+import { hitungKeterlambatan, formatJamWIB, TOLERANSI_TERLAMBAT_MENIT } from "@/lib/date";
 
 /** Format tanggal ke "Senin, 7 September 2026" */
 function formatTanggal(date: Date): string {
@@ -94,7 +95,12 @@ function VerifikasiMengajarContent() {
 
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
   const backHref = `/guru/presensi-mengajar/foto?jadwal_id=${jadwalId}${hariQuery}`;
-  const todayFormatted = formatTanggal(new Date());
+  const now = new Date();
+  const todayFormatted = formatTanggal(now);
+  const waktuAbsenStr = `${formatJamWIB(now)} WIB`;
+  const ketInfo = jadwal?.jam_mulai
+    ? hitungKeterlambatan(now, jadwal.jam_mulai, TOLERANSI_TERLAMBAT_MENIT)
+    : null;
 
   return (
     <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-6">
@@ -147,11 +153,40 @@ function VerifikasiMengajarContent() {
           </p>
         </div>
 
-        <div className="py-4">
+        <div className="py-4 border-b border-slate-100">
           <p className="text-[13px] font-medium text-slate-400 mb-1">Jadwal</p>
           <p className="text-[15px] font-bold text-slate-900">
             {loading ? "Memuat..." : jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "Tidak diketahui"}
           </p>
+        </div>
+
+        <div className="py-4 border-b border-slate-100">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Waktu Absensi</p>
+          <p className="text-[15px] font-bold text-slate-900">{waktuAbsenStr}</p>
+        </div>
+
+        <div className="py-4">
+          <p className="text-[13px] font-medium text-slate-400 mb-1">Keterangan</p>
+          <div>
+            {loading || !ketInfo ? (
+              <span className="text-[15px] font-bold text-slate-900">Memuat...</span>
+            ) : (
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold ${
+                  ketInfo.terlambat
+                    ? "bg-rose-50 text-rose-600 border border-rose-200"
+                    : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    ketInfo.terlambat ? "bg-rose-500" : "bg-emerald-500"
+                  }`}
+                />
+                {ketInfo.label}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

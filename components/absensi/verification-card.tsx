@@ -2,7 +2,7 @@ import React from "react";
 
 interface VerificationRowProps {
   label: string;
-  value: string;
+  value: React.ReactNode;
   /** Apakah baris ini baris terakhir (tidak tampilkan divider bawah) */
   isLast?: boolean;
 }
@@ -16,13 +16,13 @@ function VerificationRow({ label, value, isLast = false }: VerificationRowProps)
   return (
     <div className={`py-4 ${!isLast ? "border-b border-slate-100" : ""}`}>
       <p className="text-xs font-medium text-slate-400 mb-1">{label}</p>
-      <p className="text-base font-bold text-slate-900">{value}</p>
+      <div className="text-base font-bold text-slate-900">{value}</div>
     </div>
   );
 }
 
 interface VerificationCardProps {
-  rows: Array<{ label: string; value: string }>;
+  rows: Array<{ label: string; value: React.ReactNode }>;
 }
 
 /**

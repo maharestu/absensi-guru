@@ -6,7 +6,14 @@
  */
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { getTodayWIB } from "@/lib/date";
+import {
+  getTodayWIB,
+  formatJamWIB,
+  hitungKeterlambatan,
+  JAM_MASUK_SEKOLAH,
+  TOLERANSI_TERLAMBAT_MENIT,
+  KeterlambatanInfo,
+} from "@/lib/date";
 import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
 import { StatusAbsensiMasuk } from "@/types/schema";
 
@@ -31,6 +38,9 @@ export interface KehadiranHariIni {
   nama_guru: string;
   waktu_masuk: string | null;
   status: string;
+  terlambat?: boolean;
+  menit_terlambat?: number;
+  keterangan_terlambat?: string;
 }
 
 export interface MengajarHariIni {
@@ -38,8 +48,12 @@ export interface MengajarHariIni {
   nama_guru: string;
   mata_pelajaran: string;
   kelas: string;
+  waktu_absen: string;
   jam_mengajar: string;
   status: string;
+  terlambat?: boolean;
+  menit_terlambat?: number;
+  keterangan_terlambat?: string;
 }
 
 // ── Admin Stats ───────────────────────────────────────────────
@@ -133,18 +147,23 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    // @ts-expect-error — supabase join returns nested object
-    nama_guru: row.guru?.nama ?? "-",
-    waktu_masuk: row.waktu_submit
-      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null,
-    status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
-  }));
+  return (data ?? []).map((row) => {
+    let ketInfo: KeterlambatanInfo | null = null;
+    if (row.status === "hadir" && row.waktu_submit) {
+      ketInfo = hitungKeterlambatan(row.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+    }
+
+    return {
+      id: row.id,
+      // @ts-expect-error — supabase join returns nested object
+      nama_guru: row.guru?.nama ?? "-",
+      waktu_masuk: row.waktu_submit ? formatJamWIB(row.waktu_submit) : null,
+      status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
+      terlambat: ketInfo?.terlambat ?? false,
+      menit_terlambat: ketInfo?.menit ?? 0,
+      keterangan_terlambat: ketInfo?.label ?? "",
+    };
+  });
 }
 
 // ── Kepsek: Tabel Mengajar Hari Ini ──────────────────────────
@@ -167,15 +186,24 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
     const guru = Array.isArray(jadwal?.guru) ? jadwal?.guru[0] : jadwal?.guru;
     const kelas = Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0] : jadwal?.kelas;
 
+    let ketInfo: KeterlambatanInfo | null = null;
+    if (row.waktu_submit && jadwal?.jam_mulai) {
+      ketInfo = hitungKeterlambatan(row.waktu_submit, jadwal.jam_mulai, TOLERANSI_TERLAMBAT_MENIT);
+    }
+
     return {
       id: row.id,
       nama_guru: guru?.nama ?? "-",
       mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
       kelas: kelas?.nama_kelas ?? "-",
+      waktu_absen: row.waktu_submit ? formatJamWIB(row.waktu_submit) : "-",
       jam_mengajar: jadwal
-        ? `${jadwal.jam_mulai} - ${jadwal.jam_selesai}`
+        ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}`
         : "-",
       status: "Sudah Mengajar",
+      terlambat: ketInfo?.terlambat ?? false,
+      menit_terlambat: ketInfo?.menit ?? 0,
+      keterangan_terlambat: ketInfo?.label ?? "",
     };
   });
 }
