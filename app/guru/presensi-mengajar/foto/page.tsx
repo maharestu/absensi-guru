@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
@@ -13,40 +13,74 @@ function FotoSelfieKelasContent() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>("");
   const [photo, setPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    let stream: MediaStream | null = null;
+  const stopStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
 
-    const startCamera = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
+  const startCamera = useCallback(async () => {
+    stopStream();
+    setErrorMsg("");
+    setHasPermission(null);
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setHasPermission(true);
-      } catch (err) {
-        console.error("Gagal mengakses kamera:", err);
-        setHasPermission(false);
+    // Beri sedikit jeda agar hardware kamera sebelumnya (misal dari scan QR atau kehadiran) benar-benar terlepas
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    if (!isMountedRef.current) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+
+      if (!isMountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
-    };
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasPermission(true);
+    } catch (err: unknown) {
+      console.error("Gagal mengakses kamera:", err);
+      if (!isMountedRef.current) return;
+      setHasPermission(false);
+      const isDenied = (err as Error)?.name === "NotAllowedError" || (err as Error)?.name === "PermissionDeniedError";
+      setErrorMsg(
+        isDenied
+          ? "Izin akses kamera ditolak. Silakan izinkan akses kamera di pengaturan browser."
+          : "Gagal mengakses kamera. Kamera mungkin sedang digunakan atau belum siap. Silakan coba lagi."
+      );
+    }
+  }, [stopStream]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
 
     if (!photo) {
       startCamera();
+    } else {
+      stopStream();
     }
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      isMountedRef.current = false;
+      stopStream();
     };
-  }, [photo]);
+  }, [photo, startCamera, stopStream]);
 
   const handleTakePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -92,7 +126,38 @@ function FotoSelfieKelasContent() {
 
       {!photo ? (
         <>
-          <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-800 rounded-[28px] overflow-hidden shadow-sm border border-slate-200">
+          <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-800 rounded-[28px] overflow-hidden shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+            {/* Loading State */}
+            {hasPermission === null && (
+              <div className="flex flex-col items-center gap-2 z-10">
+                <div className="w-8 h-8 border-3 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <p className="text-white/70 text-sm font-medium">Meminta akses kamera...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {hasPermission === false && (
+              <div className="flex flex-col items-center justify-center px-6 text-center z-10">
+                <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mb-3">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                </div>
+                <p className="text-white font-semibold text-sm">Kamera Wajib Diaktifkan</p>
+                <p className="text-white/70 text-xs mt-1.5 max-w-[260px] leading-relaxed">
+                  {errorMsg || "Tidak dapat mengakses kamera. Pastikan izin kamera aktif pada browser Anda."}
+                </p>
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-xl shadow-md transition-all touch-manipulation cursor-pointer"
+                >
+                  Coba Lagi Akses Kamera
+                </button>
+              </div>
+            )}
+
             <video
               ref={videoRef}
               autoPlay
@@ -100,14 +165,6 @@ function FotoSelfieKelasContent() {
               muted
               className={`absolute inset-0 w-full h-full object-cover transform -scale-x-100 ${hasPermission ? "opacity-100" : "hidden"}`}
             />
-
-            {!hasPermission && hasPermission !== null && (
-              <div className="absolute inset-0 flex items-center justify-center p-6">
-                <p className="text-white text-sm text-center relative z-10">
-                  Akses kamera ditolak atau tidak tersedia.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Tombol Capture Lingkaran (Sama persis seperti Absensi Kehadiran) */}
