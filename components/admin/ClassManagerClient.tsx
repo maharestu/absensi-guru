@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/pagination";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
 import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 import { ClassA4PrintTemplate } from "./ClassA4PrintTemplate";
+import { getLogoBase64 } from "@/actions/logo";
 
 export default function ClassManagerClient() {
 
@@ -42,6 +43,39 @@ export default function ClassManagerClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 11;
   const [previewScale, setPreviewScale] = useState(0.5);
+  const [logoBase64, setLogoBase64] = useState<string>("");
+
+  useEffect(() => {
+    const loadLogo = async () => {
+      try {
+        const b64 = await getLogoBase64();
+        if (b64) {
+          setLogoBase64(b64);
+          return;
+        }
+      } catch (err) {
+        console.warn("Gagal load logo dari server action, mencoba fallback browser fetch:", err);
+      }
+
+      try {
+        const res = await fetch("/Logo.png");
+        if (res.ok) {
+          const blob = await res.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (typeof reader.result === "string") {
+              setLogoBase64(reader.result);
+            }
+          };
+          reader.readAsDataURL(blob);
+        }
+      } catch (fetchErr) {
+        console.error("Gagal load logo via fetch:", fetchErr);
+      }
+    };
+
+    loadLogo();
+  }, []);
 
   useEffect(() => {
     const updateScale = () => {
@@ -101,11 +135,11 @@ export default function ClassManagerClient() {
     setIsPreparingPrint(true);
     setIsPrintingAll(true);
 
-    // Beri waktu 350ms agar seluruh QR SVG selesai dirender di DOM sebelum dialog cetak browser muncul
+    // Beri waktu 500ms agar seluruh QR SVG & DOM selesai dirender sebelum dialog cetak browser muncul
     setTimeout(() => {
       setIsPreparingPrint(false);
       window.print();
-    }, 350);
+    }, 500);
   };
 
   useEffect(() => {
@@ -403,7 +437,7 @@ export default function ClassManagerClient() {
             {/* Preview Container - Dynamically scaled to fit exactly within 60vh */}
             <div className="bg-slate-100 rounded-2xl flex justify-center items-center overflow-hidden border border-slate-200/60 shadow-inner w-full relative h-[60vh]">
                <div className="print:static print:transform-none" style={{ transform: `scale(${previewScale})`, transformOrigin: "center" }}>
-                 <ClassA4PrintTemplate classData={selectedClass} />
+                 <ClassA4PrintTemplate classData={selectedClass} logoBase64={logoBase64} />
                </div>
             </div>
           </div>
@@ -532,8 +566,8 @@ export default function ClassManagerClient() {
     {/* Print-only template */}
     <div className="hidden print:block w-full h-full bg-white">
       {isPrintingAll 
-        ? kelasList.map((kelas) => <ClassA4PrintTemplate key={kelas.id} classData={kelas} />)
-        : (selectedClass && <ClassA4PrintTemplate classData={selectedClass} />)
+        ? kelasList.map((kelas) => <ClassA4PrintTemplate key={kelas.id} classData={kelas} logoBase64={logoBase64} />)
+        : (selectedClass && <ClassA4PrintTemplate classData={selectedClass} logoBase64={logoBase64} />)
       }
     </div>
     </>
