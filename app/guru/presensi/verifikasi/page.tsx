@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/page-header";
 import VerificationCard from "@/components/absensi/verification-card";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { hitungKeterlambatan, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT, getTodayWIB } from "@/lib/date";
+import { hitungKeterlambatan, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT, getTodayWIB, formatJamWIB } from "@/lib/date";
 import { formatTanggalLengkap } from "@/lib/format";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -37,15 +37,18 @@ function VerifikasiContent() {
   const statusLabel = STATUS_LABELS[status] ?? status;
   const backHref = BACK_HREF[status] ?? "/guru";
 
-  const today = formatTanggalLengkap(new Date());
+  const now = new Date();
+  const today = formatTanggalLengkap(now);
+  const waktuAbsen = `${formatJamWIB(now)} WIB`;
   const nama = user?.nama ?? "-";
   const nip = user?.nip ?? "-";
 
   // Hitung keterlambatan saat status hadir
-  const ketInfo = hitungKeterlambatan(new Date(), JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+  const ketInfo = hitungKeterlambatan(now, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
 
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },
+    { label: "Waktu Absensi", value: waktuAbsen },
     { label: "Nama", value: nama },
     { label: "NIP/NUPTK", value: nip },
     { label: "Status Kehadiran", value: statusLabel },

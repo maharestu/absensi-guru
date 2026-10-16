@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import GuruTopBar from "@/components/guru/GuruTopBar";
 import { useAuth } from "@/context/AuthContext";
 import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB } from "@/lib/date";
@@ -191,61 +192,64 @@ export default function PilihStatusPage() {
     const nip = user?.nip ?? "-";
     const nama = user?.nama ?? "-";
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
-        <PageHeader
-          title="Absensi Hari Ini"
-          subtitle="Status absensi kehadiran sudah tercatat."
-        />
+      <>
+        <GuruTopBar />
+        <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+          <PageHeader
+            title="Absensi Hari Ini"
+            subtitle="Status absensi kehadiran sudah tercatat."
+          />
 
-        {/* Card Tampilan Sudah Absen */}
-        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
-          <div className="w-14 h-14 bg-[#16a34a] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-green-200">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M5 13L9 17L19 7"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          {/* Card Tampilan Sudah Absen */}
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
+            <div className="w-14 h-14 bg-[#16a34a] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-green-200">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 13L9 17L19 7"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
+              Anda sudah absen hari ini
+            </h2>
+
+            <p className={`text-sm font-semibold ${currentStatus.color} mb-6`}>
+              {currentStatus.label}
+            </p>
+
+            <div className="w-full border-b border-slate-100 mb-6" />
+
+            <div className="flex flex-col gap-4 text-center">
+              <div>
+                <p className="text-xs text-slate-400 font-medium">Tanggal dan Waktu Absensi</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">
+                  {absenData.date} • {absenData.time}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-medium">Nama</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">{nama}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-medium">NIP/NUPTK</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">{nip}</p>
+              </div>
+            </div>
           </div>
 
-          <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
-            Anda sudah absen hari ini
-          </h2>
-
-          <p className={`text-sm font-semibold ${currentStatus.color} mb-6`}>
-            {currentStatus.label}
-          </p>
-
-          <div className="w-full border-b border-slate-100 mb-6" />
-
-          <div className="flex flex-col gap-4 text-center">
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Tanggal dan Waktu Absensi</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">
-                {absenData.date} • {absenData.time}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">Nama</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">{nama}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 font-medium">NIP/NUPTK</p>
-              <p className="text-sm font-bold text-slate-900 mt-1">{nip}</p>
-            </div>
+          {/* Tombol Selesai */}
+          <div className="mt-8">
+            <Button onClick={() => router.push("/guru")}>
+              Selesai
+            </Button>
           </div>
         </div>
-
-        {/* Tombol Selesai */}
-        <div className="mt-8">
-          <Button onClick={() => router.push("/guru")}>
-            Selesai
-          </Button>
-        </div>
-      </div>
+      </>
     );
   }
 
