@@ -341,10 +341,10 @@ export default function AccountManagerClient() {
           </button>
           <button
             type="button"
-            disabled={accounts.length === 0}
+            disabled={accounts.filter((a) => a.role !== "admin").length === 0}
             onClick={handleOpenDeleteAll}
             className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-bold text-red-600 border border-red-200/80 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Hapus Semua Data Akun"
+            title="Hapus Semua Data Akun (Non-Admin)"
           >
             <Trash2 className="w-4 h-4" />
             <span>Hapus Semua</span>
@@ -438,8 +438,8 @@ export default function AccountManagerClient() {
         onClose={() => setIsDeleteAllOpen(false)}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Akun"
-        entityName="akun pengguna"
-        totalCount={accounts.length}
+        entityName="akun non-admin (guru & kepala sekolah)"
+        totalCount={accounts.filter((a) => a.role !== "admin").length}
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}

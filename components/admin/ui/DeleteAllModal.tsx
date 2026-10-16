@@ -82,6 +82,12 @@ export function DeleteAllModal({
             </div>
           </div>
 
+          {relationInfo.warningMessage && (
+            <p className="text-[11.5px] text-amber-800 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5 leading-relaxed">
+              ⚠️ {relationInfo.warningMessage}
+            </p>
+          )}
+
           {/* Kotak Rincian Keterikatan */}
           <div className="bg-amber-50/60 border border-amber-200/70 rounded-2xl p-4 text-xs space-y-2.5">
             <p className="font-semibold text-amber-900">
@@ -191,6 +197,11 @@ export function DeleteAllModal({
               </span>
               ? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
             </p>
+            {relationInfo?.warningMessage && (
+              <p className="text-[11.5px] text-amber-800 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5 mt-2 leading-relaxed max-w-sm text-left">
+                ⚠️ {relationInfo.warningMessage}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3 w-full pt-3">

@@ -62,16 +62,76 @@ export async function checkGuruRelations(
   id?: string
 ): Promise<{ hasRelations: boolean; details: string[]; warningMessage?: string }> {
   try {
-    let akunQuery = supabaseAdmin.from("akun").select("id", { count: "exact", head: true });
-    let jadwalQuery = supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true });
-    let absensiQuery = supabaseAdmin.from("absensi_masuk").select("id", { count: "exact", head: true });
-
     if (id) {
-      akunQuery = akunQuery.eq("guru_id", id);
-      jadwalQuery = jadwalQuery.eq("guru_id", id);
-      absensiQuery = absensiQuery.eq("guru_id", id);
-    } else {
-      akunQuery = akunQuery.not("guru_id", "is", null);
+      // Cek apakah guru ini terhubung dengan akun admin
+      const { data: adminAkun } = await supabaseAdmin
+        .from("akun")
+        .select("id")
+        .eq("guru_id", id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      const [akunRes, jadwalRes, absensiRes] = await Promise.all([
+        supabaseAdmin.from("akun").select("id", { count: "exact", head: true }).eq("guru_id", id),
+        supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true }).eq("guru_id", id),
+        supabaseAdmin.from("absensi_masuk").select("id", { count: "exact", head: true }).eq("guru_id", id),
+      ]);
+
+      const details: string[] = [];
+      if (adminAkun) {
+        details.push("akun login berole Administrator (terproteksi)");
+      } else if ((akunRes.count ?? 0) > 0) {
+        details.push(`${akunRes.count} akun login pegawai`);
+      }
+      if ((jadwalRes.count ?? 0) > 0) {
+        details.push(`${jadwalRes.count} jadwal mengajar aktif`);
+      }
+      if ((absensiRes.count ?? 0) > 0) {
+        details.push(`${absensiRes.count} catatan riwayat presensi & bukti foto`);
+      }
+
+      return {
+        hasRelations: details.length > 0,
+        details,
+        warningMessage: adminAkun
+          ? "Guru ini terhubung dengan akun Administrator dan diproteksi dari penghapusan."
+          : details.length > 0
+          ? `Data guru masih terhubung dengan: ${details.join(", ")}.`
+          : undefined,
+      };
+    }
+
+    // Global audit (Hapus Semua)
+    // 1. Ambil daftar guru_id yang memiliki akun login berole admin
+    const { data: adminGuruData } = await supabaseAdmin
+      .from("akun")
+      .select("guru_id")
+      .eq("role", "admin")
+      .not("guru_id", "is", null);
+
+    const protectedGuruIds = (adminGuruData ?? [])
+      .map((a) => a.guru_id)
+      .filter((gid): gid is string => Boolean(gid));
+
+    let akunQuery: any = supabaseAdmin
+      .from("akun")
+      .select("id", { count: "exact", head: true })
+      .not("guru_id", "is", null)
+      .neq("role", "admin");
+
+    let jadwalQuery: any = supabaseAdmin
+      .from("jadwal")
+      .select("id", { count: "exact", head: true });
+
+    let absensiQuery: any = supabaseAdmin
+      .from("absensi_masuk")
+      .select("id", { count: "exact", head: true });
+
+    if (protectedGuruIds.length > 0) {
+      const inList = `(${protectedGuruIds.join(",")})`;
+      jadwalQuery = jadwalQuery.not("guru_id", "in", inList);
+      absensiQuery = absensiQuery.not("guru_id", "in", inList);
+      akunQuery = akunQuery.not("guru_id", "in", inList);
     }
 
     const [akunRes, jadwalRes, absensiRes] = await Promise.all([
@@ -91,13 +151,17 @@ export async function checkGuruRelations(
       details.push(`${absensiRes.count} catatan riwayat presensi & bukti foto`);
     }
 
+    let warningMessage: string | undefined;
+    if (protectedGuruIds.length > 0) {
+      warningMessage = `${protectedGuruIds.length} data guru terhubung dengan akun Administrator dan akan diproteksi (tidak akan ikut terhapus).`;
+    } else if (details.length > 0) {
+      warningMessage = `Data guru masih terhubung dengan: ${details.join(", ")}.`;
+    }
+
     return {
       hasRelations: details.length > 0,
       details,
-      warningMessage:
-        details.length > 0
-          ? `Data guru masih terhubung dengan: ${details.join(", ")}.`
-          : undefined,
+      warningMessage,
     };
   } catch (err: any) {
     console.error("checkGuruRelations Error:", err);
@@ -110,6 +174,22 @@ export async function deleteGuru(
 ): Promise<{ success: boolean; error?: string; isRelationError?: boolean }> {
   try {
     await requireAdmin();
+
+    // Cek apakah guru ini terhubung dengan akun admin
+    const { data: adminAkun } = await supabaseAdmin
+      .from("akun")
+      .select("id")
+      .eq("guru_id", id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (adminAkun) {
+      return {
+        success: false,
+        isRelationError: true,
+        error: "Guru ini terhubung dengan akun Administrator dan diproteksi dari penghapusan.",
+      };
+    }
 
     // Pre-check relasi foreign key
     const rel = await checkGuruRelations(id);
@@ -143,6 +223,20 @@ export async function deleteAllGuru(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
+
+    // Ambil daftar guru_id yang memiliki akun login berole admin (diproteksi)
+    const { data: adminGuruData, error: adminErr } = await supabaseAdmin
+      .from("akun")
+      .select("guru_id")
+      .eq("role", "admin")
+      .not("guru_id", "is", null);
+
+    if (adminErr) throw adminErr;
+
+    const protectedGuruIds = (adminGuruData ?? [])
+      .map((a) => a.guru_id)
+      .filter((gid): gid is string => Boolean(gid));
+
     if (!forceCascade) {
       const rel = await checkGuruRelations();
       if (rel.hasRelations) {
@@ -151,36 +245,100 @@ export async function deleteAllGuru(
           error: "Terdapat data guru yang masih memiliki relasi aktif.",
         };
       }
-      const { error } = await supabaseAdmin.from("guru").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+      let deleteQuery = supabaseAdmin
+        .from("guru")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (protectedGuruIds.length > 0) {
+        deleteQuery = deleteQuery.not("id", "in", `(${protectedGuruIds.join(",")})`);
+      }
+
+      const { error } = await deleteQuery;
       if (error) throw error;
       return { success: true };
     }
 
-    // Force Cascade: Bersihkan berurutan
-    // 1. Ambil seluruh id jadwal yang terkait dengan guru
-    const { data: jadwalList } = await supabaseAdmin.from("jadwal").select("id");
-    const jadwalIds = jadwalList?.map((j) => j.id) || [];
+    // Force Cascade: Bersihkan data hanya untuk guru non-admin
+    // 1. Hapus absensi mengajar untuk jadwal yang terkait dengan guru non-admin
+    const { count: totalAbsensiMengajar } = await supabaseAdmin
+      .from("absensi_mengajar")
+      .select("id", { count: "exact", head: true });
 
-    if (jadwalIds.length > 0) {
-      // Hapus absensi mengajar
-      await supabaseAdmin.from("absensi_mengajar").delete().in("jadwal_id", jadwalIds);
+    if ((totalAbsensiMengajar ?? 0) > 0) {
+      if (protectedGuruIds.length === 0) {
+        const { error: absMengajarErr } = await supabaseAdmin
+          .from("absensi_mengajar")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+        if (absMengajarErr) throw absMengajarErr;
+      } else {
+        const { data: absensiMengajarList, error: absMengajarErr } = await supabaseAdmin
+          .from("absensi_mengajar")
+          .select("id, jadwal!inner(guru_id)")
+          .not("jadwal.guru_id", "in", `(${protectedGuruIds.join(",")})`);
+        if (absMengajarErr) throw absMengajarErr;
+
+        const absensiMengajarIds = absensiMengajarList?.map((a: any) => a.id) || [];
+        if (absensiMengajarIds.length > 0) {
+          const CHUNK_SIZE = 50;
+          for (let i = 0; i < absensiMengajarIds.length; i += CHUNK_SIZE) {
+            const chunk = absensiMengajarIds.slice(i, i + CHUNK_SIZE);
+            const { error: delErr } = await supabaseAdmin
+              .from("absensi_mengajar")
+              .delete()
+              .in("id", chunk);
+            if (delErr) throw delErr;
+          }
+        }
+      }
     }
 
-    // 2. Hapus seluruh absensi masuk
-    await supabaseAdmin.from("absensi_masuk").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    // 2. Hapus absensi masuk milik guru non-admin
+    let absensiMasukQuery = supabaseAdmin
+      .from("absensi_masuk")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    if (protectedGuruIds.length > 0) {
+      absensiMasukQuery = absensiMasukQuery.not("guru_id", "in", `(${protectedGuruIds.join(",")})`);
+    }
+    const { error: absensiMasukErr } = await absensiMasukQuery;
+    if (absensiMasukErr) throw absensiMasukErr;
 
-    // 3. Hapus seluruh jadwal
-    await supabaseAdmin.from("jadwal").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    // 3. Hapus jadwal milik guru non-admin
+    let deleteJadwalQuery = supabaseAdmin
+      .from("jadwal")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    if (protectedGuruIds.length > 0) {
+      deleteJadwalQuery = deleteJadwalQuery.not("guru_id", "in", `(${protectedGuruIds.join(",")})`);
+    }
+    const { error: deleteJadwalErr } = await deleteJadwalQuery;
+    if (deleteJadwalErr) throw deleteJadwalErr;
 
-    // 4. Hapus akun yang punya guru_id (role guru)
-    await supabaseAdmin.from("akun").delete().not("guru_id", "is", null);
+    // 4. Hapus akun guru non-admin (kecualikan role admin dan guru yang diproteksi)
+    let deleteAkunQuery = supabaseAdmin
+      .from("akun")
+      .delete()
+      .not("guru_id", "is", null)
+      .neq("role", "admin");
+    if (protectedGuruIds.length > 0) {
+      deleteAkunQuery = deleteAkunQuery.not("guru_id", "in", `(${protectedGuruIds.join(",")})`);
+    }
+    const { error: deleteAkunErr } = await deleteAkunQuery;
+    if (deleteAkunErr) throw deleteAkunErr;
 
-    // 5. Hapus seluruh guru
-    const { error: guruErr } = await supabaseAdmin
+    // 5. Hapus seluruh guru non-admin
+    let deleteGuruQuery = supabaseAdmin
       .from("guru")
       .delete()
       .neq("id", "00000000-0000-0000-0000-000000000000");
+    if (protectedGuruIds.length > 0) {
+      deleteGuruQuery = deleteGuruQuery.not("id", "in", `(${protectedGuruIds.join(",")})`);
+    }
 
+    const { error: guruErr } = await deleteGuruQuery;
     if (guruErr) throw guruErr;
 
     return { success: true };

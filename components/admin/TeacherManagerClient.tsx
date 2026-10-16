@@ -116,7 +116,7 @@ export default function TeacherManagerClient() {
       setIsDeletingAll(true);
       const res = await deleteAllGuru(forceCascade);
       if (res.success) {
-        setTeachers([]);
+        await loadTeachers();
         setIsDeleteAllOpen(false);
       } else {
         alert("Gagal menghapus semua data guru: " + (res.error || ""));

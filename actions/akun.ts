@@ -104,19 +104,15 @@ export async function checkAkunRelations(
   currentUserId?: string
 ): Promise<{ hasRelations: boolean; details: string[]; warningMessage?: string }> {
   try {
-    const session = await requireAdmin();
-    const activeUserId = currentUserId || session.id;
-    const { count } = await supabaseAdmin.from("akun").select("id", { count: "exact", head: true });
-    const details: string[] = [];
-
-    if (activeUserId) {
-      details.push("Akun Administrator yang sedang Anda gunakan saat ini akan tetap diproteksi dan TIDAK akan ikut terhapus.");
-    }
+    await requireAdmin();
+    const details: string[] = [
+      "Seluruh akun dengan role Administrator akan tetap diproteksi dan TIDAK akan ikut terhapus.",
+    ];
 
     return {
-      hasRelations: false, // Akun tidak memblokir hapus karena admin saat ini diproteksi otomatis
+      hasRelations: false, // Akun tidak memblokir hapus karena seluruh akun admin diproteksi otomatis
       details,
-      warningMessage: `Akan menghapus seluruh akun pengguna (kecuali akun Anda).`,
+      warningMessage: "Seluruh akun dengan role Administrator diproteksi dan tidak akan ikut terhapus.",
     };
   } catch (err: any) {
     return { hasRelations: false, details: [] };
@@ -151,7 +147,7 @@ export async function deleteAkun(
   }
 }
 
-/** Hapus semua akun (memproteksi akun admin yang sedang login) */
+/** Hapus semua akun (memproteksi semua akun dengan role admin) */
 export async function deleteAllAkun(
   currentUserId?: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -159,11 +155,13 @@ export async function deleteAllAkun(
     const session = await requireAdmin();
     const activeUserId = currentUserId || session.id;
 
-    let query = supabaseAdmin.from("akun").delete();
+    let query = supabaseAdmin
+      .from("akun")
+      .delete()
+      .neq("role", "admin");
+
     if (activeUserId) {
       query = query.neq("id", activeUserId);
-    } else {
-      query = query.neq("id", "00000000-0000-0000-0000-000000000000");
     }
 
     const { error } = await query;
