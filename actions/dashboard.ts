@@ -41,6 +41,8 @@ export interface KehadiranHariIni {
   terlambat?: boolean;
   menit_terlambat?: number;
   keterangan_terlambat?: string;
+  foto_absensi?: string | null;
+  file_bukti_izin_sakit?: string | null;
 }
 
 export interface MengajarHariIni {
@@ -54,6 +56,7 @@ export interface MengajarHariIni {
   terlambat?: boolean;
   menit_terlambat?: number;
   keterangan_terlambat?: string;
+  foto_absensi?: string | null;
 }
 
 // ── Admin Stats ───────────────────────────────────────────────
@@ -141,7 +144,7 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
 
   const { data, error } = await supabaseAdmin
     .from("absensi_masuk")
-    .select("id, status, waktu_submit, guru(nama)")
+    .select("id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit, guru(nama)")
     .eq("tanggal", today)
     .order("waktu_submit");
 
@@ -162,6 +165,8 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
       terlambat: ketInfo?.terlambat ?? false,
       menit_terlambat: ketInfo?.menit ?? 0,
       keterangan_terlambat: ketInfo?.label ?? "",
+      foto_absensi: row.foto_absensi ?? null,
+      file_bukti_izin_sakit: row.file_bukti_izin_sakit ?? null,
     };
   });
 }
@@ -174,7 +179,7 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_mengajar")
     .select(
-      "id, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
+      "id, waktu_submit, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
     )
     .eq("tanggal", today)
     .order("waktu_submit");
@@ -204,6 +209,7 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
       terlambat: ketInfo?.terlambat ?? false,
       menit_terlambat: ketInfo?.menit ?? 0,
       keterangan_terlambat: ketInfo?.label ?? "",
+      foto_absensi: row.foto_absensi ?? null,
     };
   });
 }
