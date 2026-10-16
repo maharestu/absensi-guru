@@ -2,19 +2,15 @@
 
 import React, { useState } from "react";
 import { ClockBadges } from "@/components/admin/ui/ClockBadges";
-import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X, Sparkles } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { importExcelData, ParsedData } from "@/actions/import";
-import { parseExcelWithAIAction, AIImportSummary } from "@/actions/ai-import";
 
 export default function ImportDataPage() {
   const [filePtk, setFilePtk] = useState<File | null>(null);
   const [fileKbm, setFileKbm] = useState<File | null>(null);
 
-  const [importMode, setImportMode] = useState<"template" | "ai">("template");
-
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [aiSummary, setAiSummary] = useState<AIImportSummary | null>(null);
   const [isParsing, setIsParsing] = useState(false);
 
   const [isImporting, setIsImporting] = useState(false);
@@ -41,29 +37,7 @@ export default function ImportDataPage() {
     setImportError("");
 
     try {
-      if (importMode === "ai") {
-        // --- 1. PROSES DENGAN AI (CADANGAN / FLEKSIBEL) ---
-        const bufferPtk = await filePtk.arrayBuffer();
-        const wbPtk = XLSX.read(bufferPtk, { type: "array" });
-        const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
-        const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
-
-        const bufferKbm = await fileKbm.arrayBuffer();
-        const wbKbm = XLSX.read(bufferKbm, { type: "array" });
-        const sheetKbmName = wbKbm.SheetNames.find((s: string) => s.toLowerCase() === "jadwal kbm" || s.toLowerCase().includes("kbm") || s.toLowerCase().includes("jadwal")) || wbKbm.SheetNames[0];
-        const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
-
-        const res = await parseExcelWithAIAction(dataPtkRaw, dataKbmRaw);
-        if (!res.success || !res.data) {
-          throw new Error(res.error || "Gagal memproses file dengan AI.");
-        }
-
-        setParsedData(res.data);
-        setAiSummary(res.summary ?? null);
-        return;
-      }
-
-      // --- 2. PROSES DENGAN TEMPLATE STANDAR SMPN 8 (LOKAL) ---
+      // PROSES FILE DATA PTK
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
       const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
@@ -260,27 +234,6 @@ export default function ImportDataPage() {
         }
       }
 
-      // Hitung total guru unik dari KEDUA file (PTK + Legenda KBM)
-      const ptkNames = ptkList.map(p => p.nama.toLowerCase().replace(/[^a-z0-9]/g, ""));
-      const kbmTeacherNames = Object.values(legendaGuru);
-      let extraKbm = 0;
-      for (const kn of kbmTeacherNames) {
-        const cleanK = kn.split(",")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-        const match = ptkNames.some(pn => pn === cleanK || pn.includes(cleanK) || cleanK.includes(pn));
-        if (!match) extraKbm++;
-      }
-
-      const summary: AIImportSummary = {
-        totalPtkGuru: ptkList.length,
-        totalKbmGuru: kbmTeacherNames.length,
-        extraKbmGuru: extraKbm,
-        totalGuruCombined: ptkList.length + extraKbm,
-        totalKelas: kelasesList.length,
-        totalJadwalBlok: jadwalsList.length,
-        totalMapel: Object.keys(legendaMapel).length,
-      };
-
-      setAiSummary(summary);
       setParsedData({
         ptk: ptkList,
         legendaGuru,
@@ -308,7 +261,6 @@ export default function ImportDataPage() {
       if (result.success) {
         setImportSuccess(true);
         setParsedData(null);
-        setAiSummary(null);
         setFilePtk(null);
         setFileKbm(null);
       } else {
@@ -340,45 +292,6 @@ export default function ImportDataPage() {
       {/* ── UPLOAD AREA ── */}
       <div className="w-full">
         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8">
-          
-          {/* Mode Switcher */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Pilih Metode Analisis</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Gunakan Import Standar untuk template resmi SMPN 8 (instan & presisi 100%), atau gunakan AI sebagai cadangan jika tata letak berkas berbeda.
-              </p>
-            </div>
-
-            <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
-              <button
-                type="button"
-                onClick={() => setImportMode("template")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  importMode === "template"
-                    ? "bg-white text-blue-600 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
-                Import Standar (Utama)
-                <span className="bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Rekomendasi</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportMode("ai")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  importMode === "ai"
-                    ? "bg-white text-blue-600 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                Import AI (Cadangan)
-                <span className="bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-0.5">Fleksibel</span>
-              </button>
-            </div>
-          </div>
 
           <div className="flex flex-col gap-8">
             {/* Upload PTK */}
@@ -434,21 +347,17 @@ export default function ImportDataPage() {
             <button
               onClick={processBothFiles}
               disabled={isParsing || !filePtk || !fileKbm}
-              className={`px-6 h-12 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed ${
-                importMode === "ai"
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/20 disabled:from-slate-300 disabled:to-slate-300"
-                  : "bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
-              }`}
+              className="px-6 h-12 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
             >
               {isParsing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  {importMode === "ai" ? "AI Sedang Menganalisis..." : "Memproses File..."}
+                  Memproses File...
                 </>
               ) : (
                 <>
-                  {importMode === "ai" ? <Sparkles className="w-5 h-5 mr-2" /> : <UploadCloud className="w-5 h-5 mr-2" />}
-                  {importMode === "ai" ? "Proses File dengan AI Cerdas" : "Proses File (Template Standar)"}
+                  <UploadCloud className="w-5 h-5 mr-2" />
+                  Proses File
                 </>
               )}
             </button>
@@ -477,14 +386,7 @@ export default function ImportDataPage() {
           <div className="relative bg-white rounded-3xl w-full max-w-[520px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-start justify-between p-6 pb-2">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
-                  {importMode === "ai" && (
-                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" /> AI Cerdas
-                    </span>
-                  )}
-                </div>
+                <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
                 <p className="text-[13px] text-slate-500 mt-1">Periksa hasil penyatuan jadwal dan total guru dari kedua file sebelum import.</p>
               </div>
               <button onClick={() => setParsedData(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer">
@@ -494,32 +396,26 @@ export default function ImportDataPage() {
 
             <div className="p-6 pt-4 space-y-5">
               <div className="grid grid-cols-2 gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                {/* Total Guru Gabungan Kedua File (Sesuai Permintaan User) */}
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase">TOTAL GURU (KEDUA FILE)</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">TOTAL GURU (PTK)</p>
                   <p className="text-2xl font-bold text-slate-900">
-                    {aiSummary?.totalGuruCombined ?? parsedData.ptk.length}
+                    {parsedData.ptk.length}
                   </p>
-                  <p className="text-[10px] text-slate-500 leading-tight">
-                    {parsedData.ptk.length} dari PTK • {aiSummary?.extraKbmGuru ?? 0} dari Jadwal KBM
-                  </p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Guru terdeteksi dari file PTK</p>
                 </div>
 
-                {/* Total Ruang Kelas */}
                 <div className="space-y-0.5">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">RUANG KELAS</p>
                   <p className="text-2xl font-bold text-slate-900">{parsedData.kelases.length}</p>
                   <p className="text-[10px] text-slate-400 leading-tight">Kelas terdeteksi</p>
                 </div>
 
-                {/* Total Blok Jadwal KBM */}
                 <div className="space-y-0.5">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">BLOK JADWAL KBM</p>
                   <p className="text-2xl font-bold text-blue-600">{parsedData.jadwals.length}</p>
                   <p className="text-[10px] text-slate-400 leading-tight">Jam berurutan telah disatukan</p>
                 </div>
 
-                {/* Total Mata Pelajaran */}
                 <div className="space-y-0.5">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">MATA PELAJARAN</p>
                   <p className="text-2xl font-bold text-slate-900">{Object.keys(parsedData.legendaMapel).length}</p>
