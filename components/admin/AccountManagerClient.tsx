@@ -76,7 +76,7 @@ export default function AccountManagerClient() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]); 
+  }, [searchQuery]);
   const loadData = async () => {
     try {
       const [accList, guruList] = await Promise.all([
@@ -309,7 +309,7 @@ export default function AccountManagerClient() {
     }
   };
 
-    const paginatedList = filteredAccounts.slice(
+  const paginatedList = filteredAccounts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -323,8 +323,8 @@ export default function AccountManagerClient() {
 
 
 
-  
-// reset page if search changes
+
+  // reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -356,10 +356,10 @@ export default function AccountManagerClient() {
           </button>
           <button
             type="button"
-            disabled={accounts.filter((a) => a.role !== "admin").length === 0}
+            disabled={accounts.length === 0}
             onClick={handleOpenDeleteAll}
             className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-[0.98] text-sm font-bold text-red-600 border border-red-200/80 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Hapus Semua Data Akun (Non-Admin)"
+            title="Hapus Semua Data Akun"
           >
             <Trash2 className="w-4 h-4" />
             <span>Hapus Semua</span>
@@ -453,8 +453,8 @@ export default function AccountManagerClient() {
         onClose={() => setIsDeleteAllOpen(false)}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Akun"
-        entityName="akun non-admin (guru & kepala sekolah)"
-        totalCount={accounts.filter((a) => a.role !== "admin").length}
+        entityName="akun pengguna"
+        totalCount={accounts.length}
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}
@@ -587,7 +587,7 @@ export default function AccountManagerClient() {
         </div>
         <form onSubmit={handleCreateSubmit} className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Nama Pemilik Akun */}
             <div className="space-y-2 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
@@ -700,7 +700,7 @@ export default function AccountManagerClient() {
                 </button>
               </div>
             </div>
-            
+
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">

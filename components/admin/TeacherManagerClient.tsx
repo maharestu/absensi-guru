@@ -28,6 +28,7 @@ export default function TeacherManagerClient() {
   const [editingTeacher, setEditingTeacher] = useState<Guru | null>(null);
   const [deletingTeacher, setDeletingTeacher] = useState<Guru | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+  const [isForceDeletingSingle, setIsForceDeletingSingle] = useState(false);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -58,7 +59,7 @@ export default function TeacherManagerClient() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]); 
+  }, [searchQuery]);
   const loadTeachers = async () => {
     try {
       const data = await getGuruList();
@@ -108,6 +109,25 @@ export default function TeacherManagerClient() {
       setSingleDeleteError(err.message || "Terjadi kesalahan saat menghapus data guru.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleForceDeleteSingle = async () => {
+    if (!deletingTeacher) return;
+    try {
+      setIsForceDeletingSingle(true);
+      const res = await deleteGuru(deletingTeacher.id, true);
+      if (res.success) {
+        setTeachers((prev) => prev.filter((t) => t.id !== deletingTeacher.id));
+        setDeletingTeacher(null);
+        setSingleDeleteError(null);
+      } else {
+        setSingleDeleteError(res.error || "Gagal menghapus paksa data guru.");
+      }
+    } catch (err: any) {
+      setSingleDeleteError(err.message || "Terjadi kesalahan saat menghapus paksa data guru.");
+    } finally {
+      setIsForceDeletingSingle(false);
     }
   };
 
@@ -221,7 +241,7 @@ export default function TeacherManagerClient() {
     }
   };
 
-    const paginatedList = filteredTeachers.slice(
+  const paginatedList = filteredTeachers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -230,8 +250,8 @@ export default function TeacherManagerClient() {
 
 
 
-  
-// reset page if search changes
+
+  // reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -275,14 +295,14 @@ export default function TeacherManagerClient() {
 
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+        <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-              <th className="pb-4 font-semibold w-[22%] pr-4">NAMA GURU</th>
-              <th className="pb-4 font-semibold w-[22%] pr-8">NIP/NUPTK</th>
-              <th className="pb-4 font-semibold w-[20%] pr-4">JABATAN</th>
-              <th className="pb-4 font-semibold w-[15%] pr-4">NO. TELEPON</th>
-              <th className="pb-4 font-semibold w-[11%]">STATUS</th>
+              <th className="pb-4 font-semibold w-[24%]">NAMA GURU</th>
+              <th className="pb-4 font-semibold w-[16%]">NIP/NUPTK</th>
+              <th className="pb-4 font-semibold w-[20%]">JABATAN</th>
+              <th className="pb-4 font-semibold w-[18%]">NO. TELEPON</th>
+              <th className="pb-4 font-semibold w-[12%]">STATUS</th>
               <th className="pb-4 font-semibold text-right w-[10%]"></th>
             </tr>
           </thead>
@@ -296,10 +316,10 @@ export default function TeacherManagerClient() {
             ) : (
               paginatedList.map((guru) => (
                 <tr key={guru.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-bold text-slate-900 pr-4">{guru.nama}</td>
-                  <td className="py-4 text-slate-500 font-medium pr-8">{guru.nip}</td>
-                  <td className="py-4 text-slate-500 font-medium pr-4">{guru.jabatan || "-"}</td>
-                  <td className="py-4 text-slate-500 font-medium pr-4">{guru.no_telepon || "-"}</td>
+                  <td className="py-4 font-bold text-slate-900">{guru.nama}</td>
+                  <td className="py-4 text-slate-500 font-medium">{guru.nip}</td>
+                  <td className="py-4 text-slate-500 font-medium">{guru.jabatan || "-"}</td>
+                  <td className="py-4 text-slate-500 font-medium">{guru.no_telepon || "-"}</td>
                   <td className="py-4 font-medium text-slate-600">
                     {guru.status?.toLowerCase() === "aktif" ? "Aktif" : "Nonaktif"}
                   </td>
@@ -312,13 +332,22 @@ export default function TeacherManagerClient() {
                       >
                         <Edit2 className="w-[18px] h-[18px]" />
                       </button>
-                      <button
-                        onClick={() => setDeletingTeacher(guru)}
-                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-                        title="Hapus Guru"
-                      >
-                        <Trash2 className="w-[18px] h-[18px]" />
-                      </button>
+                      {guru.linked_role === "admin" || guru.linked_role === "kepala_sekolah" ? (
+                        <span
+                          className="text-slate-300 p-1 cursor-not-allowed inline-flex items-center"
+                          title="Akun Sistem Terlindungi (Admin / Kepala Sekolah)"
+                        >
+                          <Trash2 className="w-[18px] h-[18px] opacity-30" />
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setDeletingTeacher(guru)}
+                          className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                          title="Hapus Guru"
+                        >
+                          <Trash2 className="w-[18px] h-[18px]" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -350,6 +379,8 @@ export default function TeacherManagerClient() {
         isDeleting={submitting}
         errorRelation={singleDeleteError}
         onClearError={() => setSingleDeleteError(null)}
+        onForceDelete={handleForceDeleteSingle}
+        isForceDeleting={isForceDeletingSingle}
       />
 
       <DeleteAllModal
@@ -358,7 +389,7 @@ export default function TeacherManagerClient() {
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Data Guru"
         entityName="guru"
-        totalCount={teachers.length}
+        totalCount={teachers.filter((t) => t.linked_role !== "admin" && t.linked_role !== "kepala_sekolah").length}
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}

@@ -55,6 +55,29 @@ export interface KeterlambatanInfo {
 }
 
 /**
+ * Konversi total menit keterlambatan ke format komunikatif jam dan menit.
+ * Contoh:
+ * - 45 -> "45 menit"
+ * - 60 -> "1 jam"
+ * - 90 -> "1 jam 30 menit"
+ * - 120 -> "2 jam"
+ */
+export function formatDurasiKeterlambatan(totalMenit: number): string {
+  if (totalMenit <= 0) return "0 menit";
+
+  const jam = Math.floor(totalMenit / 60);
+  const sisaMenit = totalMenit % 60;
+
+  if (jam === 0) {
+    return `${sisaMenit} menit`;
+  }
+  if (sisaMenit === 0) {
+    return `${jam} jam`;
+  }
+  return `${jam} jam ${sisaMenit} menit`;
+}
+
+/**
  * Hitung keterlambatan berdasarkan target jam dan batas toleransi.
  * Contoh: target "07:00", waktu absen "07:18", toleransi 5 menit -> Terlambat 18 menit.
  */
@@ -81,6 +104,6 @@ export function hitungKeterlambatan(
   return {
     terlambat: true,
     menit: selisihMenit,
-    label: `Terlambat ${selisihMenit} menit`,
+    label: `Terlambat ${formatDurasiKeterlambatan(selisihMenit)}`,
   };
 }

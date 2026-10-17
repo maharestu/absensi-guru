@@ -38,7 +38,7 @@ export default function KepsekLayout({
   }
 
   return (
-    <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
+    <div className="h-screen h-[100dvh] bg-[#f8fafc] flex overflow-hidden">
       {/* Mobile Top Bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-40 shadow-sm">
         <div className="flex items-center">
@@ -69,7 +69,7 @@ export default function KepsekLayout({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-screen pt-16 md:pt-0 bg-[#f8fafc]">
+      <main className="flex-1 overflow-y-auto h-full min-h-0 pt-16 md:pt-0 bg-[#f8fafc] overscroll-y-contain [-webkit-overflow-scrolling:touch]">
         <div className="px-5 py-6 md:px-8 md:py-8 w-full">{children}</div>
       </main>
     </div>

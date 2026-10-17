@@ -63,3 +63,41 @@ export function getDynamicDateTime(dateInput: Date | string = new Date()): { dat
     time: `${timeStr} WIB`,
   };
 }
+
+/**
+ * Normalisasi string jam dari Excel atau input ke format standar database HH:mm:ss (8 karakter).
+ * Mencegah error Postgres `date/time field value out of range` bila ada data tanpa titik seperti "0850".
+ * Contoh:
+ * - "07:30" / "07.30" -> "07:30:00"
+ * - "07:30:00" -> "07:30:00"
+ * - "0850" -> "08:50:00"
+ * - "830" -> "08:30:00"
+ */
+export function normalizeTimeString(t: string): string {
+  if (!t) return "07:00:00";
+  const clean = t.trim().replace(".", ":");
+
+  // Format 1: Mengandung pemisah titik dua (HH:mm atau HH:mm:ss)
+  if (clean.includes(":")) {
+    const parts = clean.split(":");
+    const h = (parts[0] || "07").padStart(2, "0");
+    const m = (parts[1] || "00").padStart(2, "0");
+    const s = (parts[2] || "00").padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  }
+
+  // Format 2: 4 digit tanpa pemisah (misal: "0850" -> 08:50:00)
+  const match4 = clean.match(/^(\d{2})(\d{2})$/);
+  if (match4) {
+    return `${match4[1]}:${match4[2]}:00`;
+  }
+
+  // Format 3: 3 digit tanpa pemisah (misal: "850" -> 08:50:00)
+  const match3 = clean.match(/^(\d{1})(\d{2})$/);
+  if (match3) {
+    return `0${match3[1]}:${match3[2]}:00`;
+  }
+
+  return "07:00:00";
+}
+

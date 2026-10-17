@@ -35,7 +35,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="h-screen bg-[#f8fafc] flex overflow-hidden print:h-auto print:block print:overflow-visible">
+    <div className="h-screen h-[100dvh] bg-[#f8fafc] flex overflow-hidden print:h-auto print:block print:overflow-visible">
       {/* Mobile Top Bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40 shadow-sm print:hidden">
         <button
@@ -64,7 +64,7 @@ export default function AdminLayout({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-screen pt-16 md:pt-0 bg-[#f8fafc] print:overflow-visible print:h-auto print:bg-white print:pt-0">
+      <main className="flex-1 overflow-y-auto h-full min-h-0 pt-16 md:pt-0 bg-[#f8fafc] overscroll-y-contain [-webkit-overflow-scrolling:touch] print:overflow-visible print:h-auto print:bg-white print:pt-0">
         <div className="px-5 py-6 md:px-8 md:py-8 w-full print:p-0">{children}</div>
       </main>
     </div>

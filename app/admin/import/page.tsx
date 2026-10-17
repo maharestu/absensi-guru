@@ -2,17 +2,34 @@
 
 import React, { useState } from "react";
 import { ClockBadges } from "@/components/admin/ui/ClockBadges";
-import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, X } from "lucide-react";
+import {
+  UploadCloud,
+  FileSpreadsheet,
+  Loader2,
+  CheckCircle2,
+  X,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  UserCheck,
+  Check
+} from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { importExcelData, ParsedData } from "@/actions/import";
+import { isNameMatch } from "@/lib/name-matcher";
+import { normalizeTimeString } from "@/lib/format";
 
 export default function ImportDataPage() {
   const [filePtk, setFilePtk] = useState<File | null>(null);
   const [fileKbm, setFileKbm] = useState<File | null>(null);
 
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
-  const [isParsing, setIsParsing] = useState(false);
+  const [skippedPtkGurus, setSkippedPtkGurus] = useState<ParsedData["ptk"]>([]);
+  const [selectedExtraPtkNames, setSelectedExtraPtkNames] = useState<string[]>([]);
+  const [kbmOnlyGurus, setKbmOnlyGurus] = useState<{ kode: string; nama: string }[]>([]);
+  const [showSkippedAccordion, setShowSkippedAccordion] = useState(false);
 
+  const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
   const [importError, setImportError] = useState("");
@@ -24,6 +41,12 @@ export default function ImportDataPage() {
       setImportSuccess(false);
       setImportError("");
     }
+  };
+
+  const toggleExtraPtk = (nama: string) => {
+    setSelectedExtraPtkNames((prev) =>
+      prev.includes(nama) ? prev.filter((n) => n !== nama) : [...prev, nama]
+    );
   };
 
   const processBothFiles = async () => {
@@ -64,7 +87,7 @@ export default function ImportDataPage() {
       const colGelarDepan = headers.indexOf("gelar depan");
       const colGelarBelakang = headers.indexOf("gelar belakang");
 
-      const ptkList: ParsedData["ptk"] = [];
+      const rawPtkGurus: ParsedData["ptk"] = [];
 
       for (let i = headerRowIndex + 1; i < dataPtkRaw.length; i++) {
         const row = dataPtkRaw[i];
@@ -90,7 +113,7 @@ export default function ImportDataPage() {
             }
           }
 
-          ptkList.push({
+          rawPtkGurus.push({
             nama: namaLengkap,
             nip: colNip !== -1 ? String(row[colNip]).trim() : "",
             nuptk: colNuptk !== -1 ? String(row[colNuptk]).trim() : "",
@@ -173,9 +196,9 @@ export default function ImportDataPage() {
           let jamMulaiStr = "07:00:00";
           let jamSelesaiStr = "14:00:00";
           if (jamRaw && jamRaw.includes("-")) {
-            const parts = jamRaw.split("-").map((s) => s.trim().replace(".", ":"));
-            if (parts[0]) jamMulaiStr = parts[0].length === 5 ? parts[0] + ":00" : parts[0];
-            if (parts[1]) jamSelesaiStr = parts[1].length === 5 ? parts[1] + ":00" : parts[1];
+            const parts = jamRaw.split("-").map((s) => s.trim());
+            if (parts[0]) jamMulaiStr = normalizeTimeString(parts[0]);
+            if (parts[1]) jamSelesaiStr = normalizeTimeString(parts[1]);
           }
 
           const cellVal = String(row[col]).trim();
@@ -234,8 +257,39 @@ export default function ImportDataPage() {
         }
       }
 
+      // 3. FILTERING: HANYA GURU YANG AKTIF DI JADWAL KBM
+      const activeGuruCodes = new Set(jadwalsList.map((j) => j.guruKode));
+      const activeKbmEntries = Object.entries(legendaGuru).filter(([kode]) => activeGuruCodes.has(kode));
+      const activeKbmNames = activeKbmEntries.map(([, nama]) => nama);
+
+      const matchedPtkList: ParsedData["ptk"] = [];
+      const skippedPtkList: ParsedData["ptk"] = [];
+
+      for (const ptk of rawPtkGurus) {
+        const isMatch = activeKbmNames.some((kbmName) => isNameMatch(kbmName, ptk.nama));
+        if (isMatch) {
+          matchedPtkList.push(ptk);
+        } else {
+          skippedPtkList.push(ptk);
+        }
+      }
+
+      // KBM Only Gurus (guru aktif di KBM yang belum ada di file PTK)
+      const kbmOnlyList: { kode: string; nama: string }[] = [];
+      for (const [kode, nama] of activeKbmEntries) {
+        const isInPtk = rawPtkGurus.some((ptk) => isNameMatch(ptk.nama, nama));
+        if (!isInPtk) {
+          kbmOnlyList.push({ kode, nama });
+        }
+      }
+
+      setSkippedPtkGurus(skippedPtkList);
+      setSelectedExtraPtkNames([]);
+      setKbmOnlyGurus(kbmOnlyList);
+      setShowSkippedAccordion(false);
+
       setParsedData({
-        ptk: ptkList,
+        ptk: matchedPtkList,
         legendaGuru,
         legendaMapel,
         kelases: kelasesList,
@@ -257,10 +311,21 @@ export default function ImportDataPage() {
     setImportSuccess(false);
 
     try {
-      const result = await importExcelData(parsedData);
+      // Gabungkan guru aktif KBM dari PTK dengan guru non-KBM yang dipilih admin (jika ada)
+      const extraPtks = skippedPtkGurus.filter((p) => selectedExtraPtkNames.includes(p.nama));
+      const finalPtkList = [...parsedData.ptk, ...extraPtks];
+
+      const result = await importExcelData({
+        ...parsedData,
+        ptk: finalPtkList
+      });
+
       if (result.success) {
         setImportSuccess(true);
         setParsedData(null);
+        setSkippedPtkGurus([]);
+        setSelectedExtraPtkNames([]);
+        setKbmOnlyGurus([]);
         setFilePtk(null);
         setFileKbm(null);
       } else {
@@ -282,7 +347,7 @@ export default function ImportDataPage() {
             Import Data Ganda
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Unggah File PTK dan File Jadwal KBM untuk sinkronisasi data sekolah secara otomatis.
+            Unggah File PTK dan File Jadwal KBM untuk sinkronisasi guru aktif dan jadwal secara otomatis.
           </p>
         </div>
 
@@ -297,7 +362,7 @@ export default function ImportDataPage() {
             {/* Upload PTK */}
             <div>
               <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil Guru / PTK (Excel / CSV)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru yang ingin diimpor. Format kolom akan disesuaikan otomatis.</p>
+              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru profil PTK sekolah. Hanya guru aktif mengajar yang akan diproses secara default.</p>
 
               <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
@@ -321,7 +386,7 @@ export default function ImportDataPage() {
             {/* Upload Jadwal */}
             <div>
               <h3 className="text-[16px] font-bold text-slate-900">2. Data Jadwal KBM (Excel / CSV)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM yang ingin diimpor. Format kolom dan legenda akan dipetakan otomatis.</p>
+              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM. Seluruh guru aktif, kelas, dan blok jadwal akan dipetakan otomatis.</p>
 
               <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
                 <input
@@ -373,7 +438,7 @@ export default function ImportDataPage() {
           {importSuccess && (
             <div className="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-start gap-3 text-emerald-600">
               <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <p className="text-sm font-medium leading-relaxed">Kedua data berhasil diproses dan disinkronisasi ke database secara massal.</p>
+              <p className="text-sm font-medium leading-relaxed">Data guru aktif dan jadwal KBM berhasil disinkronisasi ke database.</p>
             </div>
           )}
         </div>
@@ -383,62 +448,173 @@ export default function ImportDataPage() {
       {parsedData && !importSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setParsedData(null)}></div>
-          <div className="relative bg-white rounded-3xl w-full max-w-[520px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between p-6 pb-2">
+          <div className="relative bg-white rounded-3xl w-full max-w-[560px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
-                <p className="text-[13px] text-slate-500 mt-1">Periksa hasil penyatuan jadwal dan total guru dari kedua file sebelum import.</p>
+                <p className="text-[13px] text-slate-500 mt-1">
+                  Data difilter otomatis: hanya guru yang aktif di jadwal KBM yang diproses.
+                </p>
               </div>
-              <button onClick={() => setParsedData(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer">
+              <button
+                onClick={() => setParsedData(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 pt-4 space-y-5">
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Grid 4 Kartu Statistik */}
               <div className="grid grid-cols-2 gap-3 bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase">TOTAL GURU (PTK)</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {parsedData.ptk.length}
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">GURU AKTIF KBM</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {parsedData.ptk.length + kbmOnlyGurus.length + selectedExtraPtkNames.length}
+                    <span className="text-xs font-normal text-slate-400 ml-1.5">
+                      ({parsedData.ptk.length + kbmOnlyGurus.length} KBM{selectedExtraPtkNames.length > 0 ? ` + ${selectedExtraPtkNames.length} Manual` : ""})
+                    </span>
                   </p>
-                  <p className="text-[10px] text-slate-400 leading-tight">Guru terdeteksi dari file PTK</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    {parsedData.ptk.length} dari PTK • {kbmOnlyGurus.length} dari KBM
+                  </p>
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">GURU PTK DILEWATI</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {skippedPtkGurus.length - selectedExtraPtkNames.length}
+                  </p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Tidak ada jadwal KBM</p>
                 </div>
 
                 <div className="space-y-0.5">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">RUANG KELAS</p>
                   <p className="text-2xl font-bold text-slate-900">{parsedData.kelases.length}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">Kelas terdeteksi</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Kelas terdeteksi dari KBM</p>
                 </div>
 
                 <div className="space-y-0.5">
                   <p className="text-[11px] font-bold text-slate-500 uppercase">BLOK JADWAL KBM</p>
-                  <p className="text-2xl font-bold text-blue-600">{parsedData.jadwals.length}</p>
+                  <p className="text-2xl font-bold text-slate-900">{parsedData.jadwals.length}</p>
                   <p className="text-[10px] text-slate-400 leading-tight">Jam berurutan telah disatukan</p>
                 </div>
+              </div>
 
-                <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase">MATA PELAJARAN</p>
-                  <p className="text-2xl font-bold text-slate-900">{Object.keys(parsedData.legendaMapel).length}</p>
-                  <p className="text-[10px] text-slate-400 leading-tight">Mata pelajaran terdaftar</p>
+              {/* Accordion Guru Non-KBM yang dilewati */}
+              {skippedPtkGurus.length > 0 && (
+                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowSkippedAccordion(!showSkippedAccordion)}
+                    className="w-full p-4 flex items-center justify-between text-left hover:bg-amber-100/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <div>
+                        <span className="text-[13px] font-bold text-amber-900">
+                          {skippedPtkGurus.length} Guru di Profil PTK Tidak Mengajar di KBM
+                        </span>
+                        <p className="text-[11px] text-amber-700/80 mt-0.5">
+                          Klik untuk melihat rincian atau centang jika ingin tetap didaftarkan (Kepsek / BK)
+                        </p>
+                      </div>
+                    </div>
+                    {showSkippedAccordion ? (
+                      <ChevronUp className="w-4 h-4 text-amber-700 shrink-0 ml-2" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-amber-700 shrink-0 ml-2" />
+                    )}
+                  </button>
+
+                  {showSkippedAccordion && (
+                    <div className="p-4 pt-1 border-t border-amber-200/60 space-y-2">
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Pilih guru yang ingin tetap dibuatkan akun sistem meskipun tidak memiliki jadwal mengajar di kelas:
+                      </p>
+                      <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                        {skippedPtkGurus.map((ptk) => {
+                          const isSelected = selectedExtraPtkNames.includes(ptk.nama);
+                          return (
+                            <div
+                              key={ptk.nama}
+                              onClick={() => toggleExtraPtk(ptk.nama)}
+                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-blue-50/90 border-blue-300 shadow-xs"
+                                  : "bg-white/80 border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-[13px] font-semibold text-slate-900 truncate">
+                                    {ptk.nama}
+                                  </p>
+                                  {isSelected && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                      Tetap Ditambahkan
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                                  NIP: {ptk.nip || ptk.nuptk || "-"} • {ptk.jenisPtk}
+                                </p>
+                              </div>
+
+                              <div
+                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
+                                  isSelected
+                                    ? "bg-blue-600 border-blue-600 text-white"
+                                    : "border-slate-300 bg-white"
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setParsedData(null)}
-                  className="px-5 h-12 border border-slate-200 text-slate-700 text-[14px] font-bold rounded-[14px] hover:bg-slate-50 transition-all cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={isImporting}
-                  className="px-8 h-12 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-400 text-white text-[15px] font-bold rounded-[14px] flex items-center justify-center transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-                >
-                  {isImporting ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Menyimpan...</> : "Eksekusi Import"}
-                </button>
-              </div>
+              {/* Info jika ada guru KBM non-PTK */}
+              {kbmOnlyGurus.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 flex items-start gap-2.5 text-blue-800 text-[12px]">
+                  <UserCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <span className="font-bold">{kbmOnlyGurus.length} guru aktif di jadwal KBM</span> tidak tercatat di file profil PTK (guru baru/honorer). Guru ini akan otomatis didaftarkan dengan NIP sementara agar jadwal kelas tetap terisi.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 px-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setParsedData(null)}
+                className="px-5 h-11 border border-slate-200 text-slate-700 text-[14px] font-bold rounded-[14px] hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={isImporting}
+                className="px-7 h-11 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-400 text-white text-[14px] font-bold rounded-[14px] flex items-center justify-center transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+              >
+                {isImporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Eksekusi Import"
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Edit2, Trash2, Printer } from "lucide-react";
+import { Edit2, Trash2, Printer, Filter, ChevronDown } from "lucide-react";
 import { Kelas } from "@/types/schema";
 import { getKelasList, createKelas, updateKelas, deleteKelas, deleteAllKelas, checkKelasRelations } from "@/actions/kelas";
 import { ClockBadges } from "./ui/ClockBadges";
@@ -17,6 +17,9 @@ export default function ClassManagerClient() {
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterKelas, setFilterKelas] = useState<"all" | "7" | "8" | "9">("all");
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Kelas | null>(null);
 
@@ -91,9 +94,23 @@ export default function ClassManagerClient() {
     return () => window.removeEventListener('resize', updateScale);
   }, []);
 
+  // Tutup dropdown filter saat user klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]); 
+  }, [searchQuery, filterKelas]); 
   const loadData = async () => {
     try {
       const data = await getKelasList();
@@ -109,9 +126,40 @@ export default function ClassManagerClient() {
     loadData();
   }, []);
 
-  const filteredKelas = kelasList.filter((k) =>
-    (k.nama_kelas || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredKelas = kelasList.filter((k) => {
+    const query = searchQuery.trim().toLowerCase();
+    const nama = (k.nama_kelas || "").trim().toLowerCase();
+
+    if (query && !nama.includes(query)) {
+      return false;
+    }
+
+    if (filterKelas === "all") return true;
+
+    if (filterKelas === "7") {
+      return (
+        /\b(7|vii)\b/i.test(nama) ||
+        /^(kelas\s*)?(7|vii)[\s\-_a-z0-9]/i.test(nama) ||
+        /^(kelas\s*)?(7|vii)$/i.test(nama)
+      );
+    }
+    if (filterKelas === "8") {
+      return (
+        /\b(8|viii)\b/i.test(nama) ||
+        /^(kelas\s*)?(8|viii)[\s\-_a-z0-9]/i.test(nama) ||
+        /^(kelas\s*)?(8|viii)$/i.test(nama)
+      );
+    }
+    if (filterKelas === "9") {
+      return (
+        /\b(9|ix)\b/i.test(nama) ||
+        /^(kelas\s*)?(9|ix)[\s\-_a-z0-9]/i.test(nama) ||
+        /^(kelas\s*)?(9|ix)$/i.test(nama)
+      );
+    }
+
+    return true;
+  });
 
   useEffect(() => {
     if (typeof document !== "undefined" && document.title) {
@@ -302,18 +350,73 @@ export default function ClassManagerClient() {
         <ClockBadges />
       </div>
 
-      {/* Search Input Box */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative w-full sm:w-[400px]">
-          <input
-            type="text"
-            placeholder="Cari nama kelas..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
-          />
+      {/* Search & Filter Toolbar */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto flex-1">
+          <div className="relative w-full sm:w-[320px]">
+            <input
+              type="text"
+              placeholder="Cari nama kelas..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-100 border border-transparent transition-all"
+            />
+          </div>
+
+          {/* Button Filter Dropdown */}
+          <div className="relative w-full sm:w-auto" ref={filterDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsFilterDropdownOpen((prev) => !prev)}
+              className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-sm font-semibold flex items-center justify-between sm:justify-start gap-2.5 transition-all cursor-pointer whitespace-nowrap min-w-[145px] ${
+                filterKelas !== "all"
+                  ? "bg-blue-50 border-blue-200 text-blue-700 shadow-xs"
+                  : "bg-[#f0f4f9] border-transparent text-slate-700 hover:bg-slate-200/70"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Filter className={`w-4 h-4 ${filterKelas !== "all" ? "text-blue-600" : "text-slate-500"}`} />
+                <span>
+                  {filterKelas === "all" ? "Semua Kelas" : `Kelas ${filterKelas}`}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  isFilterDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {isFilterDropdownOpen && (
+              <div className="absolute left-0 mt-2 w-full sm:w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-30 animate-in fade-in slide-in-from-top-1">
+                {[
+                  { value: "all", label: "Semua Kelas" },
+                  { value: "7", label: "Kelas 7" },
+                  { value: "8", label: "Kelas 8" },
+                  { value: "9", label: "Kelas 9" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setFilterKelas(option.value as "all" | "7" | "8" | "9");
+                      setIsFilterDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                      filterKelas === option.value
+                        ? "bg-blue-50 text-blue-600 font-semibold"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 self-start sm:self-auto w-full sm:w-auto">
+
+        <div className="flex flex-col sm:flex-row items-center gap-3 self-start lg:self-auto w-full lg:w-auto">
           <button
             onClick={handlePrintAllQR}
             disabled={isPreparingPrint}
@@ -342,9 +445,61 @@ export default function ClassManagerClient() {
       </div>
 
 
-      {/* Table List */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[500px]">
+      {/* Table & Mobile Card List */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm">
+        {/* Mobile View (< sm) */}
+        <div className="block sm:hidden divide-y divide-slate-100">
+          {filteredKelas.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 font-medium text-sm">
+              {searchQuery || filterKelas !== "all"
+                ? "Tidak ada ruang kelas yang cocok dengan filter atau pencarian."
+                : "Belum ada ruang kelas."}
+            </div>
+          ) : (
+            paginatedList.map((kelas) => (
+              <div
+                key={kelas.id}
+                className="py-3.5 flex items-center justify-between gap-3"
+              >
+                <div className="text-sm font-semibold text-slate-800 truncate pr-1">
+                  {kelas.nama_kelas}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth={false}
+                    onClick={() => setSelectedClass(kelas)}
+                    className="bg-blue-600 hover:bg-blue-700 font-semibold px-3 py-1.5 text-xs h-auto"
+                  >
+                    Lihat QR
+                  </Button>
+                  <button
+                    onClick={() => {
+                      setEditingClass(kelas);
+                      setEditName(kelas.nama_kelas);
+                      setEditError("");
+                    }}
+                    className="text-slate-400 hover:text-slate-800 transition-colors p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                    title="Edit Kelas"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeletingClass(kelas)}
+                    className="text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
+                    title="Hapus Kelas"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table View (>= sm) */}
+        <table className="hidden sm:table w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
               <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
@@ -355,7 +510,9 @@ export default function ClassManagerClient() {
             {filteredKelas.length === 0 ? (
               <tr>
                 <td colSpan={2} className="py-8 text-center text-slate-400 font-medium">
-                  Tidak ada ruang kelas yang cocok dengan "{searchQuery}".
+                  {searchQuery || filterKelas !== "all"
+                    ? "Tidak ada ruang kelas yang cocok dengan filter atau pencarian."
+                    : "Belum ada ruang kelas."}
                 </td>
               </tr>
             ) : (

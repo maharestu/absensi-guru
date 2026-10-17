@@ -13,6 +13,8 @@ interface DeleteSingleModalProps {
   isDeleting?: boolean;
   errorRelation?: string | null;
   onClearError?: () => void;
+  onForceDelete?: () => void;
+  isForceDeleting?: boolean;
 }
 
 export function DeleteSingleModal({
@@ -24,6 +26,8 @@ export function DeleteSingleModal({
   isDeleting = false,
   errorRelation = null,
   onClearError,
+  onForceDelete,
+  isForceDeleting = false,
 }: DeleteSingleModalProps) {
   const handleClose = () => {
     if (onClearError) onClearError();
@@ -41,22 +45,55 @@ export function DeleteSingleModal({
 
           <div className="space-y-1.5">
             <h3 className="text-lg font-bold text-slate-900">
-              Data Tidak Dapat Dihapus
+              Data Terkait Relasi Lain
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed max-w-xs">
               {errorRelation}
             </p>
           </div>
 
-          <div className="w-full pt-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-sm font-semibold transition-all shadow-xs"
-            >
-              Mengerti & Tutup
-            </button>
-          </div>
+          {onForceDelete ? (
+            <div className="w-full space-y-2 pt-2">
+              <div className="flex items-center gap-2.5 w-full">
+                <button
+                  type="button"
+                  disabled={isForceDeleting || isDeleting}
+                  onClick={handleClose}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isForceDeleting || isDeleting}
+                  onClick={onForceDelete}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs font-bold transition-all shadow-xs shadow-red-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {isForceDeleting || isDeleting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Menghapus...</span>
+                    </>
+                  ) : (
+                    <span>Paksa Hapus Beserta Riwayat</span>
+                  )}
+                </button>
+              </div>
+              <p className="text-[10.5px] text-slate-400">
+                Data jadwal, akun, dan absensi guru ini akan ikut terhapus.
+              </p>
+            </div>
+          ) : (
+            <div className="w-full pt-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-sm font-semibold transition-all shadow-xs"
+              >
+                Mengerti & Tutup
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         // State Konfirmasi Hapus Normal

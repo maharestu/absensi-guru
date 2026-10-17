@@ -14,6 +14,7 @@ import {
 } from "@/actions/dashboard";
 import { getStatusColorText } from "@/lib/status";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
+import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
 
 function getStatusBadge(status: string) {
   const s = status.toLowerCase();
@@ -52,7 +53,7 @@ export default function KepsekDashboardPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const itemsPerPage = isMobile ? 2 : 10;
+  const itemsPerPage = isMobile ? 4 : 10;
 
   // Pagination states & Search states
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
@@ -60,91 +61,7 @@ export default function KepsekDashboardPage() {
   const [searchKehadiran, setSearchKehadiran] = useState("");
   const [searchMengajar, setSearchMengajar] = useState("");
 
-  // Horizontal auto-scroll & manual swipe for mobile stat cards
-  const statScrollRef = useRef<HTMLDivElement>(null);
-  const isInteractingRef = useRef(false);
-  const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  const startXRef = useRef(0);
-  const startScrollLeftRef = useRef(0);
 
-  const startInteracting = () => {
-    isInteractingRef.current = true;
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current);
-      resumeTimeoutRef.current = null;
-    }
-  };
-
-  const stopInteracting = () => {
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current);
-    }
-    resumeTimeoutRef.current = setTimeout(() => {
-      isInteractingRef.current = false;
-    }, 1800);
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    startInteracting();
-    setIsMouseDown(true);
-    if (statScrollRef.current) {
-      startXRef.current = e.pageX - statScrollRef.current.offsetLeft;
-      startScrollLeftRef.current = statScrollRef.current.scrollLeft;
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isMouseDown || !statScrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - statScrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.2;
-    statScrollRef.current.scrollLeft = startScrollLeftRef.current - walk;
-  };
-
-  const handleMouseUp = () => {
-    setIsMouseDown(false);
-    stopInteracting();
-  };
-
-  useEffect(() => {
-    const el = statScrollRef.current;
-    if (!el) return;
-
-    // Set initial position to middle set after layout renders
-    const setWidth = el.scrollWidth / 3;
-    if (setWidth > 0 && el.scrollLeft < setWidth / 2) {
-      el.scrollLeft = setWidth;
-    }
-
-    let animationFrameId: number;
-    let lastTime = performance.now();
-
-    const step = (time: number) => {
-      const delta = time - lastTime;
-      lastTime = time;
-
-      if (!isInteractingRef.current && el) {
-        // Continuous smooth auto-drift (~32px per second)
-        el.scrollLeft += delta * 0.032;
-        const currentSetWidth = el.scrollWidth / 3;
-        if (currentSetWidth > 0 && el.scrollLeft >= currentSetWidth * 2) {
-          el.scrollLeft -= currentSetWidth;
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(step);
-    };
-
-    animationFrameId = requestAnimationFrame(step);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      if (resumeTimeoutRef.current) {
-        clearTimeout(resumeTimeoutRef.current);
-      }
-    };
-  }, [loading]);
 
   // Reset pagination if screen mode or search changes
   useEffect(() => {
@@ -204,7 +121,7 @@ export default function KepsekDashboardPage() {
     loadData();
   }, []);
 
-  const statCardItems = [
+  const statCardItems: StatCardItem[] = [
     {
       id: "hadir",
       label: "Guru Hadir",
@@ -281,27 +198,6 @@ export default function KepsekDashboardPage() {
     },
   ];
 
-  const renderStatCard = (item: (typeof statCardItems)[0], keySuffix: string = "") => (
-    <div
-      key={`${item.id}${keySuffix}`}
-      className="min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 select-none cursor-default"
-    >
-      <div
-        className={`w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl ${item.bgIcon} flex items-center justify-center text-white flex-shrink-0 shadow-md ${item.shadowIcon}`}
-      >
-        {item.icon}
-      </div>
-      <div>
-        <p className="text-[11px] sm:text-xs font-semibold text-slate-400">
-          {item.label}
-        </p>
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-          {loading ? "..." : item.value}
-        </h2>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-5 sm:space-y-8">
       {/* ── HEADER ROW ── */}
@@ -356,50 +252,11 @@ export default function KepsekDashboardPage() {
       </div>
 
       {/* ── STAT CARDS ── */}
-      {/* Mobile/Tablet Continuous Auto-Drift & Manual Swipe (< lg) */}
-      <div className="relative block lg:hidden -mx-5 px-5">
-        {/* Soft Left & Right gradient fade mask */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-[#f8fafc] to-transparent z-10" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[#f8fafc] to-transparent z-10" />
-
-        <div
-          ref={statScrollRef}
-          className={`flex gap-3 sm:gap-4 py-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x ${
-            isMouseDown ? "cursor-grabbing select-none" : "cursor-grab"
-          }`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={startInteracting}
-          onTouchEnd={stopInteracting}
-          onScroll={() => {
-            const el = statScrollRef.current;
-            if (!el) return;
-            const setWidth = el.scrollWidth / 3;
-            if (setWidth > 0) {
-              if (el.scrollLeft >= setWidth * 2) {
-                el.scrollLeft -= setWidth;
-              } else if (el.scrollLeft <= 5) {
-                el.scrollLeft += setWidth;
-              }
-            }
-            if (isInteractingRef.current) {
-              stopInteracting();
-            }
-          }}
-        >
-          {/* 3 identical sets to ensure seamless infinite wrapping in both directions */}
-          {statCardItems.map((item) => renderStatCard(item, "-set1"))}
-          {statCardItems.map((item) => renderStatCard(item, "-set2"))}
-          {statCardItems.map((item) => renderStatCard(item, "-set3"))}
-        </div>
-      </div>
-
-      {/* Desktop Grid (lg+) */}
-      <div className="hidden lg:grid lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
-        {statCardItems.map((item) => renderStatCard(item))}
-      </div>
+      <ScrollingStatCards
+        items={statCardItems}
+        loading={loading}
+        desktopGridCols="lg:grid-cols-5"
+      />
 
       {/* ── TABEL & CARD: ABSENSI KEHADIRAN HARI INI ── */}
       <div>
@@ -445,7 +302,7 @@ export default function KepsekDashboardPage() {
                       <span className="font-medium text-slate-700">{row.waktu_masuk ?? "—"}</span>
                       {row.status.toLowerCase() === "hadir" && row.waktu_masuk && row.keterangan_terlambat && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
                             row.terlambat
                               ? "bg-rose-50 text-rose-600 border border-rose-200/80"
                               : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
@@ -482,8 +339,9 @@ export default function KepsekDashboardPage() {
           )}
 
           {!loading && filteredKehadiran.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
               <Pagination
+                size="sm"
                 currentPage={currentPageKehadiran}
                 totalItems={filteredKehadiran.length}
                 itemsPerPage={itemsPerPage}
@@ -522,7 +380,7 @@ export default function KepsekDashboardPage() {
                         <span>{row.waktu_masuk ?? "—"}</span>
                         {row.status.toLowerCase() === "hadir" && row.waktu_masuk && row.keterangan_terlambat && (
                           <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
                               row.terlambat
                                 ? "bg-rose-50 text-rose-600 border border-rose-200/80"
                                 : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
@@ -559,6 +417,7 @@ export default function KepsekDashboardPage() {
           </table>
           {!loading && filteredKehadiran.length > 0 && (
             <Pagination
+              size="sm"
               currentPage={currentPageKehadiran}
               totalItems={filteredKehadiran.length}
               itemsPerPage={itemsPerPage}
@@ -644,7 +503,7 @@ export default function KepsekDashboardPage() {
                       <span className="font-semibold text-slate-700">{row.waktu_absen}</span>
                       {row.keterangan_terlambat && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
                             row.terlambat
                               ? "bg-rose-50 text-rose-600 border border-rose-200/80"
                               : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
@@ -662,8 +521,9 @@ export default function KepsekDashboardPage() {
           )}
 
           {!loading && filteredMengajar.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
               <Pagination
+                size="sm"
                 currentPage={currentPageMengajar}
                 totalItems={filteredMengajar.length}
                 itemsPerPage={itemsPerPage}
@@ -711,7 +571,7 @@ export default function KepsekDashboardPage() {
                         <span>{row.waktu_absen}</span>
                         {row.keterangan_terlambat && (
                           <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
                               row.terlambat
                                 ? "bg-rose-50 text-rose-600 border border-rose-200/80"
                                 : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
@@ -751,6 +611,7 @@ export default function KepsekDashboardPage() {
           </table>
           {!loading && filteredMengajar.length > 0 && (
             <Pagination
+              size="sm"
               currentPage={currentPageMengajar}
               totalItems={filteredMengajar.length}
               itemsPerPage={itemsPerPage}

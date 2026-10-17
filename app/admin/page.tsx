@@ -6,6 +6,8 @@ import { ClockBadges } from "@/components/admin/ui/ClockBadges";
 import Pagination from "@/components/ui/pagination";
 import { Search } from "lucide-react";
 
+import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats>({
     totalGuru: 0,
@@ -57,6 +59,52 @@ export default function AdminDashboardPage() {
     loadDashboardData();
   }, []);
 
+  const statCards: StatCardItem[] = [
+    {
+      id: "total-guru",
+      label: "Total Guru",
+      value: stats.totalGuru,
+      bgIcon: "bg-blue-600",
+      shadowIcon: "shadow-blue-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="9" cy="7" r="4" stroke="white" strokeWidth="2" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "total-jadwal",
+      label: "Total Jadwal",
+      value: stats.totalJadwal,
+      bgIcon: "bg-purple-600",
+      shadowIcon: "shadow-purple-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="18" rx="3" stroke="white" strokeWidth="2" />
+          <path d="M16 2V6M8 2V6M3 10H21" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          <path d="M8 14H10M14 14H16M8 18H10" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+    {
+      id: "total-akun",
+      label: "Total Akun",
+      value: stats.totalAkun,
+      bgIcon: "bg-emerald-600",
+      shadowIcon: "shadow-emerald-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="2" />
+          <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2" />
+          <path d="M6.168 18.849C7.488 17.11 9.608 16 12 16C14.392 16 16.512 17.11 17.832 18.849" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-8">
       {/* ── HEADER ROW ── */}
@@ -74,59 +122,11 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ── STAT CARDS (3 Cards) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
-        {/* Card 1: Total Guru */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="9" cy="7" r="4" stroke="white" strokeWidth="2" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Guru</p>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {loading ? "..." : stats.totalGuru}
-            </h2>
-          </div>
-        </div>
-
-        {/* Card 2: Total Jadwal */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="4" width="18" height="18" rx="3" stroke="white" strokeWidth="2" />
-              <path d="M16 2V6M8 2V6M3 10H21" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              <path d="M8 14H10M14 14H16M8 18H10" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Jadwal</p>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {loading ? "..." : stats.totalJadwal}
-            </h2>
-          </div>
-        </div>
-
-        {/* Card 3: Total Akun */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full col-span-2 lg:col-span-1">
-          <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-emerald-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="white" strokeWidth="2" />
-              <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2" />
-              <path d="M6.168 18.849C7.488 17.11 9.608 16 12 16C14.392 16 16.512 17.11 17.832 18.849" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Total Akun</p>
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-              {loading ? "..." : stats.totalAkun}
-            </h2>
-          </div>
-        </div>
-      </div>
+      <ScrollingStatCards
+        items={statCards}
+        loading={loading}
+        desktopGridCols="lg:grid-cols-3"
+      />
 
       {/* ── AKTIVITAS TERBARU TABLE ── */}
       <div>
