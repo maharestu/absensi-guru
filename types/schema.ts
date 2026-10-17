@@ -33,6 +33,7 @@ export interface Guru {
   alamat?: string | null;
   jenis_kelamin?: "Laki-Laki" | "Perempuan" | string | null;
   status: StatusAktif;
+  linked_role?: RoleAkun | null;
   created_at: Date | string;
 }
 

@@ -23,6 +23,12 @@ const ROLE_LABEL: Record<AdminAkunItem["role"], string> = {
   guru: "Guru",
 };
 
+const ROLE_PRIORITY: Record<AdminAkunItem["role"], number> = {
+  kepala_sekolah: 0,
+  admin: 1,
+  guru: 2,
+};
+
 export default function AccountManagerClient() {
   const { user } = useAuth();
 
@@ -90,16 +96,25 @@ export default function AccountManagerClient() {
     loadData();
   }, []);
 
-  const filteredAccounts = accounts.filter((a) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      (a.username || "").toLowerCase().includes(q) ||
-      (a.nama || "").toLowerCase().includes(q) ||
-      (a.role || "").toLowerCase().includes(q) ||
-      (ROLE_LABEL[a.role] || "").toLowerCase().includes(q)
-    );
-  });
+  const filteredAccounts = accounts
+    .filter((a) => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        (a.username || "").toLowerCase().includes(q) ||
+        (a.nama || "").toLowerCase().includes(q) ||
+        (a.role || "").toLowerCase().includes(q) ||
+        (ROLE_LABEL[a.role] || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      const priorityA = ROLE_PRIORITY[a.role] ?? 99;
+      const priorityB = ROLE_PRIORITY[b.role] ?? 99;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return (a.nama || "").localeCompare(b.nama || "");
+    });
 
   const handleConfirmDelete = async () => {
     if (!deletingAccount) return;

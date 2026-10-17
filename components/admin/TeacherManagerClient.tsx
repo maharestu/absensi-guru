@@ -11,6 +11,12 @@ import Pagination from "@/components/ui/pagination";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
 import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 
+const ROLE_PRIORITY: Record<string, number> = {
+  kepala_sekolah: 0,
+  admin: 1,
+  guru: 2,
+};
+
 export default function TeacherManagerClient() {
 
   const [teachers, setTeachers] = useState<Guru[]>([]);
@@ -68,14 +74,23 @@ export default function TeacherManagerClient() {
     loadTeachers();
   }, []);
 
-  const filteredTeachers = teachers.filter((t) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (t.nama || "").toLowerCase().includes(q) ||
-      (t.nip || "").toLowerCase().includes(q) ||
-      (t.jabatan && t.jabatan.toLowerCase().includes(q))
-    );
-  });
+  const filteredTeachers = teachers
+    .filter((t) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        (t.nama || "").toLowerCase().includes(q) ||
+        (t.nip || "").toLowerCase().includes(q) ||
+        (t.jabatan && t.jabatan.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      const priorityA = a.linked_role ? (ROLE_PRIORITY[a.linked_role] ?? 2) : 2;
+      const priorityB = b.linked_role ? (ROLE_PRIORITY[b.linked_role] ?? 2) : 2;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return (a.nama || "").localeCompare(b.nama || "");
+    });
 
   const handleConfirmDelete = async () => {
     if (!deletingTeacher) return;

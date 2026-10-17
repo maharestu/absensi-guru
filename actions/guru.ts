@@ -12,10 +12,24 @@ import { requireAdmin } from "@/lib/session";
 export async function getGuruList(): Promise<Guru[]> {
   const { data, error } = await supabaseAdmin
     .from("guru")
-    .select("*")
+    .select("*, akun(role)")
     .order("nama");
   if (error) throw new Error(error.message);
-  return (data ?? []) as Guru[];
+  return (data ?? []).map((row: any) => {
+    let linked_role = null;
+    if (row.akun) {
+      if (Array.isArray(row.akun) && row.akun.length > 0) {
+        linked_role = row.akun[0].role;
+      } else if (typeof row.akun === "object" && row.akun.role) {
+        linked_role = row.akun.role;
+      }
+    }
+    const { akun, ...rest } = row;
+    return {
+      ...rest,
+      linked_role,
+    };
+  }) as Guru[];
 }
 
 export async function getGuruById(id: string): Promise<Guru | null> {
@@ -29,11 +43,12 @@ export async function getGuruById(id: string): Promise<Guru | null> {
 }
 
 export async function createGuru(
-  input: Omit<Guru, "id" | "created_at">
+  input: Omit<Guru, "id" | "created_at" | "linked_role">
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
-    const { error } = await supabaseAdmin.from("guru").insert(input);
+    const { linked_role, ...dataToInsert } = input as any;
+    const { error } = await supabaseAdmin.from("guru").insert(dataToInsert);
     if (error) return { success: false, error: error.message };
     return { success: true };
   } catch (err: any) {
@@ -43,13 +58,14 @@ export async function createGuru(
 
 export async function updateGuru(
   id: string,
-  input: Partial<Omit<Guru, "id" | "created_at">>
+  input: Partial<Omit<Guru, "id" | "created_at" | "linked_role">>
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin();
+    const { linked_role, ...dataToUpdate } = input as any;
     const { error } = await supabaseAdmin
       .from("guru")
-      .update(input)
+      .update(dataToUpdate)
       .eq("id", id);
     if (error) return { success: false, error: error.message };
     return { success: true };
