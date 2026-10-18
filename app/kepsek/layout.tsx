@@ -29,6 +29,16 @@ export default function KepsekLayout({
     }
   }, [isLoading, isAuthenticated, user, router]);
 
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "admin") {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
@@ -69,7 +79,7 @@ export default function KepsekLayout({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto min-h-0 bg-[#f8fafc] overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+      <main className="flex-1 overflow-y-auto min-h-0 bg-[#f8fafc] overscroll-y-auto [-webkit-overflow-scrolling:touch]">
         <div className="px-5 py-6 pb-24 md:px-8 md:py-8 md:pb-8 w-full">{children}</div>
       </main>
     </div>

@@ -31,7 +31,6 @@ export async function getAkunList(): Promise<AdminAkunItem[]> {
     nip: row.guru?.nip ?? undefined,
     role: row.role as AdminAkunItem["role"],
     status: row.status as AdminAkunItem["status"],
-    terakhir_dilihat: "-",
     created_at: row.created_at,
   }));
 }

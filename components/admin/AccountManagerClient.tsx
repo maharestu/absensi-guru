@@ -368,14 +368,14 @@ export default function AccountManagerClient() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px]">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-              <th className="pb-4 font-semibold w-[28%]">NAMA</th>
-              <th className="pb-4 font-semibold w-[22%]">USERNAME</th>
-              <th className="pb-4 font-semibold w-[20%]">ROLE</th>
-              <th className="pb-4 font-semibold w-[18%]">TERAKHIR DILIHAT</th>
-              <th className="pb-4 font-semibold text-right w-[12%]"></th>
+              <th className="pb-4 font-semibold w-[25%]">NAMA</th>
+              <th className="pb-4 font-semibold w-[30%] pr-4">NIP/NUPTK</th>
+              <th className="pb-4 font-semibold w-[23%]">USERNAME</th>
+              <th className="pb-4 font-semibold w-[14%]">ROLE</th>
+              <th className="pb-4 font-semibold text-right w-[8%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
@@ -388,15 +388,10 @@ export default function AccountManagerClient() {
             ) : (
               paginatedList.map((akun) => (
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-bold text-slate-900">
-                    <div>{akun.nama}</div>
-                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP/NUPTK: {akun.nip}</span>}
-                  </td>
+                  <td className="py-4 font-bold text-slate-900">{akun.nama}</td>
+                  <td className="py-4 text-slate-600 font-normal pr-4">{akun.nip || "-"}</td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
                   <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
-                  <td className="py-4 text-slate-500 font-normal">
-                    {akun.terakhir_dilihat ?? "-"}
-                  </td>
                   <td className="py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
                       <button
