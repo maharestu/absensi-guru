@@ -6,7 +6,14 @@ import { requireAdmin } from "@/lib/session";
 import { cleanNameString, isNameMatch } from "@/lib/name-matcher";
 
 export type ParsedData = {
-  ptk: { nama: string; nip: string; nuptk: string; jenisPtk: string }[];
+  ptk: {
+    nama: string;
+    nip: string;
+    nuptk: string;
+    jenisPtk: string;
+    noTelepon?: string;
+    jabatan?: string;
+  }[];
   legendaGuru: Record<string, string>;
   legendaMapel: Record<string, string>;
   kelases: string[];
@@ -43,7 +50,7 @@ export async function importExcelData(data: ParsedData) {
     // Kumpulkan seluruh akun yang sudah ada untuk mencegah duplikasi username dan akun
     const { data: existingAkuns, error: errAkun } = await supabase
       .from("akun")
-      .select("id, username, guru_id, role");
+      .select("id, username, guru_id, role, status, nama");
     if (errAkun) throw errAkun;
 
     const usedUsernames = new Set(existingAkuns?.map((a) => a.username) || []);
@@ -73,7 +80,7 @@ export async function importExcelData(data: ParsedData) {
     // Ambil data guru yang sudah ada di database
     const { data: existingGurus, error: errGuru } = await supabase
       .from("guru")
-      .select("id, nama, nip, status");
+      .select("id, nama, nip, status, no_telepon, jabatan");
     if (errGuru) throw errGuru;
 
     const dbGuruList: any[] = [...(existingGurus || [])];
@@ -84,8 +91,16 @@ export async function importExcelData(data: ParsedData) {
 
     const defaultPasswordHash = await bcrypt.hash("password123", 10);
     const gurusToInsert: any[] = [];
-    const gurusToUpdate: { id: string; nama?: string; nip?: string }[] = [];
+    const gurusToUpdate: {
+      id: string;
+      nama?: string;
+      nip?: string;
+      status?: string;
+      no_telepon?: string | null;
+      jabatan?: string | null;
+    }[] = [];
     const akunsToInsert: any[] = [];
+    const akunsToUpdate: { id: string; status?: string; nama?: string }[] = [];
 
     const ptksLolosFilter = data.ptk.filter((p) =>
       p.jenisPtk.toLowerCase().includes("guru")
@@ -96,8 +111,8 @@ export async function importExcelData(data: ParsedData) {
         p.nip && p.nip !== "-"
           ? p.nip.trim()
           : p.nuptk && p.nuptk !== "-"
-          ? p.nuptk.trim()
-          : "";
+            ? p.nuptk.trim()
+            : "";
 
       let finalName = p.nama;
       const kbmNameEntry = Object.values(data.legendaGuru).find((kn) =>
@@ -119,27 +134,79 @@ export async function importExcelData(data: ParsedData) {
       }
 
       if (existingGuru) {
-        // Guru sudah ada di DB — cek apakah ada pembaruan (NIP resmi baru atau nama bergelar)
+        // Guru sudah ada di DB — sesuaikan seluruh data dengan data terbaru dari Excel (Import-First Priority)
         const updates: any = {};
-        if (
-          rawNip &&
-          !rawNip.startsWith("TEMP-") &&
-          (!existingGuru.nip || existingGuru.nip.startsWith("TEMP-"))
-        ) {
-          updates.nip = rawNip;
-          existingGuru.nip = rawNip;
-          dbNipSet.add(rawNip);
+
+        // 1. Status: Selalu pastikan status aktif sesuai data import
+        if (existingGuru.status !== "aktif") {
+          updates.status = "aktif";
+          existingGuru.status = "aktif";
         }
-        if (!existingGuru.nama.includes(",") && finalName.includes(",")) {
+
+        // 2. NIP: Perbarui jika ada NIP resmi di Excel dan berbeda dari NIP di DB
+        if (rawNip && !rawNip.startsWith("TEMP-") && existingGuru.nip !== rawNip) {
+          const isNipUsedByOther = dbGuruList.some(
+            (g) => g.id !== existingGuru.id && g.nip === rawNip
+          );
+          if (!isNipUsedByOther) {
+            if (existingGuru.nip) dbNipSet.delete(existingGuru.nip);
+            updates.nip = rawNip;
+            existingGuru.nip = rawNip;
+            dbNipSet.add(rawNip);
+          }
+        } else if (!rawNip && existingGuru.nip && !existingGuru.nip.startsWith("TEMP-")) {
+          // Di file Excel TIDAK ADA NIP/NUPTK (kosong / "-"), tapi di DB sebelumnya ada NIP resmi (misal editan manual di dashboard):
+          // Kembalikan ke NIP sementara (TEMP-) sesuai data import yang memang tidak punya NIP
+          let tempNip = generateTempNip();
+          while (dbNipSet.has(tempNip)) {
+            tempNip = generateTempNip();
+          }
+          if (existingGuru.nip) dbNipSet.delete(existingGuru.nip);
+          updates.nip = tempNip;
+          existingGuru.nip = tempNip;
+          dbNipSet.add(tempNip);
+        }
+
+        // 3. Nama: Perbarui jika nama di Excel berbeda
+        if (finalName && finalName !== existingGuru.nama) {
           updates.nama = finalName;
           existingGuru.nama = finalName;
         }
+
+        // 4. Nomor Telepon: Sesuaikan sepenuhnya dengan Excel (jika di Excel kosong, kembalikan ke null/kosong di DB)
+        const incomingNoTelepon = (p.noTelepon && p.noTelepon !== "-" && p.noTelepon !== "0") ? p.noTelepon : null;
+        if (incomingNoTelepon !== (existingGuru.no_telepon || null)) {
+          updates.no_telepon = incomingNoTelepon;
+          existingGuru.no_telepon = incomingNoTelepon;
+        }
+
+        // 5. Jabatan: Sesuaikan dengan Excel (default 'Guru' jika kosong)
+        const incomingJabatan = (p.jabatan && p.jabatan !== "-") ? p.jabatan : "Guru";
+        if (incomingJabatan !== (existingGuru.jabatan || "Guru")) {
+          updates.jabatan = incomingJabatan;
+          existingGuru.jabatan = incomingJabatan;
+        }
+
         if (Object.keys(updates).length > 0) {
           gurusToUpdate.push({ id: existingGuru.id, ...updates });
         }
 
         // Cek apakah guru yang ada ini sudah punya akun login
-        if (!existingAkunByGuruId.has(existingGuru.id)) {
+        const existingAkun = existingAkunByGuruId.get(existingGuru.id);
+        if (existingAkun) {
+          const akunUpdates: any = {};
+          if (existingAkun.status !== "aktif") {
+            akunUpdates.status = "aktif";
+            existingAkun.status = "aktif";
+          }
+          if (updates.nama && existingAkun.nama !== updates.nama) {
+            akunUpdates.nama = updates.nama;
+            existingAkun.nama = updates.nama;
+          }
+          if (Object.keys(akunUpdates).length > 0) {
+            akunsToUpdate.push({ id: existingAkun.id, ...akunUpdates });
+          }
+        } else {
           const finalUsername = generateUniqueUsername(existingGuru.nama);
           akunsToInsert.push({
             username: finalUsername,
@@ -149,7 +216,14 @@ export async function importExcelData(data: ParsedData) {
             status: "aktif",
             guru_id: existingGuru.id,
           });
-          existingAkunByGuruId.set(existingGuru.id, true);
+          existingAkunByGuruId.set(existingGuru.id, {
+            id: null,
+            username: finalUsername,
+            role: "guru",
+            nama: existingGuru.nama,
+            status: "aktif",
+            guru_id: existingGuru.id,
+          });
         }
       } else {
         // Guru benar-benar baru, siapkan insert
@@ -162,7 +236,8 @@ export async function importExcelData(data: ParsedData) {
         gurusToInsert.push({
           nama: finalName,
           nip: finalNip,
-          jabatan: "Guru",
+          jabatan: p.jabatan || "Guru",
+          no_telepon: p.noTelepon || null,
           status: "aktif",
         });
       }
@@ -174,6 +249,16 @@ export async function importExcelData(data: ParsedData) {
         gurusToUpdate.map((g) => {
           const { id, ...dataToUpdate } = g;
           return supabase.from("guru").update(dataToUpdate).eq("id", id);
+        })
+      );
+    }
+
+    // Jalankan pembaruan data akun yang sudah ada (re-aktivasi status / nama)
+    if (akunsToUpdate.length > 0) {
+      await Promise.all(
+        akunsToUpdate.map((a) => {
+          const { id, ...dataToUpdate } = a;
+          return supabase.from("akun").update(dataToUpdate).eq("id", id);
         })
       );
     }
@@ -254,11 +339,21 @@ export async function importExcelData(data: ParsedData) {
     const missingGuruNamesSet = new Set<string>();
     for (const j of data.jadwals) {
       const namaGuruDiLegenda = data.legendaGuru[j.guruKode];
-      if (
-        namaGuruDiLegenda &&
-        !dbGuruList.some((g) => isNameMatch(g.nama, namaGuruDiLegenda))
-      ) {
+      if (!namaGuruDiLegenda) continue;
+
+      const matchedDbGuru = dbGuruList.find((g) => isNameMatch(g.nama, namaGuruDiLegenda));
+      if (!matchedDbGuru) {
         missingGuruNamesSet.add(namaGuruDiLegenda);
+      } else if (matchedDbGuru.status !== "aktif") {
+        // Guru KBM sudah ada di DB tapi berstatus nonaktif, aktifkan kembali
+        matchedDbGuru.status = "aktif";
+        await supabase.from("guru").update({ status: "aktif" }).eq("id", matchedDbGuru.id);
+
+        const existingAkun = existingAkunByGuruId.get(matchedDbGuru.id);
+        if (existingAkun && existingAkun.status !== "aktif") {
+          existingAkun.status = "aktif";
+          await supabase.from("akun").update({ status: "aktif" }).eq("id", existingAkun.id);
+        }
       }
     }
 
@@ -317,16 +412,15 @@ export async function importExcelData(data: ParsedData) {
 
     const { data: existingJadwal, error: errJadwal } = await supabase
       .from("jadwal")
-      .select("id, guru_id, kelas_id, mata_pelajaran, hari, jam_mulai, jam_selesai");
+      .select("id, guru_id, kelas_id, mata_pelajaran, hari, jam_mulai, jam_selesai, status");
     if (errJadwal) throw errJadwal;
 
-    // 1. Exact match set: idempoten jika jadwal persis sama diimport ulang
-    const exactJadwalSet = new Set(
-      existingJadwal?.map(
-        (j) =>
-          `${j.guru_id}-${j.kelas_id}-${normMapel(j.mata_pelajaran)}-${j.hari.toLowerCase()}-${normalizeTimeString(j.jam_mulai)}-${normalizeTimeString(j.jam_selesai)}`
-      )
-    );
+    // 1. Exact match map: simpan data jadwal persis sama di DB
+    const exactJadwalMap = new Map<string, any>();
+    existingJadwal?.forEach((j) => {
+      const exactKey = `${j.guru_id}-${j.kelas_id}-${normMapel(j.mata_pelajaran)}-${j.hari.toLowerCase()}-${normalizeTimeString(j.jam_mulai)}-${normalizeTimeString(j.jam_selesai)}`;
+      exactJadwalMap.set(exactKey, j);
+    });
 
     // 2. Slot map: 1 kelas pada hari dan jam tersebut hanya boleh ada 1 jadwal
     const slotMap = new Map<string, any>();
@@ -336,7 +430,7 @@ export async function importExcelData(data: ParsedData) {
     });
 
     const jadwalsToInsert: any[] = [];
-    const jadwalsToUpdate: { id: string; guru_id: string; mata_pelajaran: string }[] = [];
+    const jadwalsToUpdate: { id: string; guru_id: string; mata_pelajaran: string; status?: string }[] = [];
     const inFlightSlotSet = new Set<string>();
 
     for (const j of data.jadwals) {
@@ -356,8 +450,19 @@ export async function importExcelData(data: ParsedData) {
       const exactKey = `${guruDb.id}-${kelasId}-${normMapel(namaMapelDiLegenda)}-${hariEnum}-${jamMulaiNorm}-${jamSelesaiNorm}`;
       const slotKey = `${kelasId}-${hariEnum}-${jamMulaiNorm}-${jamSelesaiNorm}`;
 
-      // A. Jika jadwal persis sama sudah ada di DB, lewati (100% idempoten)
-      if (exactJadwalSet.has(exactKey)) {
+      // A. Jika jadwal persis sama sudah ada di DB:
+      if (exactJadwalMap.has(exactKey)) {
+        const existingExact = exactJadwalMap.get(exactKey);
+        // IMPORT-FIRST: Jika jadwal persis sama ada di DB tapi statusnya nonaktif, aktifkan kembali!
+        if (existingExact && existingExact.status !== "aktif") {
+          jadwalsToUpdate.push({
+            id: existingExact.id,
+            guru_id: guruDb.id,
+            mata_pelajaran: namaMapelDiLegenda,
+            status: "aktif",
+          });
+          existingExact.status = "aktif";
+        }
         continue;
       }
 
@@ -369,15 +474,16 @@ export async function importExcelData(data: ParsedData) {
           id: existingRow.id,
           guru_id: guruDb.id,
           mata_pelajaran: namaMapelDiLegenda,
+          status: "aktif",
         });
-        exactJadwalSet.add(exactKey);
+        exactJadwalMap.set(exactKey, { ...existingRow, status: "aktif" });
         continue;
       }
 
       // C. Jika slot baru dan belum pernah masuk di antrean batch ini:
       if (!inFlightSlotSet.has(slotKey)) {
         inFlightSlotSet.add(slotKey);
-        exactJadwalSet.add(exactKey);
+        exactJadwalMap.set(exactKey, { id: null, status: "aktif" });
         jadwalsToInsert.push({
           guru_id: guruDb.id,
           kelas_id: kelasId,
@@ -390,15 +496,16 @@ export async function importExcelData(data: ParsedData) {
       }
     }
 
-    // Jalankan update jadwal secara paralel jika ada pembaruan slot
+    // Jalankan update jadwal secara paralel jika ada pembaruan slot atau re-aktivasi status
     if (jadwalsToUpdate.length > 0) {
       await Promise.all(
-        jadwalsToUpdate.map((j) =>
-          supabase
+        jadwalsToUpdate.map((j) => {
+          const { id, ...dataToUpdate } = j;
+          return supabase
             .from("jadwal")
-            .update({ guru_id: j.guru_id, mata_pelajaran: j.mata_pelajaran })
-            .eq("id", j.id)
-        )
+            .update(dataToUpdate)
+            .eq("id", id);
+        })
       );
     }
 
@@ -417,6 +524,7 @@ export async function importExcelData(data: ParsedData) {
         gurusInserted: gurusToInsert.length,
         gurusUpdated: gurusToUpdate.length,
         akunsInserted: akunsToInsert.length,
+        akunsUpdated: akunsToUpdate.length,
         kelasesInserted: kelasesToInsert.length,
         jadwalsInserted: jadwalsToInsert.length,
         jadwalsUpdated: jadwalsToUpdate.length,

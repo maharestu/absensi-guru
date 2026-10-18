@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
-import { formatJamWIB, getTodayWIB } from "@/lib/date";
+import { formatJamWIB, getTodayWIB, isWeekendWIB } from "@/lib/date";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
@@ -176,6 +176,46 @@ export default function PilihStatusPage() {
     sessionStorage.removeItem("absensi_lng");
     router.push(`/guru/presensi/${statusId}`);
   };
+
+  const isWeekend = isWeekendWIB();
+
+  if (isWeekend) {
+    return (
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+        <PageHeader
+          backHref="/guru"
+          title="Absensi Kehadiran"
+          subtitle="Hari Libur Akhir Pekan"
+        />
+
+        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-6">
+          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 mb-5 border border-amber-100 shadow-sm">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+
+          <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
+            Hari Libur Akhir Pekan
+          </h2>
+
+          <p className="text-sm text-slate-500 leading-relaxed max-w-xs mb-8">
+            Absensi kehadiran harian hanya berlaku pada hari kerja (Senin s.d. Jumat). Selamat beristirahat!
+          </p>
+
+          <Button
+            onClick={() => router.push("/guru")}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors"
+          >
+            Kembali ke Beranda
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isAlreadyAbsen === null) {
     return <div className="min-h-full bg-[#EEF2F7]" />;

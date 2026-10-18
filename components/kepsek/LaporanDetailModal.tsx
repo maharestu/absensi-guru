@@ -26,7 +26,7 @@ export function LaporanDetailModal({
   const detailSakit = detailKehadiran.filter(r => r.status.toLowerCase() === "sakit").length;
   const detailIzin = detailKehadiran.filter(r => r.status.toLowerCase() === "izin").length;
   const detailDinasLuar = detailKehadiran.filter(r => r.status.toLowerCase() === "dinas").length;
-  const detailTidakHadir = 0;
+  const detailTidakHadir = detailKehadiran.filter(r => r.status.toLowerCase().includes("tidak")).length;
   const totalCatatan = detailKehadiran.length;
   const persentaseHadir = totalCatatan > 0 ? Math.round((detailHadir / totalCatatan) * 100) : 0;
 

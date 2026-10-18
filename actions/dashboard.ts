@@ -13,6 +13,10 @@ import {
   JAM_MASUK_SEKOLAH,
   TOLERANSI_TERLAMBAT_MENIT,
   KeterlambatanInfo,
+  isWeekendWIB,
+  isPastCutoffTodayWIB,
+  TANGGAL_MULAI_TIDAK_HADIR,
+  getFaseWaktuSekolah,
 } from "@/lib/date";
 import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
 import { StatusAbsensiMasuk } from "@/types/schema";
@@ -114,6 +118,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
 
 export async function getKepsekStats(): Promise<KepsekStats> {
   const today = getTodayWIB();
+  const fase = getFaseWaktuSekolah();
 
   // Hitung total guru aktif
   const { count: totalGuru } = await supabaseAdmin
@@ -132,7 +137,11 @@ export async function getKepsekStats(): Promise<KepsekStats> {
   const sakit = absensiHariIni?.filter((a) => a.status === "sakit").length ?? 0;
   const dinas = absensiHariIni?.filter((a) => a.status === "dinas").length ?? 0;
   const sudahAbsen = (absensiHariIni?.length ?? 0);
-  const belumAbsen = Math.max(0, (totalGuru ?? 0) - sudahAbsen);
+
+  // Jika akhir pekan atau sebelum jam masuk (sebelum 07:00), belumAbsen bernilai 0
+  const belumAbsen = (fase === "akhir_pekan" || fase === "sebelum_masuk")
+    ? 0
+    : Math.max(0, (totalGuru ?? 0) - sudahAbsen);
 
   return { guruHadir: hadir, izin, sakit, dinas, belumAbsen };
 }
@@ -141,16 +150,25 @@ export async function getKepsekStats(): Promise<KepsekStats> {
 
 export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const today = getTodayWIB();
+  const fase = getFaseWaktuSekolah();
+  const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
+  const isSetelahPulang = fase === "setelah_pulang" && isEffective;
 
-  const { data, error } = await supabaseAdmin
-    .from("absensi_masuk")
-    .select("id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit, guru(nama)")
-    .eq("tanggal", today)
-    .order("waktu_submit");
+  const [absensiRes, guruRes] = await Promise.all([
+    supabaseAdmin
+      .from("absensi_masuk")
+      .select("id, guru_id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit, guru(nama)")
+      .eq("tanggal", today)
+      .order("waktu_submit"),
+    // Jika fase setelah pulang dan sudah tanggal efektif, ambil guru aktif untuk mendeteksi Tidak Hadir
+    isSetelahPulang
+      ? supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif")
+      : Promise.resolve({ data: [] as { id: string; nama: string }[], error: null })
+  ]);
 
-  if (error) throw new Error(error.message);
+  if (absensiRes.error) throw new Error(absensiRes.error.message);
 
-  return (data ?? []).map((row) => {
+  const presentRows: KehadiranHariIni[] = (absensiRes.data ?? []).map((row: any) => {
     let ketInfo: KeterlambatanInfo | null = null;
     if (row.status === "hadir" && row.waktu_submit) {
       ketInfo = hitungKeterlambatan(row.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
@@ -158,8 +176,7 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
 
     return {
       id: row.id,
-      // @ts-expect-error — supabase join returns nested object
-      nama_guru: row.guru?.nama ?? "-",
+      nama_guru: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
       waktu_masuk: row.waktu_submit ? formatJamWIB(row.waktu_submit) : null,
       status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
       terlambat: ketInfo?.terlambat ?? false,
@@ -169,6 +186,28 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
       file_bukti_izin_sakit: row.file_bukti_izin_sakit ?? null,
     };
   });
+
+  // Jika fase setelah pulang dan sudah tanggal efektif, tambahkan baris Tidak Hadir untuk guru yang belum absen
+  if (isSetelahPulang && guruRes.data && guruRes.data.length > 0) {
+    const existingIds = new Set((absensiRes.data ?? []).map((r: any) => r.guru_id));
+    const absentRows: KehadiranHariIni[] = guruRes.data
+      .filter((g) => !existingIds.has(g.id))
+      .map((g) => ({
+        id: `tidak-hadir-${g.id}-${today}`,
+        nama_guru: g.nama ?? "-",
+        waktu_masuk: null,
+        status: "Tidak Hadir",
+        terlambat: false,
+        menit_terlambat: 0,
+        keterangan_terlambat: "",
+        foto_absensi: null,
+        file_bukti_izin_sakit: null,
+      }));
+
+    return [...presentRows, ...absentRows];
+  }
+
+  return presentRows;
 }
 
 // ── Kepsek: Tabel Mengajar Hari Ini ──────────────────────────

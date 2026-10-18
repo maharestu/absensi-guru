@@ -9,7 +9,7 @@ import { isWithinGeofence } from "@/lib/geo";
 import { getLokasiSekolah } from "@/actions/pengaturan";
 import { uploadFotoAbsensi, deleteFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 import { STATUS_MASUK } from "@/lib/status";
-import { getHariWIB, getTodayWIB, getJamWIB } from "@/lib/date";
+import { getHariWIB, getTodayWIB, getJamWIB, isWeekendWIB } from "@/lib/date";
 import { getSession } from "@/lib/session";
 
 export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
@@ -70,6 +70,11 @@ export async function submitPresensiMasukAction(formData: FormData) {
     const file = formData.get("file") as File;
     const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
     const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
+
+    // Validasi hari kerja: Absensi kehadiran dilarang pada hari Sabtu & Minggu
+    if (isWeekendWIB()) {
+      throw new Error("Absensi kehadiran tidak dapat dilakukan pada hari libur (Sabtu dan Minggu).");
+    }
 
     if (!guruId || !status || !file) {
       throw new Error("Data presensi tidak lengkap.");

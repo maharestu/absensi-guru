@@ -111,7 +111,7 @@ export default function LaporanAbsensiPage() {
   const countIzin = filteredKehadiran.filter((r) => r.status.toLowerCase() === "izin").length;
   const countSakit = filteredKehadiran.filter((r) => r.status.toLowerCase() === "sakit").length;
   const countDinas = filteredKehadiran.filter((r) => r.status.toLowerCase() === "dinas").length;
-  const countTidakHadir = 0;
+  const countTidakHadir = filteredKehadiran.filter((r) => r.status.toLowerCase().includes("tidak")).length;
 
   const statCardsKehadiran: StatCardItem[] = [
     {
@@ -457,6 +457,7 @@ export default function LaporanAbsensiPage() {
                   <option value="sakit">Sakit</option>
                   <option value="izin">Izin</option>
                   <option value="dinas">Dinas Luar</option>
+                  <option value="tidak hadir">Tidak Hadir</option>
                 </select>
                 <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">

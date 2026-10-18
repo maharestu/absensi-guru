@@ -13,6 +13,7 @@ import {
   MengajarHariIni,
 } from "@/actions/dashboard";
 import { getStatusColorText } from "@/lib/status";
+import { getFaseWaktuSekolah, getTodayWIB, TANGGAL_MULAI_TIDAK_HADIR } from "@/lib/date";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
 import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
 
@@ -121,6 +122,16 @@ export default function KepsekDashboardPage() {
     loadData();
   }, []);
 
+  const fase = getFaseWaktuSekolah();
+  const isEffective = getTodayWIB() >= TANGGAL_MULAI_TIDAK_HADIR;
+
+  let belumAbsenLabel = "Belum Absen";
+  if (fase === "akhir_pekan") {
+    belumAbsenLabel = "Libur Akhir Pekan";
+  } else if (fase === "setelah_pulang" && isEffective) {
+    belumAbsenLabel = "Tidak Hadir";
+  }
+
   const statCardItems: StatCardItem[] = [
     {
       id: "hadir",
@@ -183,7 +194,7 @@ export default function KepsekDashboardPage() {
     },
     {
       id: "belumAbsen",
-      label: "Belum Absen",
+      label: belumAbsenLabel,
       value: stats.belumAbsen,
       bgIcon: "bg-purple-600",
       shadowIcon: "shadow-purple-500/20",

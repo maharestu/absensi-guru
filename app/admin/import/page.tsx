@@ -11,7 +11,6 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  UserCheck,
   Check
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
@@ -64,7 +63,7 @@ export default function ImportDataPage() {
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
       const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
-      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "" }) as any[][];
+      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "", raw: false }) as any[][];
 
       // Cari baris header
       let headerRowIndex = -1;
@@ -80,12 +79,26 @@ export default function ImportDataPage() {
       if (headerRowIndex === -1) throw new Error("Format file PTK tidak dikenali (Tidak ada kolom Nama/NIP).");
 
       const headers = dataPtkRaw[headerRowIndex].map((h: any) => String(h).trim().toLowerCase());
-      const colNama = headers.indexOf("nama");
-      const colNip = headers.indexOf("nip");
-      const colNuptk = headers.indexOf("nuptk");
-      const colJenisPtk = headers.indexOf("jenis ptk");
-      const colGelarDepan = headers.indexOf("gelar depan");
-      const colGelarBelakang = headers.indexOf("gelar belakang");
+      const colNama = headers.findIndex((h: string) => h === "nama" || h === "nama lengkap" || h === "nama guru" || h.includes("nama"));
+      const colNip = headers.findIndex((h: string) =>
+        h === "nip" || h === "no. nip" || h === "no nip" || h === "nomor nip" || h === "nip/nuptk" || h === "nip / nuptk" || (h.includes("nip") && !h.includes("jenis"))
+      );
+      const colNuptk = headers.findIndex((h: string) =>
+        h === "nuptk" || h === "no. nuptk" || h === "no nuptk" || h === "nomor nuptk" || h.includes("nuptk")
+      );
+      const colJenisPtk = headers.findIndex((h: string) => h === "jenis ptk" || h.includes("jenis ptk"));
+      const colGelarDepan = headers.findIndex((h: string) => h === "gelar depan" || h.includes("gelar depan"));
+      const colGelarBelakang = headers.findIndex((h: string) => h === "gelar belakang" || h.includes("gelar belakang"));
+
+      const colNoTelepon = headers.findIndex((h: string) =>
+        h === "no hp" || h === "no. hp" || h === "hp" ||
+        h === "nomor hp" || h === "no telepon" || h === "nomor telepon" ||
+        h === "telepon" || h === "telp" || h === "no telp" || h === "no. telp" ||
+        h.includes("telepon") || h.includes("handphone") || (h.includes("hp") && !h.includes("ptk"))
+      );
+      const colJabatan = headers.findIndex((h: string) =>
+        h === "jabatan" || h === "tugas tambahan" || h.includes("tugas tambahan") || (h.includes("jabatan") && !h.includes("ptk"))
+      );
 
       const rawPtkGurus: ParsedData["ptk"] = [];
 
@@ -113,11 +126,25 @@ export default function ImportDataPage() {
             }
           }
 
+          let rawNoTelepon = colNoTelepon !== -1 ? String(row[colNoTelepon] || "").trim() : "";
+          if (rawNoTelepon === "-" || rawNoTelepon === "0") rawNoTelepon = "";
+
+          let rawJabatan = colJabatan !== -1 ? String(row[colJabatan] || "").trim() : "";
+          if (!rawJabatan || rawJabatan === "-") rawJabatan = "Guru";
+
+          let rawNipVal = colNip !== -1 ? String(row[colNip] || "").trim() : "";
+          if (rawNipVal === "-" || rawNipVal.toLowerCase() === "null") rawNipVal = "";
+
+          let rawNuptkVal = colNuptk !== -1 ? String(row[colNuptk] || "").trim() : "";
+          if (rawNuptkVal === "-" || rawNuptkVal.toLowerCase() === "null") rawNuptkVal = "";
+
           rawPtkGurus.push({
             nama: namaLengkap,
-            nip: colNip !== -1 ? String(row[colNip]).trim() : "",
-            nuptk: colNuptk !== -1 ? String(row[colNuptk]).trim() : "",
-            jenisPtk
+            nip: rawNipVal,
+            nuptk: rawNuptkVal,
+            jenisPtk,
+            noTelepon: rawNoTelepon,
+            jabatan: rawJabatan,
           });
         }
       }
@@ -483,11 +510,11 @@ export default function ImportDataPage() {
                 </div>
 
                 <div className="space-y-0.5">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase">GURU PTK DILEWATI</p>
-                  <p className="text-2xl font-bold text-amber-600">
-                    {skippedPtkGurus.length - selectedExtraPtkNames.length}
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">MATA PELAJARAN</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {Object.keys(parsedData.legendaMapel).length}
                   </p>
-                  <p className="text-[10px] text-slate-400 leading-tight">Tidak ada jadwal KBM</p>
+                  <p className="text-[10px] text-slate-400 leading-tight">Mapel terdeteksi dari KBM</p>
                 </div>
 
                 <div className="space-y-0.5">
@@ -541,11 +568,10 @@ export default function ImportDataPage() {
                             <div
                               key={ptk.nama}
                               onClick={() => toggleExtraPtk(ptk.nama)}
-                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                                isSelected
+                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${isSelected
                                   ? "bg-blue-50/90 border-blue-300 shadow-xs"
                                   : "bg-white/80 border-slate-200 hover:border-slate-300"
-                              }`}
+                                }`}
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
@@ -564,11 +590,10 @@ export default function ImportDataPage() {
                               </div>
 
                               <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
-                                  isSelected
+                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${isSelected
                                     ? "bg-blue-600 border-blue-600 text-white"
                                     : "border-slate-300 bg-white"
-                                }`}
+                                  }`}
                               >
                                 {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>
@@ -578,16 +603,6 @@ export default function ImportDataPage() {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Info jika ada guru KBM non-PTK */}
-              {kbmOnlyGurus.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-100 flex items-start gap-2.5 text-blue-800 text-[12px]">
-                  <UserCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">
-                    <span className="font-bold">{kbmOnlyGurus.length} guru aktif di jadwal KBM</span> tidak tercatat di file profil PTK (guru baru/honorer). Guru ini akan otomatis didaftarkan dengan NIP sementara agar jadwal kelas tetap terisi.
-                  </p>
                 </div>
               )}
             </div>
