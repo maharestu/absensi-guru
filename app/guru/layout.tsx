@@ -55,7 +55,7 @@ export default function GuruLayout({
   return (
     <div className="w-full min-h-screen min-h-[100dvh] bg-[#EEF2F7] sm:bg-slate-200/70 flex flex-col justify-start items-center overflow-x-hidden">
       {/* Wrapper Container (Mobile Center Column) */}
-      <div className="w-full max-w-md min-h-screen min-h-[100dvh] bg-[#EEF2F7] relative flex flex-col shadow-sm">
+      <div className="w-full max-w-md min-h-screen min-h-[100dvh] bg-[#EEF2F7] relative flex flex-col shadow-sm pb-12 sm:pb-8">
         {/* Top App Bar — Hanya tampil di Dashboard Guru (/guru) */}
         {pathname === "/guru" && <GuruTopBar />}
 

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
-import GuruTopBar from "@/components/guru/GuruTopBar";
 import { useAuth } from "@/context/AuthContext";
 import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB } from "@/lib/date";
@@ -192,13 +191,12 @@ export default function PilihStatusPage() {
     const nip = user?.nip ?? "-";
     const nama = user?.nama ?? "-";
     return (
-      <>
-        <GuruTopBar />
-        <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
-          <PageHeader
-            title="Absensi Hari Ini"
-            subtitle="Status absensi kehadiran sudah tercatat."
-          />
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+        <PageHeader
+          backHref="/guru"
+          title="Absensi Hari Ini"
+          subtitle="Status absensi kehadiran sudah tercatat."
+        />
 
           {/* Card Tampilan Sudah Absen */}
           <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
@@ -249,7 +247,6 @@ export default function PilihStatusPage() {
             </Button>
           </div>
         </div>
-      </>
     );
   }
 
