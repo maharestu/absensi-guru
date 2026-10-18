@@ -9,6 +9,7 @@ import { getTodayWIB } from "@/lib/date";
 import { useAuth } from "@/context/AuthContext";
 import { JadwalWithDetail } from "@/types/schema";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 
 const HARI_ORDER = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
 
@@ -68,6 +69,12 @@ export default function DaftarJadwalHarianPage() {
 
   const getJadwalStatus = (j: JadwalWithDetail) => {
     if (sudahAbsenIds.includes(j.id)) return "sudah_absen";
+
+    const testConfig = getDevTestingConfigClient();
+    if (testConfig.isActive && testConfig.bypassTime) {
+      return "bisa_absen";
+    }
+
     if (!currentTime) return "loading";
 
     const hariIndex = HARI_ORDER.indexOf(hari.toLowerCase());

@@ -9,6 +9,7 @@ import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
 import { formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB } from "@/lib/date";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 const HARI_LABEL: Record<string, string> = {
   senin: "Senin",
   selasa: "Selasa",
@@ -34,6 +35,12 @@ export default function PresensiMengajarPage() {
     async function checkStatus() {
       if (!user?.guru_id) return;
       
+      const testConfig = getDevTestingConfigClient();
+      if (testConfig.isActive && testConfig.bypassPrereq) {
+        if (isMounted) setCanAccess(true);
+        return;
+      }
+
       // Validasi: cache hanya berlaku untuk guru yang sama
       const cachedGuruId = sessionStorage.getItem("absensi_guru_id");
       const completed = sessionStorage.getItem("absensi_completed") === "true";

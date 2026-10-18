@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import GuruTopBar from "@/components/guru/GuruTopBar";
+import DevTestingToolbar from "@/components/dev/DevTestingToolbar";
 
 /**
  * LAYOUT UTAMA AREA GURU (MOBILE CONTAINER)
@@ -63,6 +64,9 @@ export default function GuruLayout({
         <main ref={mainRef} className="flex-1 w-full flex flex-col">
           {children}
         </main>
+
+        {/* Panel Pengujian Fleksibel */}
+        <DevTestingToolbar />
       </div>
     </div>
   );

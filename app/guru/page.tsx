@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatTanggalLengkap } from "@/lib/format";
 import { isWeekendWIB } from "@/lib/date";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 
 const menuItems = [
   {
@@ -51,11 +53,17 @@ export default function DashboardGuruPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  const [isTestActive, setIsTestActive] = useState(false);
+
+  useEffect(() => {
+    setIsTestActive(getDevTestingConfigClient().isActive);
+  }, []);
+
   const today = formatTanggalLengkap(new Date());
   const namaGuru = user?.nama ?? "Nama Guru";
   // Tampilkan NIP dari data guru (bukan username)
   const nipGuru = user?.nip ?? "-";
-  const isWeekend = isWeekendWIB();
+  const isWeekend = isTestActive ? false : isWeekendWIB();
 
   return (
     <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-14 min-h-full">

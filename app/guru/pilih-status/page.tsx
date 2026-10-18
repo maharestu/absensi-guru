@@ -7,6 +7,7 @@ import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB, isWeekendWIB } from "@/lib/date";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
@@ -177,7 +178,8 @@ export default function PilihStatusPage() {
     router.push(`/guru/presensi/${statusId}`);
   };
 
-  const isWeekend = isWeekendWIB();
+  const testConfig = getDevTestingConfigClient();
+  const isWeekend = testConfig.isActive ? false : isWeekendWIB();
 
   if (isWeekend) {
     return (
