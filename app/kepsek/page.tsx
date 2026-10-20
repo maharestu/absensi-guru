@@ -42,33 +42,14 @@ export default function KepsekDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
 
-  // Responsive pagination: 2 cards on mobile (<768px), 10 items on desktop
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  const itemsPerPage = isMobile ? 4 : 10;
+  // Pagination items per page
+  const itemsPerPage = 10;
 
   // Pagination states & Search states
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
   const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
   const [searchKehadiran, setSearchKehadiran] = useState("");
   const [searchMengajar, setSearchMengajar] = useState("");
-
-
-
-  // Reset pagination if screen mode or search changes
-  useEffect(() => {
-    setCurrentPageKehadiran(1);
-    setCurrentPageMengajar(1);
-  }, [isMobile]);
 
   useEffect(() => {
     setCurrentPageKehadiran(1);
@@ -292,78 +273,8 @@ export default function KepsekDashboardPage() {
           </div>
         </div>
 
-        {/* Mobile Card List (< md) */}
-        <div className="md:hidden space-y-2.5">
-          {filteredKehadiran.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 font-medium text-sm shadow-sm">
-              {loading ? "Memuat kehadiran..." : "Belum ada catatan presensi hari ini."}
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {paginatedKehadiran.map((row) => (
-                <div
-                  key={row.id}
-                  className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex items-start justify-between gap-3"
-                >
-                  <div className="space-y-1.5 min-w-0">
-                    <h3 className="font-semibold text-slate-800 text-sm truncate">
-                      {row.nama_guru}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                      <span className="font-medium text-slate-700">{row.waktu_masuk ?? "—"}</span>
-                      {row.status.toLowerCase() === "hadir" && row.waktu_masuk && row.keterangan_terlambat && (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
-                            row.terlambat
-                              ? "bg-rose-50 text-rose-600 border border-rose-200/80"
-                              : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${row.terlambat ? "bg-rose-500" : "bg-emerald-500"}`} />
-                          {row.keterangan_terlambat}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {(row.foto_absensi || row.file_bukti_izin_sakit) && (
-                      <button
-                        type="button"
-                        onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
-                        className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors flex items-center justify-center active:scale-95"
-                        title="Lihat Foto / Bukti"
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <span
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${getStatusBadge(
-                        row.status
-                      )}`}
-                    >
-                      {row.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!loading && filteredKehadiran.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
-              <Pagination
-                size="sm"
-                currentPage={currentPageKehadiran}
-                totalItems={filteredKehadiran.length}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPageKehadiran}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Table (md+) */}
-        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
+        {/* Responsive Table for Kehadiran */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
@@ -461,91 +372,8 @@ export default function KepsekDashboardPage() {
           </div>
         </div>
 
-        {/* Mobile Card List (< md) */}
-        <div className="md:hidden space-y-2.5">
-          {filteredMengajar.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-slate-400 font-medium text-sm shadow-sm">
-              {loading ? "Memuat absensi mengajar..." : "Belum ada catatan absensi mengajar hari ini."}
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {paginatedMengajar.map((row) => (
-                <div
-                  key={row.id}
-                  className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-2.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-800 text-sm truncate">
-                        {row.nama_guru}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">
-                        {row.mata_pelajaran} • {row.kelas}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {row.foto_absensi && (
-                        <button
-                          type="button"
-                          onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                          className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors flex items-center justify-center active:scale-95"
-                          title="Lihat Foto"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${getStatusBadge(
-                          row.status
-                        )}`}
-                      >
-                        {row.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-y-1.5 text-xs text-slate-600">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 font-medium">Jam KBM:</span>
-                      <span className="font-semibold text-slate-700">{row.jam_mengajar}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 font-medium">Absen:</span>
-                      <span className="font-semibold text-slate-700">{row.waktu_absen}</span>
-                      {row.keterangan_terlambat && (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 whitespace-nowrap ${
-                            row.terlambat
-                              ? "bg-rose-50 text-rose-600 border border-rose-200/80"
-                              : "bg-emerald-50 text-emerald-600 border border-emerald-200/80"
-                          }`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${row.terlambat ? "bg-rose-500" : "bg-emerald-500"}`} />
-                          {row.keterangan_terlambat}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!loading && filteredMengajar.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm [&>div]:mt-0 [&>div]:pt-0 [&>div]:border-t-0">
-              <Pagination
-                size="sm"
-                currentPage={currentPageMengajar}
-                totalItems={filteredMengajar.length}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPageMengajar}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Desktop Table (md+) */}
-        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
+        {/* Responsive Table for Mengajar */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[650px] sm:min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">

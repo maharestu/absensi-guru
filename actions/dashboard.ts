@@ -47,6 +47,7 @@ export interface KehadiranHariIni {
   keterangan_terlambat?: string;
   foto_absensi?: string | null;
   file_bukti_izin_sakit?: string | null;
+  waktu_submit?: string | null; // Tambahkan untuk keperluan sorting
 }
 
 export interface MengajarHariIni {
@@ -150,64 +151,93 @@ export async function getKepsekStats(): Promise<KepsekStats> {
 
 export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const today = getTodayWIB();
-  const fase = getFaseWaktuSekolah();
-  const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
-  const isSetelahPulang = fase === "setelah_pulang" && isEffective;
 
+  // 1. Ambil semua data absensi masuk hari ini & data master guru aktif
   const [absensiRes, guruRes] = await Promise.all([
     supabaseAdmin
       .from("absensi_masuk")
-      .select("id, guru_id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit, guru(nama)")
-      .eq("tanggal", today)
-      .order("waktu_submit"),
-    // Jika fase setelah pulang dan sudah tanggal efektif, ambil guru aktif untuk mendeteksi Tidak Hadir
-    isSetelahPulang
-      ? supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif")
-      : Promise.resolve({ data: [] as { id: string; nama: string }[], error: null })
+      .select("id, guru_id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit")
+      .eq("tanggal", today),
+    supabaseAdmin
+      .from("guru")
+      .select("id, nama")
+      .eq("status", "aktif")
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
+  if (guruRes.error) throw new Error(guruRes.error.message);
 
-  const presentRows: KehadiranHariIni[] = (absensiRes.data ?? []).map((row: any) => {
-    let ketInfo: KeterlambatanInfo | null = null;
-    if (row.status === "hadir" && row.waktu_submit) {
-      ketInfo = hitungKeterlambatan(row.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
-    }
+  const allGuru = guruRes.data || [];
+  const allAbsensi = absensiRes.data || [];
 
-    return {
-      id: row.id,
-      nama_guru: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
-      waktu_masuk: row.waktu_submit ? formatJamWIB(row.waktu_submit) : null,
-      status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
-      terlambat: ketInfo?.terlambat ?? false,
-      menit_terlambat: ketInfo?.menit ?? 0,
-      keterangan_terlambat: ketInfo?.label ?? "",
-      foto_absensi: row.foto_absensi ?? null,
-      file_bukti_izin_sakit: row.file_bukti_izin_sakit ?? null,
-    };
+  // Map absensi berdasarkan guru_id untuk memudahkan pencarian
+  const absensiMap = new Map<string, any>();
+  allAbsensi.forEach(row => {
+    absensiMap.set(row.guru_id, row);
   });
 
-  // Jika fase setelah pulang dan sudah tanggal efektif, tambahkan baris Tidak Hadir untuk guru yang belum absen
-  if (isSetelahPulang && guruRes.data && guruRes.data.length > 0) {
-    const existingIds = new Set((absensiRes.data ?? []).map((r: any) => r.guru_id));
-    const absentRows: KehadiranHariIni[] = guruRes.data
-      .filter((g) => !existingIds.has(g.id))
-      .map((g) => ({
-        id: `tidak-hadir-${g.id}-${today}`,
-        nama_guru: g.nama ?? "-",
+  // 2. Gabungkan data: Pastikan semua guru aktif muncul
+  const finalData: KehadiranHariIni[] = allGuru.map(g => {
+    const abs = absensiMap.get(g.id);
+    
+    if (abs) {
+      let ketInfo: KeterlambatanInfo | null = null;
+      if (abs.status === "hadir" && abs.waktu_submit) {
+        ketInfo = hitungKeterlambatan(abs.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+      }
+
+      return {
+        id: abs.id,
+        nama_guru: g.nama || "-",
+        waktu_masuk: abs.waktu_submit ? formatJamWIB(abs.waktu_submit) : null,
+        status: STATUS_MASUK_LABEL[abs.status as StatusAbsensiMasuk] || abs.status,
+        terlambat: ketInfo?.terlambat ?? false,
+        menit_terlambat: ketInfo?.menit ?? 0,
+        keterangan_terlambat: ketInfo?.label ?? "",
+        foto_absensi: abs.foto_absensi ?? null,
+        file_bukti_izin_sakit: abs.file_bukti_izin_sakit ?? null,
+        waktu_submit: abs.waktu_submit // Simpan original timestamp untuk sorting
+      };
+    } else {
+      // Guru belum absen hari ini
+      return {
+        id: `belum-hadir-${g.id}`,
+        nama_guru: g.nama || "-",
         waktu_masuk: null,
-        status: "Tidak Hadir",
+        status: "Belum Hadir",
         terlambat: false,
         menit_terlambat: 0,
         keterangan_terlambat: "",
         foto_absensi: null,
         file_bukti_izin_sakit: null,
-      }));
+        waktu_submit: null
+      };
+    }
+  });
 
-    return [...presentRows, ...absentRows];
-  }
+  // 3. Logika Pengurutan (Sorting):
+  // - Level 1: Guru yang sudah absen (Hadir, Sakit, dsb) tampil di atas.
+  // - Level 2: Di antara yang sudah absen, urutkan berdasarkan waktu terbaru (DESC).
+  // - Level 3: Guru yang Belum Hadir tampil di bawah, urutkan nama secara Alphabetis (ASC).
+  return finalData.sort((a, b) => {
+    const isAbsenA = a.status !== "Belum Hadir" ? 0 : 1;
+    const isAbsenB = b.status !== "Belum Hadir" ? 0 : 1;
 
-  return presentRows;
+    // Jika status absen berbeda (satu sudah, satu belum), yang sudah absen naik ke atas
+    if (isAbsenA !== isAbsenB) {
+      return isAbsenA - isAbsenB;
+    }
+
+    // Jika keduanya sudah absen, urutkan berdasarkan waktu submit terbaru
+    if (isAbsenA === 0) {
+      const timeA = a.waktu_submit ? new Date(a.waktu_submit).getTime() : 0;
+      const timeB = b.waktu_submit ? new Date(b.waktu_submit).getTime() : 0;
+      return timeB - timeA;
+    }
+
+    // Jika keduanya belum absen, urutkan berdasarkan nama
+    return a.nama_guru.localeCompare(b.nama_guru);
+  });
 }
 
 // ── Kepsek: Tabel Mengajar Hari Ini ──────────────────────────

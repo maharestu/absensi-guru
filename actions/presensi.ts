@@ -296,8 +296,13 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
   }
 }
 
-export async function validasiQrMengajar(guruId: string, kodeQr: string, lat?: number, lng?: number) {
+export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: number) {
   try {
+    const session = await getSession();
+    if (!session?.guru_id) {
+      return { ok: false, error: "SESSION_INVALID", message: "Sesi tidak valid." };
+    }
+    const guruId = session.guru_id;
     const testConfig = await getDevTestingConfigServer();
 
     // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)

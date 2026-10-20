@@ -12,7 +12,15 @@
  */
 export function cleanNameString(name: string): string {
   if (!name) return "";
-  const cleanName = name.split(",")[0];
+  
+  // 1. Ambil nama sebelum koma (menghapus gelar belakang seperti , S.Pd)
+  let cleanName = name.split(",")[0];
+
+  // 2. Hapus gelar depan (Drs, Dr, H, Hj, Prof, Ir, dsb)
+  const PREFIX_TITLES = /^(drs|dr|h|hj|prof|ir|st|m|spd|pd)\.?\s+/gi;
+  cleanName = cleanName.replace(PREFIX_TITLES, "");
+
+  // 3. Bersihkan karakter non-alfanumerik dan ubah ke lowercase
   return cleanName.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
 }
 

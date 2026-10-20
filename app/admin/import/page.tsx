@@ -59,13 +59,19 @@ export default function ImportDataPage() {
     setImportError("");
 
     try {
-      // PROSES FILE DATA PTK
+      // 1. PROSES & VALIDASI FILE DATA PTK
       const bufferPtk = await filePtk.arrayBuffer();
       const wbPtk = XLSX.read(bufferPtk, { type: "array" });
       const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
       const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "", raw: false }) as any[][];
 
-      // Cari baris header
+      // Cek apakah ini file KBM yang nyasar ke input PTK
+      const ptkStr = dataPtkRaw.slice(0, 15).map(r => r.join(" ")).join(" ");
+      if (ptkStr.includes("7A") || ptkStr.includes("8A") || ptkStr.includes("LEGENDA GURU")) {
+        throw new Error("File yang Anda masukkan ke kolom 'Data PTK' terdeteksi sebagai file 'Jadwal KBM'. Harap periksa kembali file Anda.");
+      }
+
+      // Cari baris header PTK
       let headerRowIndex = -1;
       for (let i = 0; i < 20; i++) {
         if (!dataPtkRaw[i]) continue;
@@ -76,10 +82,17 @@ export default function ImportDataPage() {
         }
       }
 
-      if (headerRowIndex === -1) throw new Error("Format file PTK tidak dikenali (Tidak ada kolom Nama/NIP).");
+      if (headerRowIndex === -1) {
+        throw new Error("Format file 'Data PTK' tidak dikenali. Pastikan file memiliki kolom 'Nama' atau 'NIP'.");
+      }
 
       const headers = dataPtkRaw[headerRowIndex].map((h: any) => String(h).trim().toLowerCase());
       const colNama = headers.findIndex((h: string) => h === "nama" || h === "nama lengkap" || h === "nama guru" || h.includes("nama"));
+      
+      if (colNama === -1) {
+        throw new Error("Kolom 'Nama' tidak ditemukan di file 'Data PTK'. Harap gunakan format yang sesuai.");
+      }
+
       const colNip = headers.findIndex((h: string) =>
         h === "nip" || h === "no. nip" || h === "no nip" || h === "nomor nip" || h === "nip/nuptk" || h === "nip / nuptk" || (h.includes("nip") && !h.includes("jenis"))
       );
@@ -149,11 +162,21 @@ export default function ImportDataPage() {
         }
       }
 
-      // PROSES FILE JADWAL KBM
+      if (rawPtkGurus.length === 0) {
+        throw new Error("Tidak ada data guru yang ditemukan dalam file 'Data PTK'.");
+      }
+
+      // 2. PROSES & VALIDASI FILE JADWAL KBM
       const bufferKbm = await fileKbm.arrayBuffer();
       const wbKbm = XLSX.read(bufferKbm, { type: "array" });
       const sheetKbmName = wbKbm.SheetNames.find((s: string) => s.toLowerCase() === "jadwal kbm" || s.toLowerCase().includes("kbm") || s.toLowerCase().includes("jadwal")) || wbKbm.SheetNames[0];
       const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
+
+      // Cek apakah ini file PTK yang nyasar ke input KBM
+      const kbmStr = dataKbmRaw.slice(0, 15).map(r => r.join(" ")).join(" ");
+      if (kbmStr.toLowerCase().includes("ptk") && (kbmStr.toLowerCase().includes("gelar") || kbmStr.toLowerCase().includes("nip"))) {
+        throw new Error("File yang Anda masukkan ke kolom 'Data Jadwal KBM' terdeteksi sebagai file 'Profil PTK'. Harap periksa kembali file Anda.");
+      }
 
       const legendaGuru: Record<string, string> = {};
       const legendaMapel: Record<string, string> = {};
@@ -171,15 +194,23 @@ export default function ImportDataPage() {
         }
       }
 
+      if (Object.keys(legendaGuru).length === 0) {
+        throw new Error("Format file 'Jadwal KBM' tidak valid. Kolom 'Legenda Guru' tidak ditemukan (biasanya di kolom AA & AB).");
+      }
+
       // Deteksi baris header kelas (misal baris yang memuat 7A, 8A, 9A)
-      let headerKbmRowIndex = 5;
-      for (let i = 0; i < Math.min(15, dataKbmRaw.length); i++) {
+      let headerKbmRowIndex = -1;
+      for (let i = 0; i < Math.min(25, dataKbmRaw.length); i++) {
         if (!dataKbmRaw[i]) continue;
         const str = dataKbmRaw[i].map((c: any) => String(c).trim()).join(" ");
         if (str.includes("7A") || str.includes("8A") || str.includes("9A")) {
           headerKbmRowIndex = i;
           break;
         }
+      }
+
+      if (headerKbmRowIndex === -1) {
+        throw new Error("Struktur kelas (7A, 8A, 9A, dsb) tidak ditemukan dalam file 'Jadwal KBM'.");
       }
 
       const kelasRow = dataKbmRaw[headerKbmRowIndex];

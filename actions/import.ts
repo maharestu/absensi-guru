@@ -286,7 +286,13 @@ export async function importExcelData(data: ParsedData) {
             status: "aktif",
             guru_id: g.id,
           });
-          existingAkunByGuruId.set(g.id, true);
+          existingAkunByGuruId.set(g.id, {
+            username: finalUsername,
+            role: "guru",
+            nama: g.nama,
+            status: "aktif",
+            guru_id: g.id,
+          });
         }
       }
     }
@@ -350,7 +356,7 @@ export async function importExcelData(data: ParsedData) {
         await supabase.from("guru").update({ status: "aktif" }).eq("id", matchedDbGuru.id);
 
         const existingAkun = existingAkunByGuruId.get(matchedDbGuru.id);
-        if (existingAkun && existingAkun.status !== "aktif") {
+        if (existingAkun && typeof existingAkun === "object" && existingAkun.status !== "aktif") {
           existingAkun.status = "aktif";
           await supabase.from("akun").update({ status: "aktif" }).eq("id", existingAkun.id);
         }
@@ -393,7 +399,13 @@ export async function importExcelData(data: ParsedData) {
               status: "aktif",
               guru_id: g.id,
             });
-            existingAkunByGuruId.set(g.id, true);
+            existingAkunByGuruId.set(g.id, {
+              username: finalUsernameGhost,
+              role: "guru",
+              nama: g.nama,
+              status: "aktif",
+              guru_id: g.id,
+            });
           }
         }
         if (ghostAkunsToInsert.length > 0) {

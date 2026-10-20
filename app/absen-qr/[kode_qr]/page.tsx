@@ -49,7 +49,7 @@ export default function AbsenQrPage() {
           try {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            const res = await validasiQrMengajar(user!.guru_id as string, kode, lat, lng);
+            const res = await validasiQrMengajar(kode, lat, lng);
             
             if (!res.ok) {
               setErrorType(res.error || "SYSTEM_ERROR");
