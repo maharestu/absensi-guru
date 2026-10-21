@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { validasiQrMengajar } from "@/actions/presensi";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 import Button from "@/components/ui/button";
 import PageHeader from "@/components/ui/page-header";
 
@@ -38,6 +39,38 @@ export default function AbsenQrPage() {
 
     // Eksekusi validasi server
     async function cekQr() {
+      const handleValidationResponse = (res: any) => {
+        if (!res.ok) {
+          setErrorType(res.error || "SYSTEM_ERROR");
+          setErrorMessage(res.message || "Terjadi kesalahan.");
+          setFlowState("ERROR");
+          return;
+        }
+
+        if (res.jadwal!.length === 1) {
+          // Langsung redirect ke foto
+          router.push(`/guru/presensi-mengajar/foto?jadwal_id=${res.jadwal![0].id}`);
+        } else {
+          // Lebih dari 1 jadwal (misal 2 mapel beda di kelas & hari & waktu yg tumpang tindih)
+          setNamaKelas(res.kelas!);
+          setJadwalOptions(res.jadwal!);
+          setFlowState("PILIH_JADWAL");
+        }
+      };
+
+      const testConfig = getDevTestingConfigClient();
+      if (testConfig.isActive && testConfig.bypassGps) {
+        try {
+          const res = await validasiQrMengajar(kode);
+          handleValidationResponse(res);
+        } catch (err) {
+          console.error(err);
+          setFlowState("ERROR");
+          setErrorMessage("Terjadi kesalahan sistem saat memvalidasi QR.");
+        }
+        return;
+      }
+
       if (!navigator.geolocation) {
         setFlowState("ERROR");
         setErrorMessage("GPS tidak didukung oleh browser Anda.");
@@ -50,24 +83,7 @@ export default function AbsenQrPage() {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             const res = await validasiQrMengajar(kode, lat, lng);
-            
-            if (!res.ok) {
-              setErrorType(res.error || "SYSTEM_ERROR");
-              setErrorMessage(res.message || "Terjadi kesalahan.");
-              setFlowState("ERROR");
-              return;
-            }
-
-            if (res.jadwal!.length === 1) {
-              // Langsung redirect ke foto
-              router.push(`/guru/presensi-mengajar/foto?jadwal_id=${res.jadwal![0].id}`);
-            } else {
-              // Lebih dari 1 jadwal (misal 2 mapel beda di kelas & hari & waktu yg tumpang tindih)
-              setNamaKelas(res.kelas!);
-              setJadwalOptions(res.jadwal!);
-              setFlowState("PILIH_JADWAL");
-            }
-
+            handleValidationResponse(res);
           } catch (err) {
             console.error(err);
             setFlowState("ERROR");

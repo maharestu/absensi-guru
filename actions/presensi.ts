@@ -40,10 +40,16 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
 
 export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string) {
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("absensi_mengajar")
-      .select("jadwal_id")
+      .select("jadwal_id, jadwal!inner(guru_id)")
       .eq("tanggal", tanggal);
+
+    if (guruId) {
+      query = query.eq("jadwal.guru_id", guruId);
+    }
+
+    const { data, error } = await query;
       
     if (error) {
       console.error("Error getAbsensiMengajarHariIni:", error);

@@ -71,7 +71,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabaseAdmin
       .from("guru")
       .select("id", { count: "exact", head: true })
-      .ilike("jabatan", "%guru%"),
+      .eq("status", "aktif"),
     supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("akun").select("id", { count: "exact", head: true }),
   ]);

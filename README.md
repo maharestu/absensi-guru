@@ -144,7 +144,7 @@ SESSION_SECRET=kunci_rahasia_acak_minimal_32_karakter
 1. Buka dashboard proyek Supabase Anda.
 2. Masuk ke menu **SQL Editor**.
 3. Buka file [`supabase/schema.sql`](file:///c:/Users/bdstd/absensi-guru/supabase/schema.sql) dari proyek ini, salin seluruh kodenya, dan jalankan (*Run*) di SQL Editor Supabase.
-4. Pastikan storage bucket dengan nama `absensi` sudah dibuat di menu **Storage** Supabase (dengan visibilitas Public).
+4. Pastikan storage bucket dengan nama `foto-absensi` sudah dibuat di menu **Storage** Supabase (dengan visibilitas Public).
 
 ### 5. Menjalankan Server Pengembangan
 ```bash
