@@ -151,6 +151,10 @@ export async function getKepsekStats(): Promise<KepsekStats> {
 
 export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const today = getTodayWIB();
+  const fase = getFaseWaktuSekolah();
+  const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
+  const isSetelahPulang = fase === "setelah_pulang" && isEffective;
+  const statusBelumAbsen = isSetelahPulang ? "Tidak Hadir" : "Belum Hadir";
 
   // 1. Ambil semua data absensi masuk hari ini & data master guru aktif
   const [absensiRes, guruRes] = await Promise.all([
@@ -199,12 +203,12 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
         waktu_submit: abs.waktu_submit // Simpan original timestamp untuk sorting
       };
     } else {
-      // Guru belum absen hari ini
+      // Guru belum absen hari ini (otomatis 'Tidak Hadir' jika waktu kerja sudah selesai)
       return {
-        id: `belum-hadir-${g.id}`,
+        id: `unrecorded-${g.id}`,
         nama_guru: g.nama || "-",
         waktu_masuk: null,
-        status: "Belum Hadir",
+        status: statusBelumAbsen,
         terlambat: false,
         menit_terlambat: 0,
         keterangan_terlambat: "",
@@ -218,12 +222,12 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   // 3. Logika Pengurutan (Sorting):
   // - Level 1: Guru yang sudah absen (Hadir, Sakit, dsb) tampil di atas.
   // - Level 2: Di antara yang sudah absen, urutkan berdasarkan waktu terbaru (DESC).
-  // - Level 3: Guru yang Belum Hadir tampil di bawah, urutkan nama secara Alphabetis (ASC).
+  // - Level 3: Guru yang Belum/Tidak Hadir tampil di bawah, urutkan nama secara Alphabetis (ASC).
   return finalData.sort((a, b) => {
-    const isAbsenA = a.status !== "Belum Hadir" ? 0 : 1;
-    const isAbsenB = b.status !== "Belum Hadir" ? 0 : 1;
+    const isAbsenA = a.waktu_submit !== null ? 0 : 1;
+    const isAbsenB = b.waktu_submit !== null ? 0 : 1;
 
-    // Jika status absen berbeda (satu sudah, satu belum), yang sudah absen naik ke atas
+    // Jika status absen berbeda (satu sudah, satu belum/tidak hadir), yang sudah absen naik ke atas
     if (isAbsenA !== isAbsenB) {
       return isAbsenA - isAbsenB;
     }
@@ -235,7 +239,7 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
       return timeB - timeA;
     }
 
-    // Jika keduanya belum absen, urutkan berdasarkan nama
+    // Jika keduanya belum/tidak absen, urutkan berdasarkan nama
     return a.nama_guru.localeCompare(b.nama_guru);
   });
 }
