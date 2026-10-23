@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { formatTanggalLengkap } from "@/lib/format";
+import { isWeekendWIB } from "@/lib/date";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 
 const menuItems = [
   {
@@ -50,13 +53,20 @@ export default function DashboardGuruPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
 
+  const [isTestActive, setIsTestActive] = useState(false);
+
+  useEffect(() => {
+    setIsTestActive(getDevTestingConfigClient().isActive);
+  }, []);
+
   const today = formatTanggalLengkap(new Date());
   const namaGuru = user?.nama ?? "Nama Guru";
   // Tampilkan NIP dari data guru (bukan username)
   const nipGuru = user?.nip ?? "-";
+  const isWeekend = isTestActive ? false : isWeekendWIB();
 
   return (
-    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-10 min-h-full">
+    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-14 min-h-full">
 
       {/* ── Header ── */}
       <header className="mb-6">
@@ -97,48 +107,68 @@ export default function DashboardGuruPage() {
       <p className="text-sm font-bold text-slate-900 mb-4">Pilih Absensi</p>
 
       <div className="flex flex-col gap-4">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => router.push(item.href)}
-            className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 flex items-start gap-4 active:scale-[0.98] hover:shadow-md transition-all duration-150 text-left"
-          >
-            <div
-              className={`w-14 h-14 rounded-2xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}
+        {menuItems.map((item) => {
+          const isKehadiranWeekend = item.id === "kehadiran" && isWeekend;
+          const displayTitle = item.title;
+          const displayDesc = isKehadiranWeekend
+            ? "Absensi kehadiran harian tidak aktif pada hari Sabtu & Minggu."
+            : item.description;
+          const displayTag = isKehadiranWeekend ? "Libur Akhir Pekan" : item.tag;
+          const displayTagColor = isKehadiranWeekend
+            ? "text-amber-700 bg-amber-50 border border-amber-200/60"
+            : item.tagColor;
+          const displayIconBg = isKehadiranWeekend ? "bg-amber-50" : item.iconBg;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => router.push(item.href)}
+              className={`w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 flex items-start gap-4 active:scale-[0.98] hover:shadow-md transition-all duration-150 text-left touch-manipulation cursor-pointer ${
+                isKehadiranWeekend ? "border-amber-100/80 bg-amber-50/10" : ""
+              }`}
             >
-              {item.icon}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900">{item.title}</p>
-              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                {item.description}
-              </p>
-              <span
-                className={`inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${item.tagColor}`}
+              <div
+                className={`w-14 h-14 rounded-2xl ${displayIconBg} flex items-center justify-center flex-shrink-0`}
               >
-                {item.tag}
-              </span>
-            </div>
+                {isKehadiranWeekend ? (
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                ) : (
+                  item.icon
+                )}
+              </div>
 
-            <div className="flex-shrink-0 self-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M9 18l6-6-6-6"
-                  stroke="#cbd5e1"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </button>
-        ))}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900">{displayTitle}</p>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  {displayDesc}
+                </p>
+                <span
+                  className={`inline-block mt-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${displayTagColor}`}
+                >
+                  {displayTag}
+                </span>
+              </div>
+
+              <div className="flex-shrink-0 self-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 18l6-6-6-6"
+                    stroke="#cbd5e1"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </button>
+          );
+        })}
       </div>
-
-
-
-
     </div>
   );
 }

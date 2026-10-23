@@ -6,7 +6,18 @@
  */
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { getTodayWIB } from "@/lib/date";
+import {
+  getTodayWIB,
+  formatJamWIB,
+  hitungKeterlambatan,
+  JAM_MASUK_SEKOLAH,
+  TOLERANSI_TERLAMBAT_MENIT,
+  KeterlambatanInfo,
+  isWeekendWIB,
+  isPastCutoffTodayWIB,
+  TANGGAL_MULAI_TIDAK_HADIR,
+  getFaseWaktuSekolah,
+} from "@/lib/date";
 import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
 import { StatusAbsensiMasuk } from "@/types/schema";
 
@@ -31,6 +42,12 @@ export interface KehadiranHariIni {
   nama_guru: string;
   waktu_masuk: string | null;
   status: string;
+  terlambat?: boolean;
+  menit_terlambat?: number;
+  keterangan_terlambat?: string;
+  foto_absensi?: string | null;
+  file_bukti_izin_sakit?: string | null;
+  waktu_submit?: string | null; // Tambahkan untuk keperluan sorting
 }
 
 export interface MengajarHariIni {
@@ -38,15 +55,23 @@ export interface MengajarHariIni {
   nama_guru: string;
   mata_pelajaran: string;
   kelas: string;
+  waktu_absen: string;
   jam_mengajar: string;
   status: string;
+  terlambat?: boolean;
+  menit_terlambat?: number;
+  keterangan_terlambat?: string;
+  foto_absensi?: string | null;
 }
 
 // ── Admin Stats ───────────────────────────────────────────────
 
 export async function getAdminStats(): Promise<AdminStats> {
   const [guruRes, jadwalRes, akunRes] = await Promise.all([
-    supabaseAdmin.from("guru").select("id", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("guru")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "aktif"),
     supabaseAdmin.from("jadwal").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("akun").select("id", { count: "exact", head: true }),
   ]);
@@ -84,10 +109,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
     // @ts-expect-error — nested join
     pengguna: row.guru?.nama ?? "Guru",
     waktu: row.waktu_submit
-      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+      ? formatJamWIB(row.waktu_submit)
       : "-",
     status: "Berhasil",
   }));
@@ -97,6 +119,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
 
 export async function getKepsekStats(): Promise<KepsekStats> {
   const today = getTodayWIB();
+  const fase = getFaseWaktuSekolah();
 
   // Hitung total guru aktif
   const { count: totalGuru } = await supabaseAdmin
@@ -115,7 +138,11 @@ export async function getKepsekStats(): Promise<KepsekStats> {
   const sakit = absensiHariIni?.filter((a) => a.status === "sakit").length ?? 0;
   const dinas = absensiHariIni?.filter((a) => a.status === "dinas").length ?? 0;
   const sudahAbsen = (absensiHariIni?.length ?? 0);
-  const belumAbsen = Math.max(0, (totalGuru ?? 0) - sudahAbsen);
+
+  // Jika akhir pekan atau sebelum jam masuk (sebelum 07:00), belumAbsen bernilai 0
+  const belumAbsen = (fase === "akhir_pekan" || fase === "sebelum_masuk")
+    ? 0
+    : Math.max(0, (totalGuru ?? 0) - sudahAbsen);
 
   return { guruHadir: hadir, izin, sakit, dinas, belumAbsen };
 }
@@ -124,27 +151,97 @@ export async function getKepsekStats(): Promise<KepsekStats> {
 
 export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const today = getTodayWIB();
+  const fase = getFaseWaktuSekolah();
+  const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
+  const isSetelahPulang = fase === "setelah_pulang" && isEffective;
+  const statusBelumAbsen = isSetelahPulang ? "Tidak Hadir" : "Belum Hadir";
 
-  const { data, error } = await supabaseAdmin
-    .from("absensi_masuk")
-    .select("id, status, waktu_submit, guru(nama)")
-    .eq("tanggal", today)
-    .order("waktu_submit");
+  // 1. Ambil semua data absensi masuk hari ini & data master guru aktif
+  const [absensiRes, guruRes] = await Promise.all([
+    supabaseAdmin
+      .from("absensi_masuk")
+      .select("id, guru_id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit")
+      .eq("tanggal", today),
+    supabaseAdmin
+      .from("guru")
+      .select("id, nama")
+      .eq("status", "aktif")
+  ]);
 
-  if (error) throw new Error(error.message);
+  if (absensiRes.error) throw new Error(absensiRes.error.message);
+  if (guruRes.error) throw new Error(guruRes.error.message);
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    // @ts-expect-error — supabase join returns nested object
-    nama_guru: row.guru?.nama ?? "-",
-    waktu_masuk: row.waktu_submit
-      ? new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null,
-    status: STATUS_MASUK_LABEL[row.status as StatusAbsensiMasuk] || row.status,
-  }));
+  const allGuru = guruRes.data || [];
+  const allAbsensi = absensiRes.data || [];
+
+  // Map absensi berdasarkan guru_id untuk memudahkan pencarian
+  const absensiMap = new Map<string, any>();
+  allAbsensi.forEach(row => {
+    absensiMap.set(row.guru_id, row);
+  });
+
+  // 2. Gabungkan data: Pastikan semua guru aktif muncul
+  const finalData: KehadiranHariIni[] = allGuru.map(g => {
+    const abs = absensiMap.get(g.id);
+    
+    if (abs) {
+      let ketInfo: KeterlambatanInfo | null = null;
+      if (abs.status === "hadir" && abs.waktu_submit) {
+        ketInfo = hitungKeterlambatan(abs.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+      }
+
+      return {
+        id: abs.id,
+        nama_guru: g.nama || "-",
+        waktu_masuk: abs.waktu_submit ? formatJamWIB(abs.waktu_submit) : null,
+        status: STATUS_MASUK_LABEL[abs.status as StatusAbsensiMasuk] || abs.status,
+        terlambat: ketInfo?.terlambat ?? false,
+        menit_terlambat: ketInfo?.menit ?? 0,
+        keterangan_terlambat: ketInfo?.label ?? "",
+        foto_absensi: abs.foto_absensi ?? null,
+        file_bukti_izin_sakit: abs.file_bukti_izin_sakit ?? null,
+        waktu_submit: abs.waktu_submit // Simpan original timestamp untuk sorting
+      };
+    } else {
+      // Guru belum absen hari ini (otomatis 'Tidak Hadir' jika waktu kerja sudah selesai)
+      return {
+        id: `unrecorded-${g.id}`,
+        nama_guru: g.nama || "-",
+        waktu_masuk: null,
+        status: statusBelumAbsen,
+        terlambat: false,
+        menit_terlambat: 0,
+        keterangan_terlambat: "",
+        foto_absensi: null,
+        file_bukti_izin_sakit: null,
+        waktu_submit: null
+      };
+    }
+  });
+
+  // 3. Logika Pengurutan (Sorting):
+  // - Level 1: Guru yang sudah absen (Hadir, Sakit, dsb) tampil di atas.
+  // - Level 2: Di antara yang sudah absen, urutkan berdasarkan waktu terbaru (DESC).
+  // - Level 3: Guru yang Belum/Tidak Hadir tampil di bawah, urutkan nama secara Alphabetis (ASC).
+  return finalData.sort((a, b) => {
+    const isAbsenA = a.waktu_submit !== null ? 0 : 1;
+    const isAbsenB = b.waktu_submit !== null ? 0 : 1;
+
+    // Jika status absen berbeda (satu sudah, satu belum/tidak hadir), yang sudah absen naik ke atas
+    if (isAbsenA !== isAbsenB) {
+      return isAbsenA - isAbsenB;
+    }
+
+    // Jika keduanya sudah absen, urutkan berdasarkan waktu submit terbaru
+    if (isAbsenA === 0) {
+      const timeA = a.waktu_submit ? new Date(a.waktu_submit).getTime() : 0;
+      const timeB = b.waktu_submit ? new Date(b.waktu_submit).getTime() : 0;
+      return timeB - timeA;
+    }
+
+    // Jika keduanya belum/tidak absen, urutkan berdasarkan nama
+    return a.nama_guru.localeCompare(b.nama_guru);
+  });
 }
 
 // ── Kepsek: Tabel Mengajar Hari Ini ──────────────────────────
@@ -155,7 +252,7 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_mengajar")
     .select(
-      "id, waktu_submit, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
+      "id, waktu_submit, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
     )
     .eq("tanggal", today)
     .order("waktu_submit");
@@ -167,15 +264,25 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
     const guru = Array.isArray(jadwal?.guru) ? jadwal?.guru[0] : jadwal?.guru;
     const kelas = Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0] : jadwal?.kelas;
 
+    let ketInfo: KeterlambatanInfo | null = null;
+    if (row.waktu_submit && jadwal?.jam_mulai) {
+      ketInfo = hitungKeterlambatan(row.waktu_submit, jadwal.jam_mulai, TOLERANSI_TERLAMBAT_MENIT);
+    }
+
     return {
       id: row.id,
       nama_guru: guru?.nama ?? "-",
       mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
       kelas: kelas?.nama_kelas ?? "-",
+      waktu_absen: row.waktu_submit ? formatJamWIB(row.waktu_submit) : "-",
       jam_mengajar: jadwal
-        ? `${jadwal.jam_mulai} - ${jadwal.jam_selesai}`
+        ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}`
         : "-",
       status: "Sudah Mengajar",
+      terlambat: ketInfo?.terlambat ?? false,
+      menit_terlambat: ketInfo?.menit ?? 0,
+      keterangan_terlambat: ketInfo?.label ?? "",
+      foto_absensi: row.foto_absensi ?? null,
     };
   });
 }

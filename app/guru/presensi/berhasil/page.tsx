@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { getDynamicDateTime } from "@/lib/format";
 const STATUS_TITLES: Record<string, string> = {
   hadir: "Absensi Kehadiran",
   izin: "Absensi Izin",
@@ -19,27 +20,16 @@ function BerhasilContent() {
   const status = searchParams.get("status") ?? "hadir";
   const title = STATUS_TITLES[status] ?? "Absensi";
 
-  const now = new Date();
-  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-  const months = [
-    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-  ];
-  const dayName = days[now.getDay()];
-  const date = now.getDate();
-  const month = months[now.getMonth()];
-  const year = now.getFullYear();
-  const hours = now.getHours().toString().padStart(2, "0");
-  const minutes = now.getMinutes().toString().padStart(2, "0");
-  const formattedDateTime = `${dayName}, ${date} ${month} ${year} • ${hours}:${minutes} WIB`;
+  const dynamic = getDynamicDateTime();
+  const formattedDateTime = `${dynamic.date} • ${dynamic.time}`;
 
   const handleSelesai = () => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("absensi_captured_photo");
       sessionStorage.setItem("absensi_completed", "true");
       sessionStorage.setItem("absensi_status", status);
-      sessionStorage.setItem("absensi_time", `${hours}:${minutes} WIB`);
-      sessionStorage.setItem("absensi_date", `${dayName}, ${date} ${month} ${year}`);
+      sessionStorage.setItem("absensi_time", dynamic.time);
+      sessionStorage.setItem("absensi_date", dynamic.date);
       if (user?.guru_id) {
         sessionStorage.setItem("absensi_guru_id", user.guru_id);
       }
@@ -48,8 +38,8 @@ function BerhasilContent() {
   };
 
   return (
-    <div className="flex flex-col items-center min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
-      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-30">
+    <div className="flex flex-col items-center min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+      <div className="w-12 h-12 bg-[#16a34a] rounded-full flex items-center justify-center shadow-lg mb-5 mt-8 sm:mt-14">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M5 13L9 17L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -72,7 +62,7 @@ function BerhasilContent() {
         </div>
       </div>
 
-      <div className="w-full max-w-[354px] mt-20">
+      <div className="w-full max-w-[354px] mt-8 sm:mt-12">
         <Button onClick={handleSelesai}>
           Selesai
         </Button>

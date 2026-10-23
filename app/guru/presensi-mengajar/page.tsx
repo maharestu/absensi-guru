@@ -7,6 +7,9 @@ import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
+import { formatTanggalLengkap } from "@/lib/format";
+import { formatJamWIB, getTodayWIB } from "@/lib/date";
+import { getDevTestingConfigClient } from "@/lib/testing-mode";
 const HARI_LABEL: Record<string, string> = {
   senin: "Senin",
   selasa: "Selasa",
@@ -32,6 +35,12 @@ export default function PresensiMengajarPage() {
     async function checkStatus() {
       if (!user?.guru_id) return;
       
+      const testConfig = getDevTestingConfigClient();
+      if (testConfig.isActive && testConfig.bypassPrereq) {
+        if (isMounted) setCanAccess(true);
+        return;
+      }
+
       // Validasi: cache hanya berlaku untuk guru yang sama
       const cachedGuruId = sessionStorage.getItem("absensi_guru_id");
       const completed = sessionStorage.getItem("absensi_completed") === "true";
@@ -51,10 +60,9 @@ export default function PresensiMengajarPage() {
 
       try {
         const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
-        const now = new Date();
-        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+        const todayWIB = getTodayWIB();
         
-        const result = await cekStatusAbsensiHariIni(user.guru_id, localDate);
+        const result = await cekStatusAbsensiHariIni(user.guru_id, todayWIB);
         
         if (isMounted) {
           if (result.completed) {
@@ -63,8 +71,8 @@ export default function PresensiMengajarPage() {
             sessionStorage.setItem("absensi_guru_id", user.guru_id);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
-            sessionStorage.setItem("absensi_time", dbDate.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }));
-            sessionStorage.setItem("absensi_date", dbDate.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+            sessionStorage.setItem("absensi_time", formatJamWIB(dbDate));
+            sessionStorage.setItem("absensi_date", formatTanggalLengkap(dbDate));
             
             setCanAccess(result.status === "hadir");
           } else {
@@ -129,7 +137,7 @@ export default function PresensiMengajarPage() {
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
         <PageHeader
           backHref="/guru"
           title="Absensi Mengajar Gagal"
@@ -160,7 +168,7 @@ export default function PresensiMengajarPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref="/guru"
         title="Absensi Mengajar"
@@ -192,7 +200,7 @@ export default function PresensiMengajarPage() {
             <button
               key={hariId}
               onClick={() => handleSelectHari(hariId)}
-              className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left"
+              className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left touch-manipulation cursor-pointer"
             >
               <div>
                 <span className="text-base font-bold text-slate-900">

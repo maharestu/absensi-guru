@@ -53,12 +53,18 @@ export async function getJadwalByGuruAndHari(
   hari?: string
 ): Promise<JadwalWithDetail[]> {
   const VALID_HARI = ["senin", "selasa", "rabu", "kamis", "jumat"];
+  const { getDevTestingConfigServer } = await import("@/lib/testing-mode");
+  const testConfig = await getDevTestingConfigServer();
 
-  if (hari) {
-    const normalizedHari = hari.toLowerCase();
-    if (!VALID_HARI.includes(normalizedHari)) {
-      return [];
-    }
+  let targetHari = hari ? hari.toLowerCase() : undefined;
+
+  // Jika mode testing aktif dan hari ini akhir pekan, simulasikan hari yang dipilih di mode testing
+  if (testConfig.isActive && targetHari && !VALID_HARI.includes(targetHari)) {
+    targetHari = (testConfig.simDay || "senin").toLowerCase();
+  }
+
+  if (targetHari && !VALID_HARI.includes(targetHari)) {
+    return [];
   }
 
   let query = supabaseAdmin
@@ -71,7 +77,7 @@ export async function getJadwalByGuruAndHari(
 
   if (guruId) query = query.eq("guru_id", guruId);
   if (kelasId) query = query.eq("kelas_id", kelasId);
-  if (hari) query = query.eq("hari", hari.toLowerCase());
+  if (targetHari) query = query.eq("hari", targetHari);
 
   const { data, error } = await query.order("jam_mulai");
 

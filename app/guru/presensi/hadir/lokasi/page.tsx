@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
-import { isWithinGeofence } from "@/lib/geo";
-import { useEffect } from "react";
+import { verifikasiLokasiSekolah } from "@/actions/pengaturan";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -13,24 +12,6 @@ export default function LokasiPage() {
   const router = useRouter();
   const [scanState, setScanState] = useState<ScanState>("IDLE");
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const [sekolahLat, setSekolahLat] = useState<number>(-6.175392);
-  const [sekolahLng, setSekolahLng] = useState<number>(106.827153);
-  const [radiusToleransi, setRadiusToleransi] = useState<number>(50);
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        const { getLokasiSekolah } = await import("@/actions/pengaturan");
-        const config = await getLokasiSekolah();
-        setSekolahLat(config.latitude);
-        setSekolahLng(config.longitude);
-        setRadiusToleransi(config.radius_meter);
-      } catch (err) {
-        console.error("Gagal memuat pengaturan lokasi:", err);
-      }
-    }
-    loadConfig();
-  }, []);
 
   const handleScan = () => {
     setScanState("SCANNING");
@@ -43,19 +24,32 @@ export default function LokasiPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
+      async (position) => {
+        try {
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
 
-        const isSuccess = isWithinGeofence(userLat, userLng, sekolahLat, sekolahLng, radiusToleransi);
+          // Verifikasi lokasi langsung dari database sekolah
+          const result = await verifikasiLokasiSekolah(userLat, userLng);
 
-        if (isSuccess) {
-          // Simpan koordinat asli guru untuk dikirim ke database nanti
-          sessionStorage.setItem("absensi_lat", userLat.toString());
-          sessionStorage.setItem("absensi_lng", userLng.toString());
-          setScanState("SUCCESS");
-        } else {
-          setErrorMsg("Pastikan anda berada di area sekitar sekolah.");
+          if (!result.success) {
+            setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
+            setScanState("FAIL");
+            return;
+          }
+
+          if (result.isValid) {
+            // Simpan koordinat asli guru untuk dikirim ke database nanti
+            sessionStorage.setItem("absensi_lat", userLat.toString());
+            sessionStorage.setItem("absensi_lng", userLng.toString());
+            setScanState("SUCCESS");
+          } else {
+            setErrorMsg("Pastikan Anda berada di area sekitar sekolah.");
+            setScanState("FAIL");
+          }
+        } catch (err) {
+          console.error("Gagal memeriksa lokasi:", err);
+          setErrorMsg("Terjadi kesalahan saat memverifikasi lokasi.");
           setScanState("FAIL");
         }
       },
@@ -66,8 +60,8 @@ export default function LokasiPage() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
+        timeout: 10000,
+        maximumAge: 10000,
       }
     );
   };
@@ -85,7 +79,7 @@ export default function LokasiPage() {
 
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       {scanState === "IDLE" || scanState === "SCANNING" ? (
         <PageHeader
           backHref="/guru/presensi/hadir"

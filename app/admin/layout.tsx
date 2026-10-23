@@ -26,6 +26,16 @@ export default function AdminLayout({
     }
   }, [isLoading, isAuthenticated, user, router]);
 
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "kepala_sekolah") {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
@@ -35,9 +45,9 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="h-screen bg-[#f8fafc] flex overflow-hidden print:h-auto print:block print:overflow-visible">
+    <div className="h-screen h-[100dvh] bg-[#f8fafc] flex flex-col md:flex-row overflow-hidden print:h-auto print:block print:overflow-visible">
       {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40 shadow-sm print:hidden">
+      <header className="md:hidden flex-shrink-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-40 shadow-sm print:hidden">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg active:scale-95 transition-all"
@@ -47,7 +57,7 @@ export default function AdminLayout({
           </svg>
         </button>
         <span className="ml-3 font-bold text-slate-800">Admin Dashboard</span>
-      </div>
+      </header>
 
       {/* Overlay for mobile sidebar */}
       {isMobileMenuOpen && (
@@ -64,8 +74,8 @@ export default function AdminLayout({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-screen pt-16 md:pt-0 bg-[#f8fafc] print:overflow-visible print:h-auto print:bg-white print:pt-0">
-        <div className="px-5 py-6 md:px-8 md:py-8 w-full print:p-0">{children}</div>
+      <main className="flex-1 overflow-y-auto min-h-0 bg-[#f8fafc] overscroll-y-auto [-webkit-overflow-scrolling:touch] print:overflow-visible print:h-auto print:bg-white">
+        <div className="px-5 py-6 pb-24 md:px-8 md:py-8 md:pb-8 w-full print:p-0">{children}</div>
       </main>
     </div>
   );

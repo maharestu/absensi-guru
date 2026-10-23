@@ -6,16 +6,8 @@ import PageHeader from "@/components/ui/page-header";
 import VerificationCard from "@/components/absensi/verification-card";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-
-/** Format tanggal ke "Senin, 7 September 2026" */
-function formatTanggal(date: Date): string {
-  return date.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+import { hitungKeterlambatan, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT, getTodayWIB, formatJamWIB } from "@/lib/date";
+import { formatTanggalLengkap } from "@/lib/format";
 
 const STATUS_LABELS: Record<string, string> = {
   hadir: "Hadir",
@@ -45,15 +37,44 @@ function VerifikasiContent() {
   const statusLabel = STATUS_LABELS[status] ?? status;
   const backHref = BACK_HREF[status] ?? "/guru";
 
-  const today = formatTanggal(new Date());
+  const now = new Date();
+  const today = formatTanggalLengkap(now);
+  const waktuAbsen = `${formatJamWIB(now)} WIB`;
   const nama = user?.nama ?? "-";
   const nip = user?.nip ?? "-";
 
+  // Hitung keterlambatan saat status hadir
+  const ketInfo = hitungKeterlambatan(now, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+
   const rows = [
     { label: "Tanggal Absensi Kehadiran", value: today },
+    { label: "Waktu Absensi", value: waktuAbsen },
     { label: "Nama", value: nama },
     { label: "NIP/NUPTK", value: nip },
     { label: "Status Kehadiran", value: statusLabel },
+    ...(status === "hadir"
+      ? [
+          {
+            label: "Keterangan",
+            value: (
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold ${
+                  ketInfo.terlambat
+                    ? "bg-rose-50 text-rose-600 border border-rose-200"
+                    : "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    ketInfo.terlambat ? "bg-rose-500" : "bg-emerald-500"
+                  }`}
+                />
+                {ketInfo.label}
+              </span>
+            ),
+          },
+        ]
+      : []),
   ];
 
   const handleSubmit = async () => {
@@ -77,11 +98,7 @@ function VerifikasiContent() {
       const guruId = user?.guru_id;
       if (!guruId) throw new Error("ID Guru tidak valid.");
       formData.append("guruId", guruId);
-      
-      // Gunakan tanggal lokal YYYY-MM-DD
-      const now = new Date();
-      const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
-      formData.append("tanggal", localDate);
+      formData.append("tanggal", getTodayWIB());
 
       if (status === "mengajar") {
         const jadwalId = sessionStorage.getItem("absensi_jadwal_id");
@@ -107,6 +124,7 @@ function VerifikasiContent() {
 
       // Bersihkan session storage
       sessionStorage.removeItem("absensi_captured_photo");
+      sessionStorage.removeItem("absensi_photo_status");
       sessionStorage.removeItem("absensi_lat");
       sessionStorage.removeItem("absensi_lng");
       sessionStorage.removeItem("absensi_jadwal_id");
@@ -120,7 +138,7 @@ function VerifikasiContent() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         backHref={backHref}
         title="Verifikasi Absensi"

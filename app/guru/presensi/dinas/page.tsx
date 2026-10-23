@@ -21,6 +21,7 @@ export default function DinasPage() {
       reader.onloadend = () => {
         const base64data = reader.result as string;
         sessionStorage.setItem("absensi_captured_photo", base64data);
+        sessionStorage.setItem("absensi_photo_status", "dinas");
         setPreviewUrl(base64data);
       };
     } catch (err) {
@@ -28,6 +29,12 @@ export default function DinasPage() {
       setPreviewUrl(url);
     }
     if (showError) setShowError(false);
+  };
+
+  const handleBack = () => {
+    sessionStorage.removeItem("absensi_captured_photo");
+    sessionStorage.removeItem("absensi_photo_status");
+    router.push("/guru/pilih-status");
   };
 
   const handleLanjutkan = async () => {
@@ -41,9 +48,9 @@ export default function DinasPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
-        backHref="/guru/pilih-status"
+        onBack={handleBack}
         title="Bukti Keterangan Dinas"
         subtitle="Unggah foto surat keterangan dinas yang jelas dan terbaca"
       />

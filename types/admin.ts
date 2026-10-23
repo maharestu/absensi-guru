@@ -32,6 +32,5 @@ export interface AdminAkunItem {
   nip?: string;
   role: "admin" | "guru" | "kepala_sekolah";
   status: "aktif" | "nonaktif";
-  terakhir_dilihat: string;
   created_at: string;
 }

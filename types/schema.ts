@@ -2,7 +2,7 @@
 
 export type RoleAkun = "admin" | "kepala_sekolah" | "guru";
 export type StatusAktif = "aktif" | "nonaktif";
-export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin" | "dinas";
+export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin" | "dinas" | "tidak_hadir";
 export type HariJadwal =
   | "senin"
   | "selasa"
@@ -33,6 +33,7 @@ export interface Guru {
   alamat?: string | null;
   jenis_kelamin?: "Laki-Laki" | "Perempuan" | string | null;
   status: StatusAktif;
+  linked_role?: RoleAkun | null;
   created_at: Date | string;
 }
 

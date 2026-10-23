@@ -7,6 +7,7 @@ export const STATUS_MASUK_LABEL: Record<StatusAbsensiMasuk, string> = {
   izin: "Izin",
   sakit: "Sakit",
   dinas: "Dinas Keluar",
+  tidak_hadir: "Tidak Hadir",
 };
 
 export const STATUS_AKTIVITAS_LABEL: Record<StatusAbsensiMasuk, string> = {
@@ -14,6 +15,7 @@ export const STATUS_AKTIVITAS_LABEL: Record<StatusAbsensiMasuk, string> = {
   izin: "Pengajuan Izin",
   sakit: "Pengajuan Sakit",
   dinas: "Dinas Keluar",
+  tidak_hadir: "Tidak Hadir",
 };
 
 export const getStatusColorText = (status: string) => {

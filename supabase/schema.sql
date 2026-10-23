@@ -19,7 +19,8 @@ CREATE TYPE status_absensi_masuk AS ENUM (
     'hadir',
     'izin',
     'sakit',
-    'dinas'
+    'dinas',
+    'tidak_hadir'
 );
 
 CREATE TYPE hari_jadwal AS ENUM (

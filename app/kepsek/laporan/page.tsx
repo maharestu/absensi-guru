@@ -15,6 +15,7 @@ import { getStatusColorText } from "@/lib/status";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LaporanDetailModal } from "@/components/kepsek/LaporanDetailModal";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
+import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
 
 export default function LaporanAbsensiPage() {
 
@@ -41,20 +42,22 @@ export default function LaporanAbsensiPage() {
   useEffect(() => {
     const today = new Date();
     if (periodeType === "today") {
-      const d = today.toLocaleDateString('en-CA');
+      const d = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       setStartDate(d);
       setEndDate(d);
     } else if (periodeType === "last_7_days") {
-      const dEnd = today.toLocaleDateString('en-CA');
+      const dEnd = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       const start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const dStart = start.toLocaleDateString('en-CA');
+      const dStart = start.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
       setStartDate(dStart);
       setEndDate(dEnd);
     } else if (periodeType === "this_month") {
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const parts = formatter.formatToParts(today);
+      const y = parts.find(p => p.type === 'year')?.value || String(today.getFullYear());
+      const m = parts.find(p => p.type === 'month')?.value || String(today.getMonth() + 1).padStart(2, '0');
       setStartDate(`${y}-${m}-01`);
-      const lastDay = new Date(y, today.getMonth() + 1, 0).getDate();
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
       setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
     }
   }, [periodeType]);
@@ -108,7 +111,84 @@ export default function LaporanAbsensiPage() {
   const countIzin = filteredKehadiran.filter((r) => r.status.toLowerCase() === "izin").length;
   const countSakit = filteredKehadiran.filter((r) => r.status.toLowerCase() === "sakit").length;
   const countDinas = filteredKehadiran.filter((r) => r.status.toLowerCase() === "dinas").length;
-  const countTidakHadir = 0;
+  const countTidakHadir = filteredKehadiran.filter((r) => r.status.toLowerCase().includes("tidak")).length;
+
+  const statCardsKehadiran: StatCardItem[] = [
+    {
+      id: "guru-hadir",
+      label: "Guru Hadir",
+      value: countHadir,
+      bgIcon: "bg-indigo-600",
+      shadowIcon: "shadow-indigo-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="4" />
+          <circle cx="12" cy="10" r="3" />
+          <path d="M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+        </svg>
+      ),
+    },
+    {
+      id: "izin",
+      label: "Izin",
+      value: countIzin,
+      bgIcon: "bg-orange-500",
+      shadowIcon: "shadow-orange-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="14" height="18" x="5" y="3" rx="3" />
+          <path d="M9 9h6" />
+          <path d="M9 13h6" />
+          <path d="M9 17h4" />
+        </svg>
+      ),
+    },
+    {
+      id: "sakit",
+      label: "Sakit",
+      value: countSakit,
+      bgIcon: "bg-rose-500",
+      shadowIcon: "shadow-rose-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="18" height="18" x="3" y="4" rx="3" />
+          <path d="M16 2v4" />
+          <path d="M8 2v4" />
+          <path d="M3 10h18" />
+          <path d="M10 16h4" />
+          <path d="M12 14v4" />
+        </svg>
+      ),
+    },
+    {
+      id: "dinas-luar",
+      label: "Dinas Luar",
+      value: countDinas,
+      bgIcon: "bg-teal-500",
+      shadowIcon: "shadow-teal-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+      ),
+    },
+    {
+      id: "tidak-hadir",
+      label: "Tidak Hadir",
+      value: countTidakHadir,
+      bgIcon: "bg-purple-600",
+      shadowIcon: "shadow-purple-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="18" height="14" x="3" y="5" rx="3" />
+          <path d="M3 10h18" />
+          <path d="m15 15 4 4" />
+          <path d="m19 15-4 4" />
+        </svg>
+      ),
+    },
+  ];
 
   // Hitung jumlah statistik Mengajar secara dinamis
   const countMengajar = filteredMengajar.length;
@@ -143,7 +223,7 @@ export default function LaporanAbsensiPage() {
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
-      const formatted = d.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+      const formatted = d.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "long", year: "numeric" });
       return formatted.replace(/ /g, "-");
     } catch {
       return dateStr;
@@ -377,6 +457,7 @@ export default function LaporanAbsensiPage() {
                   <option value="sakit">Sakit</option>
                   <option value="izin">Izin</option>
                   <option value="dinas">Dinas Luar</option>
+                  <option value="tidak hadir">Tidak Hadir</option>
                 </select>
                 <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
@@ -565,86 +646,11 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards Kehadiran */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
-            {/* Card 1: Guru Hadir */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="18" x="3" y="3" rx="4" />
-                  <circle cx="12" cy="10" r="3" />
-                  <path d="M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Guru Hadir</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countHadir}</h2>
-              </div>
-            </div>
-
-            {/* Card 2: Izin */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-orange-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="14" height="18" x="5" y="3" rx="3" />
-                  <path d="M9 9h6" />
-                  <path d="M9 13h6" />
-                  <path d="M9 17h4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Izin</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countIzin}</h2>
-              </div>
-            </div>
-
-            {/* Card 3: Sakit */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="18" x="3" y="4" rx="3" />
-                  <path d="M16 2v4" />
-                  <path d="M8 2v4" />
-                  <path d="M3 10h18" />
-                  <path d="M10 16h4" />
-                  <path d="M12 14v4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Sakit</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countSakit}</h2>
-              </div>
-            </div>
-
-            {/* Card: Dinas Luar */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-teal-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-teal-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Dinas Luar</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countDinas}</h2>
-              </div>
-            </div>
-
-            {/* Card 4: Tidak Hadir */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 col-span-2 lg:col-span-1">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-purple-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-purple-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="14" x="3" y="5" rx="3" />
-                  <path d="M3 10h18" />
-                  <path d="m15 15 4 4" />
-                  <path d="m19 15-4 4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Tidak Hadir</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countTidakHadir}</h2>
-              </div>
-            </div>
-          </div>
+          <ScrollingStatCards
+            items={statCardsKehadiran}
+            loading={loading}
+            desktopGridCols="lg:grid-cols-5"
+          />
 
           {/* Table Section Kehadiran */}
           <div>

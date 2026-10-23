@@ -4,9 +4,10 @@ import { Kelas } from "@/types/schema";
 
 interface ClassA4PrintTemplateProps {
   classData: Kelas;
+  logoBase64?: string;
 }
 
-export function ClassA4PrintTemplate({ classData }: ClassA4PrintTemplateProps) {
+export function ClassA4PrintTemplate({ classData, logoBase64 }: ClassA4PrintTemplateProps) {
   const [qrSvg, setQrSvg] = useState<string>("");
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
   const cleanBaseUrl = baseUrl.replace(/\/$/, "");
@@ -49,7 +50,7 @@ export function ClassA4PrintTemplate({ classData }: ClassA4PrintTemplateProps) {
         {/* Kop Surat */}
         <div className="flex items-center justify-between border-b-[3px] border-slate-800 pb-6 mb-8 w-full px-4">
           <div className="flex-shrink-0">
-            <img src="/Logo.png" alt="Logo" className="w-[100px] h-[100px] object-contain" />
+            <img src={logoBase64 || "/Logo.png"} alt="Logo" className="w-[100px] h-[100px] object-contain" />
           </div>
           <div className="text-center flex-1 px-6">
             <h4 className="text-sm font-bold text-slate-700 tracking-wider">PEMERINTAH KABUPATEN KARAWANG</h4>

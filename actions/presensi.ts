@@ -9,8 +9,9 @@ import { isWithinGeofence } from "@/lib/geo";
 import { getLokasiSekolah } from "@/actions/pengaturan";
 import { uploadFotoAbsensi, deleteFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 import { STATUS_MASUK } from "@/lib/status";
-import { getHariWIB, getTodayWIB, getJamWIB } from "@/lib/date";
+import { getHariWIB, getTodayWIB, getJamWIB, isWeekendWIB } from "@/lib/date";
 import { getSession } from "@/lib/session";
+import { getDevTestingConfigServer } from "@/lib/testing-mode";
 
 export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
   try {
@@ -39,10 +40,16 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
 
 export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string) {
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("absensi_mengajar")
-      .select("jadwal_id")
+      .select("jadwal_id, jadwal!inner(guru_id)")
       .eq("tanggal", tanggal);
+
+    if (guruId) {
+      query = query.eq("jadwal.guru_id", guruId);
+    }
+
+    const { data, error } = await query;
       
     if (error) {
       console.error("Error getAbsensiMengajarHariIni:", error);
@@ -71,6 +78,13 @@ export async function submitPresensiMasukAction(formData: FormData) {
     const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
     const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
 
+    const testConfig = await getDevTestingConfigServer();
+
+    // Validasi hari kerja: Absensi kehadiran dilarang pada hari Sabtu & Minggu (kecuali mode testing aktif)
+    if (!testConfig.isActive && isWeekendWIB()) {
+      throw new Error("Absensi kehadiran tidak dapat dilakukan pada hari libur (Sabtu dan Minggu).");
+    }
+
     if (!guruId || !status || !file) {
       throw new Error("Data presensi tidak lengkap.");
     }
@@ -92,21 +106,26 @@ export async function submitPresensiMasukAction(formData: FormData) {
     }
 
     if (status === "hadir") {
-      if (!latitude || !longitude) {
-        throw new Error("Lokasi (GPS) wajib diisi untuk absensi hadir.");
-      }
-      
-      const config = await getLokasiSekolah();
-      const isValidLocation = isWithinGeofence(
-        latitude, 
-        longitude, 
-        config.latitude, 
-        config.longitude, 
-        config.radius_meter
-      );
+      // Jika mode testing aktif dan bypassGps aktif, lewati validasi koordinat GPS
+      if (testConfig.isActive && testConfig.bypassGps) {
+        // Bypass GPS untuk keperluan pengetesan
+      } else {
+        if (!latitude || !longitude) {
+          throw new Error("Lokasi (GPS) wajib diisi untuk absensi hadir.");
+        }
+        
+        const config = await getLokasiSekolah();
+        const isValidLocation = isWithinGeofence(
+          latitude, 
+          longitude, 
+          config.latitude, 
+          config.longitude, 
+          config.radius_meter
+        );
 
-      if (!isValidLocation) {
-        throw new Error("Absensi ditolak: Anda terdeteksi berada di luar area sekolah.");
+        if (!isValidLocation) {
+          throw new Error("Absensi ditolak: Anda terdeteksi berada di luar area sekolah.");
+        }
       }
     }
 
@@ -178,10 +197,14 @@ export async function submitPresensiMengajarAction(formData: FormData) {
       throw new Error("Data presensi mengajar tidak lengkap.");
     }
 
-    // Validasi ulang: Pastikan sudah absen hadir hari ini
-    const statusHariIni = await cekStatusAbsensiHariIni(guruId, tanggal);
-    if (!statusHariIni.completed || statusHariIni.status !== "hadir") {
-      throw new Error("Anda belum melakukan absensi masuk (Hadir) hari ini.");
+    const testConfig = await getDevTestingConfigServer();
+
+    // Validasi ulang: Pastikan sudah absen hadir hari ini (dilewati jika mode testing aktif)
+    if (!testConfig.isActive || !testConfig.bypassPrereq) {
+      const statusHariIni = await cekStatusAbsensiHariIni(guruId, tanggal);
+      if (!statusHariIni.completed || statusHariIni.status !== "hadir") {
+        throw new Error("Anda belum melakukan absensi masuk (Hadir) hari ini.");
+      }
     }
 
     // Ambil jadwal
@@ -191,14 +214,17 @@ export async function submitPresensiMengajarAction(formData: FormData) {
       .eq("id", jadwalId)
       .single();
 
-    if (!jadwal || jadwal.guru_id !== guruId || jadwal.hari !== getHariWIB()) {
+    const expectedHari = testConfig.isActive ? (testConfig.simDay || "senin").toLowerCase() : getHariWIB();
+    if (!jadwal || jadwal.guru_id !== guruId || jadwal.hari.toLowerCase() !== expectedHari) {
       throw new Error("Jadwal tidak valid.");
     }
 
-    // Validasi waktu
-    const jamSekarang = getJamWIB();
-    if (jamSekarang < jadwal.jam_mulai || jamSekarang > jadwal.jam_selesai) {
-      throw new Error(`Anda hanya dapat absen pada rentang ${jadwal.jam_mulai.substring(0,5)} - ${jadwal.jam_selesai.substring(0,5)} WIB.`);
+    // Validasi waktu (dilewati jika mode testing aktif dan bypassTime aktif)
+    if (!testConfig.isActive || !testConfig.bypassTime) {
+      const jamSekarang = getJamWIB();
+      if (jamSekarang < jadwal.jam_mulai || jamSekarang > jadwal.jam_selesai) {
+        throw new Error(`Anda hanya dapat absen pada rentang ${jadwal.jam_mulai.substring(0,5)} - ${jadwal.jam_selesai.substring(0,5)} WIB.`);
+      }
     }
 
     let uploadedPhotoUrl: string | null = null;
@@ -261,8 +287,9 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
 
     if (!kelas) return false;
 
-    // Validasi lokasi jika dikirim
-    if (lat && lng) {
+    // Validasi lokasi jika dikirim (dilewati jika mode testing aktif)
+    const testConfig = await getDevTestingConfigServer();
+    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
       const config = await getLokasiSekolah();
       const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
       if (!isValid) return false;
@@ -275,10 +302,17 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
   }
 }
 
-export async function validasiQrMengajar(guruId: string, kodeQr: string, lat?: number, lng?: number) {
+export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: number) {
   try {
-    // 0. Validasi Lokasi jika dikirim
-    if (lat && lng) {
+    const session = await getSession();
+    if (!session?.guru_id) {
+      return { ok: false, error: "SESSION_INVALID", message: "Sesi tidak valid." };
+    }
+    const guruId = session.guru_id;
+    const testConfig = await getDevTestingConfigServer();
+
+    // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)
+    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
       const config = await getLokasiSekolah();
       const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
       if (!isValid) {
@@ -297,15 +331,17 @@ export async function validasiQrMengajar(guruId: string, kodeQr: string, lat?: n
       return { ok: false, error: "QR_TIDAK_DIKENAL", message: "Kode QR tidak valid atau kelas tidak ditemukan." };
     }
 
-    // 2. Cek absen masuk guru hari ini
+    // 2. Cek absen masuk guru hari ini (dilewati jika mode testing aktif)
     const today = getTodayWIB();
-    const statusMasuk = await cekStatusAbsensiHariIni(guruId, today);
-    if (!statusMasuk.completed || statusMasuk.status !== "hadir") {
-      return { ok: false, error: "BELUM_HADIR", message: "Anda belum melakukan absensi masuk (Hadir) hari ini." };
+    if (!testConfig.isActive || !testConfig.bypassPrereq) {
+      const statusMasuk = await cekStatusAbsensiHariIni(guruId, today);
+      if (!statusMasuk.completed || statusMasuk.status !== "hadir") {
+        return { ok: false, error: "BELUM_HADIR", message: "Anda belum melakukan absensi masuk (Hadir) hari ini." };
+      }
     }
 
-    // 3. Ambil jadwal guru hari ini di kelas ini
-    const hariIni = getHariWIB();
+    // 3. Ambil jadwal guru hari ini di kelas ini (gunakan hari simulasi jika mode testing aktif)
+    const hariIni = testConfig.isActive ? (testConfig.simDay || "senin").toLowerCase() : getHariWIB();
     const { data: jadwalList } = await supabaseAdmin
       .from("jadwal")
       .select("id, jam_mulai, jam_selesai, mata_pelajaran")
@@ -332,12 +368,15 @@ export async function validasiQrMengajar(guruId: string, kodeQr: string, lat?: n
       return { ok: false, error: "SUDAH_ABSEN", message: `Anda sudah mengabsen semua jadwal di ${kelas.nama_kelas} hari ini.` };
     }
 
-    // 5. Validasi waktu
-    const jamSekarang = getJamWIB();
-    const jadwalTepatWaktu = jadwalSisa.filter(j => jamSekarang >= j.jam_mulai && jamSekarang <= j.jam_selesai);
+    // 5. Validasi waktu (dilewati jika mode testing aktif)
+    let jadwalTepatWaktu = jadwalSisa;
+    if (!testConfig.isActive || !testConfig.bypassTime) {
+      const jamSekarang = getJamWIB();
+      jadwalTepatWaktu = jadwalSisa.filter(j => jamSekarang >= j.jam_mulai && jamSekarang <= j.jam_selesai);
 
-    if (jadwalTepatWaktu.length === 0) {
-      return { ok: false, error: "DILUAR_WAKTU", message: "Belum waktunya atau sudah lewat waktu mengajar untuk kelas ini." };
+      if (jadwalTepatWaktu.length === 0) {
+        return { ok: false, error: "DILUAR_WAKTU", message: "Belum waktunya atau sudah lewat waktu mengajar untuk kelas ini." };
+      }
     }
 
     return { ok: true, kelas: kelas.nama_kelas, jadwal: jadwalTepatWaktu };

@@ -23,6 +23,12 @@ const ROLE_LABEL: Record<AdminAkunItem["role"], string> = {
   guru: "Guru",
 };
 
+const ROLE_PRIORITY: Record<AdminAkunItem["role"], number> = {
+  kepala_sekolah: 0,
+  admin: 1,
+  guru: 2,
+};
+
 export default function AccountManagerClient() {
   const { user } = useAuth();
 
@@ -70,7 +76,7 @@ export default function AccountManagerClient() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]); 
+  }, [searchQuery]);
   const loadData = async () => {
     try {
       const [accList, guruList] = await Promise.all([
@@ -90,16 +96,25 @@ export default function AccountManagerClient() {
     loadData();
   }, []);
 
-  const filteredAccounts = accounts.filter((a) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      (a.username || "").toLowerCase().includes(q) ||
-      (a.nama || "").toLowerCase().includes(q) ||
-      (a.role || "").toLowerCase().includes(q) ||
-      (ROLE_LABEL[a.role] || "").toLowerCase().includes(q)
-    );
-  });
+  const filteredAccounts = accounts
+    .filter((a) => {
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        (a.username || "").toLowerCase().includes(q) ||
+        (a.nama || "").toLowerCase().includes(q) ||
+        (a.role || "").toLowerCase().includes(q) ||
+        (ROLE_LABEL[a.role] || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      const priorityA = ROLE_PRIORITY[a.role] ?? 99;
+      const priorityB = ROLE_PRIORITY[b.role] ?? 99;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return (a.nama || "").localeCompare(b.nama || "");
+    });
 
   const handleConfirmDelete = async () => {
     if (!deletingAccount) return;
@@ -294,7 +309,7 @@ export default function AccountManagerClient() {
     }
   };
 
-    const paginatedList = filteredAccounts.slice(
+  const paginatedList = filteredAccounts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -308,8 +323,8 @@ export default function AccountManagerClient() {
 
 
 
-  
-// reset page if search changes
+
+  // reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -353,14 +368,14 @@ export default function AccountManagerClient() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px]">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-              <th className="pb-4 font-semibold w-[28%]">NAMA</th>
-              <th className="pb-4 font-semibold w-[22%]">USERNAME</th>
-              <th className="pb-4 font-semibold w-[20%]">ROLE</th>
-              <th className="pb-4 font-semibold w-[18%]">TERAKHIR DILIHAT</th>
-              <th className="pb-4 font-semibold text-right w-[12%]"></th>
+              <th className="pb-4 font-semibold w-[25%]">NAMA</th>
+              <th className="pb-4 font-semibold w-[30%] pr-4">NIP/NUPTK</th>
+              <th className="pb-4 font-semibold w-[23%]">USERNAME</th>
+              <th className="pb-4 font-semibold w-[14%]">ROLE</th>
+              <th className="pb-4 font-semibold text-right w-[8%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
@@ -373,15 +388,10 @@ export default function AccountManagerClient() {
             ) : (
               paginatedList.map((akun) => (
                 <tr key={akun.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="py-4 font-bold text-slate-900">
-                    <div>{akun.nama}</div>
-                    {akun.nip && <span className="text-xs text-slate-400 font-normal">NIP/NUPTK: {akun.nip}</span>}
-                  </td>
+                  <td className="py-4 font-bold text-slate-900">{akun.nama}</td>
+                  <td className="py-4 text-slate-600 font-normal pr-4">{akun.nip || "-"}</td>
                   <td className="py-4 text-slate-600 font-normal">{akun.username}</td>
                   <td className="py-4 text-slate-600 font-normal">{ROLE_LABEL[akun.role] || akun.role}</td>
-                  <td className="py-4 text-slate-500 font-normal">
-                    {akun.terakhir_dilihat ?? "-"}
-                  </td>
                   <td className="py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
                       <button
@@ -572,7 +582,7 @@ export default function AccountManagerClient() {
         </div>
         <form onSubmit={handleCreateSubmit} className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Nama Pemilik Akun */}
             <div className="space-y-2 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
@@ -685,7 +695,7 @@ export default function AccountManagerClient() {
                 </button>
               </div>
             </div>
-            
+
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">

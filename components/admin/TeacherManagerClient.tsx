@@ -11,6 +11,12 @@ import Pagination from "@/components/ui/pagination";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
 import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 
+const ROLE_PRIORITY: Record<string, number> = {
+  kepala_sekolah: 0,
+  admin: 1,
+  guru: 2,
+};
+
 export default function TeacherManagerClient() {
 
   const [teachers, setTeachers] = useState<Guru[]>([]);
@@ -22,6 +28,7 @@ export default function TeacherManagerClient() {
   const [editingTeacher, setEditingTeacher] = useState<Guru | null>(null);
   const [deletingTeacher, setDeletingTeacher] = useState<Guru | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+  const [isForceDeletingSingle, setIsForceDeletingSingle] = useState(false);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -52,7 +59,7 @@ export default function TeacherManagerClient() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery]); 
+  }, [searchQuery]);
   const loadTeachers = async () => {
     try {
       const data = await getGuruList();
@@ -68,14 +75,23 @@ export default function TeacherManagerClient() {
     loadTeachers();
   }, []);
 
-  const filteredTeachers = teachers.filter((t) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (t.nama || "").toLowerCase().includes(q) ||
-      (t.nip || "").toLowerCase().includes(q) ||
-      (t.jabatan && t.jabatan.toLowerCase().includes(q))
-    );
-  });
+  const filteredTeachers = teachers
+    .filter((t) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        (t.nama || "").toLowerCase().includes(q) ||
+        (t.nip || "").toLowerCase().includes(q) ||
+        (t.jabatan && t.jabatan.toLowerCase().includes(q))
+      );
+    })
+    .sort((a, b) => {
+      const priorityA = a.linked_role ? (ROLE_PRIORITY[a.linked_role] ?? 2) : 2;
+      const priorityB = b.linked_role ? (ROLE_PRIORITY[b.linked_role] ?? 2) : 2;
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      return (a.nama || "").localeCompare(b.nama || "");
+    });
 
   const handleConfirmDelete = async () => {
     if (!deletingTeacher) return;
@@ -93,6 +109,25 @@ export default function TeacherManagerClient() {
       setSingleDeleteError(err.message || "Terjadi kesalahan saat menghapus data guru.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleForceDeleteSingle = async () => {
+    if (!deletingTeacher) return;
+    try {
+      setIsForceDeletingSingle(true);
+      const res = await deleteGuru(deletingTeacher.id, true);
+      if (res.success) {
+        setTeachers((prev) => prev.filter((t) => t.id !== deletingTeacher.id));
+        setDeletingTeacher(null);
+        setSingleDeleteError(null);
+      } else {
+        setSingleDeleteError(res.error || "Gagal menghapus paksa data guru.");
+      }
+    } catch (err: any) {
+      setSingleDeleteError(err.message || "Terjadi kesalahan saat menghapus paksa data guru.");
+    } finally {
+      setIsForceDeletingSingle(false);
     }
   };
 
@@ -116,7 +151,7 @@ export default function TeacherManagerClient() {
       setIsDeletingAll(true);
       const res = await deleteAllGuru(forceCascade);
       if (res.success) {
-        setTeachers([]);
+        await loadTeachers();
         setIsDeleteAllOpen(false);
       } else {
         alert("Gagal menghapus semua data guru: " + (res.error || ""));
@@ -206,7 +241,7 @@ export default function TeacherManagerClient() {
     }
   };
 
-    const paginatedList = filteredTeachers.slice(
+  const paginatedList = filteredTeachers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -215,8 +250,8 @@ export default function TeacherManagerClient() {
 
 
 
-  
-// reset page if search changes
+
+  // reset page if search changes
 
   return (
     <div className="space-y-8">
@@ -297,13 +332,22 @@ export default function TeacherManagerClient() {
                       >
                         <Edit2 className="w-[18px] h-[18px]" />
                       </button>
-                      <button
-                        onClick={() => setDeletingTeacher(guru)}
-                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-                        title="Hapus Guru"
-                      >
-                        <Trash2 className="w-[18px] h-[18px]" />
-                      </button>
+                      {guru.linked_role === "admin" || guru.linked_role === "kepala_sekolah" ? (
+                        <span
+                          className="text-slate-300 p-1 cursor-not-allowed inline-flex items-center"
+                          title="Akun Sistem Terlindungi (Admin / Kepala Sekolah)"
+                        >
+                          <Trash2 className="w-[18px] h-[18px] opacity-30" />
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setDeletingTeacher(guru)}
+                          className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                          title="Hapus Guru"
+                        >
+                          <Trash2 className="w-[18px] h-[18px]" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -335,6 +379,8 @@ export default function TeacherManagerClient() {
         isDeleting={submitting}
         errorRelation={singleDeleteError}
         onClearError={() => setSingleDeleteError(null)}
+        onForceDelete={handleForceDeleteSingle}
+        isForceDeleting={isForceDeletingSingle}
       />
 
       <DeleteAllModal
@@ -343,7 +389,7 @@ export default function TeacherManagerClient() {
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Data Guru"
         entityName="guru"
-        totalCount={teachers.length}
+        totalCount={teachers.filter((t) => t.linked_role !== "admin" && t.linked_role !== "kepala_sekolah").length}
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}

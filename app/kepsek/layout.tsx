@@ -29,6 +29,16 @@ export default function KepsekLayout({
     }
   }, [isLoading, isAuthenticated, user, router]);
 
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "admin") {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
@@ -38,9 +48,9 @@ export default function KepsekLayout({
   }
 
   return (
-    <div className="h-screen bg-[#f8fafc] flex overflow-hidden">
+    <div className="h-screen h-[100dvh] bg-[#f8fafc] flex flex-col md:flex-row overflow-hidden">
       {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-40 shadow-sm">
+      <header className="md:hidden flex-shrink-0 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-40 shadow-sm">
         <div className="flex items-center">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
@@ -52,7 +62,7 @@ export default function KepsekLayout({
           </button>
           <span className="ml-3 font-bold text-slate-800">Dashboard Kepala Sekolah</span>
         </div>
-      </div>
+      </header>
 
       {/* Overlay for mobile sidebar */}
       {isMobileMenuOpen && (
@@ -69,8 +79,8 @@ export default function KepsekLayout({
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-screen pt-16 md:pt-0 bg-[#f8fafc]">
-        <div className="px-5 py-6 md:px-8 md:py-8 w-full">{children}</div>
+      <main className="flex-1 overflow-y-auto min-h-0 bg-[#f8fafc] overscroll-y-auto [-webkit-overflow-scrolling:touch]">
+        <div className="px-5 py-6 pb-24 md:px-8 md:py-8 md:pb-8 w-full">{children}</div>
       </main>
     </div>
   );

@@ -7,26 +7,37 @@ import CameraCapture from "@/components/absensi/camera-capture";
 import Button from "@/components/ui/button";
 
 const PHOTO_STORAGE_KEY = "absensi_captured_photo";
+const PHOTO_STATUS_KEY = "absensi_photo_status";
 
 export default function HadirPage() {
   const router = useRouter();
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   useEffect(() => {
+    const photoStatus = sessionStorage.getItem(PHOTO_STATUS_KEY);
     const saved = sessionStorage.getItem(PHOTO_STORAGE_KEY);
-    if (saved) {
+
+    // HANYA restore jika foto tersebut benar-benar berasal dari selfie hadir
+    if (saved && photoStatus === "hadir") {
       setCapturedImage(saved);
+    } else {
+      // Jika dari status lain (izin/sakit/dinas) atau belum ada, bersihkan agar kamera aktif segar
+      sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+      sessionStorage.removeItem(PHOTO_STATUS_KEY);
+      setCapturedImage(null);
     }
   }, []);
 
   const handleCapture = (imageSrc: string) => {
     setCapturedImage(imageSrc);
     sessionStorage.setItem(PHOTO_STORAGE_KEY, imageSrc);
+    sessionStorage.setItem(PHOTO_STATUS_KEY, "hadir");
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
     sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+    sessionStorage.removeItem(PHOTO_STATUS_KEY);
   };
 
   const handleContinue = () => {
@@ -34,16 +45,14 @@ export default function HadirPage() {
   };
 
   const handleBack = () => {
-    if (capturedImage) {
-      handleRetake();
-    } else {
-      sessionStorage.removeItem(PHOTO_STORAGE_KEY);
-      router.push("/guru/pilih-status");
-    }
+    sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+    sessionStorage.removeItem(PHOTO_STATUS_KEY);
+    setCapturedImage(null);
+    router.push("/guru/pilih-status");
   };
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-10">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
         onBack={handleBack}
         title={capturedImage ? "Ambil Foto Absensi" : "Ambil Foto Kehadiran"}
@@ -57,7 +66,7 @@ export default function HadirPage() {
           </div>
         ) : (
           <div className="w-full max-w-[354px] flex flex-col">
-            <div className="w-full h-[430px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60">
+            <div className="w-full aspect-[3/4] max-h-[56vh] min-h-[320px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={capturedImage}

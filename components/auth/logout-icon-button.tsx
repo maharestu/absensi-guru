@@ -2,23 +2,63 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export default function LogoutIconButton() {
   const { logout } = useAuth();
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.push("/");
   };
 
+  const modal = showConfirm ? (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs px-6"
+      onClick={() => setShowConfirm(false)}
+    >
+      <div
+        className="bg-white rounded-[24px] p-6 w-full max-w-[320px] shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-[17px] font-bold text-slate-900 mb-2 text-center">Keluar dari Akun?</h3>
+        <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+          Anda harus masuk kembali untuk menggunakan sistem absensi.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowConfirm(false)}
+            className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold active:scale-[0.98] transition-all shadow-sm shadow-red-200 cursor-pointer"
+          >
+            Ya, Keluar
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <button
+        type="button"
         onClick={() => setShowConfirm(true)}
-        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full active:scale-95 transition-all flex-shrink-0"
+        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full active:scale-95 transition-all flex-shrink-0 cursor-pointer"
         title="Keluar"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -26,31 +66,8 @@ export default function LogoutIconButton() {
         </svg>
       </button>
 
-      {/* Pop-up Konfirmasi */}
-      {showConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-6">
-          <div className="bg-white rounded-[24px] p-6 w-full max-w-[320px] shadow-lg animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-[17px] font-bold text-slate-900 mb-2 text-center">Keluar dari Akun?</h3>
-            <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
-              Anda harus masuk kembali untuk menggunakan sistem absensi.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 active:scale-[0.98] transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold active:scale-[0.98] transition-all shadow-sm shadow-red-200"
-              >
-                Ya, Keluar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {mounted && modal ? createPortal(modal, document.body) : null}
     </>
   );
 }
+
