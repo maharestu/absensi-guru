@@ -4,12 +4,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
 import { useAuth } from "@/context/AuthContext";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
 import { formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB } from "@/lib/date";
 import { getDevTestingConfigClient } from "@/lib/testing-mode";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 const HARI_LABEL: Record<string, string> = {
   senin: "Senin",
   selasa: "Selasa",
@@ -28,10 +33,16 @@ export default function PresensiMengajarPage() {
   const [hariList, setHariList] = useState<string[]>([]);
   const [jadwalMap, setJadwalMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [statusOperasional, setStatusOperasional] = useState<StatusOperasionalHariIni | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     
+    // Evaluasi status operasional/libur terlebih dahulu tanpa bergantung pada session cache
+    getStatusOperasionalHariIni().then((res) => {
+      if (isMounted) setStatusOperasional(res);
+    }).catch((err) => console.warn("getStatusOperasionalHariIni error:", err));
+
     async function checkStatus() {
       if (!user?.guru_id) return;
       
@@ -130,6 +141,23 @@ export default function PresensiMengajarPage() {
   const handleSelectHari = (hariId: string) => {
     router.push(`/guru/presensi-mengajar/${hariId}`);
   };
+
+  const testConfig = getDevTestingConfigClient();
+  const isHolidayPause = !testConfig.isActive && Boolean(statusOperasional && !statusOperasional.isOperasional);
+
+  if (isHolidayPause && statusOperasional) {
+    return (
+      <LiburPauseScreen
+        pageTitle="Absensi Mengajar"
+        subtitle={statusOperasional.judul}
+        judul={statusOperasional.judul}
+        deskripsi={statusOperasional.deskripsi}
+        periode={statusOperasional.periode}
+        keterangan={statusOperasional.keterangan}
+        backHref="/guru"
+      />
+    );
+  }
 
   if (canAccess === null) {
     return (

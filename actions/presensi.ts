@@ -6,7 +6,12 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { isWithinGeofence } from "@/lib/geo";
-import { getLokasiSekolah } from "@/actions/pengaturan";
+import {
+  getLokasiSekolah,
+  isHariLibur,
+  isLiburPanjang,
+  getStatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 import { uploadFotoAbsensi, deleteFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 import { STATUS_MASUK } from "@/lib/status";
 import { getHariWIB, getTodayWIB, getJamWIB, isWeekendWIB } from "@/lib/date";
@@ -80,9 +85,10 @@ export async function submitPresensiMasukAction(formData: FormData) {
 
     const testConfig = await getDevTestingConfigServer();
 
-    // Validasi hari kerja: Absensi kehadiran dilarang pada hari Sabtu & Minggu (kecuali mode testing aktif)
-    if (!testConfig.isActive && isWeekendWIB()) {
-      throw new Error("Absensi kehadiran tidak dapat dilakukan pada hari libur (Sabtu dan Minggu).");
+    // Validasi operasional sistem (libur panjang, hari libur nasional, weekend)
+    const statusOp = await getStatusOperasionalHariIni(tanggal);
+    if (!testConfig.isActive && !statusOp.isOperasional) {
+      throw new Error(`Absensi kehadiran tidak dapat dilakukan (${statusOp.judul}): ${statusOp.deskripsi}`);
     }
 
     if (!guruId || !status || !file) {
@@ -198,6 +204,12 @@ export async function submitPresensiMengajarAction(formData: FormData) {
     }
 
     const testConfig = await getDevTestingConfigServer();
+
+    // Validasi operasional sistem (libur panjang, hari libur nasional, weekend)
+    const statusOp = await getStatusOperasionalHariIni(tanggal);
+    if (!testConfig.isActive && !statusOp.isOperasional) {
+      throw new Error(`Absensi mengajar tidak dapat dilakukan (${statusOp.judul}): ${statusOp.deskripsi}`);
+    }
 
     // Validasi ulang: Pastikan sudah absen hadir hari ini (dilewati jika mode testing aktif)
     if (!testConfig.isActive || !testConfig.bypassPrereq) {

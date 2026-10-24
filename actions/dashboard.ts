@@ -18,6 +18,11 @@ import {
   TANGGAL_MULAI_TIDAK_HADIR,
   getFaseWaktuSekolah,
 } from "@/lib/date";
+import {
+  isHariLibur,
+  isLiburPanjang,
+  getStatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
 import { StatusAbsensiMasuk } from "@/types/schema";
 
@@ -139,8 +144,11 @@ export async function getKepsekStats(): Promise<KepsekStats> {
   const dinas = absensiHariIni?.filter((a) => a.status === "dinas").length ?? 0;
   const sudahAbsen = (absensiHariIni?.length ?? 0);
 
-  // Jika akhir pekan atau sebelum jam masuk (sebelum 07:00), belumAbsen bernilai 0
-  const belumAbsen = (fase === "akhir_pekan" || fase === "sebelum_masuk")
+  // Cek status operasional harian (libur panjang, tanggal merah, weekend)
+  const statusOp = await getStatusOperasionalHariIni(today);
+
+  // Jika akhir pekan, sebelum jam masuk, atau hari libur / libur panjang → belumAbsen = 0
+  const belumAbsen = (!statusOp.isOperasional || fase === "sebelum_masuk")
     ? 0
     : Math.max(0, (totalGuru ?? 0) - sudahAbsen);
 
@@ -154,6 +162,10 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const fase = getFaseWaktuSekolah();
   const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
   const isSetelahPulang = fase === "setelah_pulang" && isEffective;
+  
+  // Cek status operasional harian
+  const statusOp = await getStatusOperasionalHariIni(today);
+  const isLibur = !statusOp.isOperasional;
   const statusBelumAbsen = isSetelahPulang ? "Tidak Hadir" : "Belum Hadir";
 
   // 1. Ambil semua data absensi masuk hari ini & data master guru aktif
@@ -174,14 +186,23 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const allGuru = guruRes.data || [];
   const allAbsensi = absensiRes.data || [];
 
+  // Jika hari libur / libur panjang dan belum ada absensi tercatat, kembalikan array kosong (laporan kosong seperti weekend)
+  if (isLibur && allAbsensi.length === 0) {
+    return [];
+  }
+
   // Map absensi berdasarkan guru_id untuk memudahkan pencarian
   const absensiMap = new Map<string, any>();
   allAbsensi.forEach(row => {
     absensiMap.set(row.guru_id, row);
   });
 
-  // 2. Gabungkan data: Pastikan semua guru aktif muncul
-  const finalData: KehadiranHariIni[] = allGuru.map(g => {
+  // 2. Gabungkan data: Jika hari libur hanya tampilkan guru yang sudah absen, hari biasa tampilkan semua guru
+  const targetGuru = isLibur
+    ? allGuru.filter(g => absensiMap.has(g.id))
+    : allGuru;
+
+  const finalData: KehadiranHariIni[] = targetGuru.map(g => {
     const abs = absensiMap.get(g.id);
     
     if (abs) {

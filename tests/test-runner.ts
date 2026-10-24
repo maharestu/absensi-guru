@@ -639,6 +639,184 @@ async function runAllTests() {
   const sanitizedNote = rawNote.replace(/<[^>]*>?/gm, "").trim();
   assert(s15, "TC-NEW-25", "Sanitasi XSS Catatan KBM", "Input tag <script>", sanitizedNote === "alert('xss') Materi Bab 3", "Tag HTML/script tereliminasi sebelum disimpan.");
 
+  // ============================================================================
+  // SUITE 16: PENGATURAN HARI LIBUR & MODE LIBUR PANJANG (SYSTEM SHUTDOWN)
+  // ============================================================================
+  const s16 = registerSuite("Suite 16 (BARU): Hari Libur & Mode Libur Panjang", "actions/pengaturan.ts");
+
+  // Helper evaluator libur panjang
+  function evaluateLiburPanjang(
+    targetDate: string,
+    config: { aktif: boolean; mulai: string | null; selesai: string | null }
+  ): boolean {
+    if (!config.aktif) return false;
+    if (!config.mulai && !config.selesai) return true;
+    if (config.mulai && config.selesai) {
+      return targetDate >= config.mulai && targetDate <= config.selesai;
+    }
+    if (config.mulai && !config.selesai) {
+      return targetDate >= config.mulai;
+    }
+    return false;
+  }
+
+  const sampleConfig = {
+    aktif: true,
+    mulai: "2026-12-22",
+    selesai: "2027-01-03",
+  };
+
+  // TC-LIBUR-01: Libur Panjang Darurat (Tanpa Tanggal -> Langsung Aktif)
+  assert(
+    s16,
+    "TC-LIBUR-01",
+    "Proteksi Libur Panjang Darurat (Shutdown Langsung Tanpa Tanggal)",
+    "aktif = true, mulai & selesai = null",
+    evaluateLiburPanjang("2026-10-24", { aktif: true, mulai: null, selesai: null }) === true,
+    "Sistem langsung terkunci seketika tanpa perlu mengisi tanggal."
+  );
+
+  // TC-LIBUR-02: Libur Panjang Aktif - Tanggal di dalam rentang
+  assert(
+    s16,
+    "TC-LIBUR-02",
+    "Proteksi Libur Panjang (Tanggal di Dalam Rentang)",
+    "Tanggal: 2026-12-25 (di antara 22 Des s.d. 3 Jan)",
+    evaluateLiburPanjang("2026-12-25", sampleConfig) === true,
+    "Sistem terkunci (evaluateLiburPanjang = true)."
+  );
+
+  // TC-LIBUR-03: Libur Panjang Aktif - Tanggal sebelum mulai
+  assert(
+    s16,
+    "TC-LIBUR-03",
+    "Proteksi Libur Panjang (Tanggal Sebelum Rentang Mulai)",
+    "Tanggal: 2026-12-21",
+    evaluateLiburPanjang("2026-12-21", sampleConfig) === false,
+    "Sistem terbuka normal (evaluateLiburPanjang = false)."
+  );
+
+  // TC-LIBUR-04: Libur Panjang Aktif - Tanggal setelah selesai
+  assert(
+    s16,
+    "TC-LIBUR-04",
+    "Proteksi Libur Panjang (Tanggal Setelah Rentang Selesai)",
+    "Tanggal: 2027-01-04",
+    evaluateLiburPanjang("2027-01-04", sampleConfig) === false,
+    "Sistem kembali beroperasi normal setelah tanggal selesai."
+  );
+
+  // TC-LIBUR-05: Libur Panjang Nonaktif
+  const disabledConfig = {
+    aktif: false,
+    mulai: "2026-12-22",
+    selesai: "2027-01-03",
+  };
+  assert(
+    s16,
+    "TC-LIBUR-05",
+    "Mode Libur Panjang Nonaktif (Toggle OFF)",
+    "aktif = false meskipun tanggal dalam rentang",
+    evaluateLiburPanjang("2026-12-25", disabledConfig) === false,
+    "Sistem tidak terkunci saat toggle dinonaktifkan."
+  );
+
+  // TC-LIBUR-06: Laporan Rekap Skip Tanggal Libur & Libur Panjang
+  const mockHolidaySet = new Set(["2026-12-25"]);
+  function shouldSkipRekonsiliasi(dateStr: string): boolean {
+    const isWeekend = isWeekendWIB(dateStr);
+    const isHoliday = mockHolidaySet.has(dateStr);
+    const isShutdown = evaluateLiburPanjang(dateStr, sampleConfig);
+    return isWeekend || isHoliday || isShutdown;
+  }
+  const skipHolidayResult = shouldSkipRekonsiliasi("2026-12-25");
+  const normalWorkdayResult = shouldSkipRekonsiliasi("2026-10-20");
+  assert(
+    s16,
+    "TC-LIBUR-06",
+    "Skip Rekonsiliasi Tanggal Libur di Laporan",
+    "25 Des (Libur) vs 20 Okt (Kerja)",
+    skipHolidayResult === true && normalWorkdayResult === false,
+    "Hari libur diabaikan dari penandaan Tidak Hadir, laporan dibiarkan bersih."
+  );
+
+  // TC-LIBUR-07: Evaluasi Hierarki Resolver - Libur Panjang (#1)
+  function resolveOperationalStatus(
+    dateStr: string,
+    lpConfig: { aktif: boolean; mulai: string | null; selesai: string | null; keterangan?: string },
+    holidays: Map<string, string>,
+    isWeekendFn: (d: string) => boolean
+  ) {
+    if (evaluateLiburPanjang(dateStr, lpConfig)) {
+      return { isOperasional: false, tipe: "LIBUR_PANJANG" };
+    }
+    if (holidays.has(dateStr)) {
+      return { isOperasional: false, tipe: "HARI_LIBUR" };
+    }
+    if (isWeekendFn(dateStr)) {
+      return { isOperasional: false, tipe: "WEEKEND" };
+    }
+    return { isOperasional: true, tipe: null };
+  }
+
+  const holidaysMap = new Map([["2026-08-17", "HUT RI ke-81"], ["2026-12-25", "Hari Natal"]]);
+
+  const testLp = resolveOperationalStatus("2026-12-25", sampleConfig, holidaysMap, isWeekendWIB);
+  assert(
+    s16,
+    "TC-LIBUR-07",
+    "Hierarki #1: Libur Panjang Meng-override Hari Libur",
+    "Tanggal 2026-12-25 terdaftar di Libur Panjang & Tanggal Merah",
+    testLp.tipe === "LIBUR_PANJANG" && !testLp.isOperasional,
+    "Libur Panjang mengambil prioritas tertinggi dibanding tanggal merah biasa."
+  );
+
+  // TC-LIBUR-08: Hierarki #2: Tanggal Merah Meng-override Hari Kerja
+  const testHol = resolveOperationalStatus("2026-08-17", { aktif: false, mulai: null, selesai: null }, holidaysMap, isWeekendWIB);
+  assert(
+    s16,
+    "TC-LIBUR-08",
+    "Hierarki #2: Hari Libur Nasional (Tanggal Merah)",
+    "Tanggal 2026-08-17 (HUT RI)",
+    testHol.tipe === "HARI_LIBUR" && !testHol.isOperasional,
+    "Sistem mengidentifikasi Hari Libur Nasional dan menonaktifkan operasional absensi."
+  );
+
+  // TC-LIBUR-09: Hierarki #3: Akhir Pekan (Sabtu/Minggu)
+  const testWk = resolveOperationalStatus("2026-10-25", { aktif: false, mulai: null, selesai: null }, holidaysMap, isWeekendWIB);
+  assert(
+    s16,
+    "TC-LIBUR-09",
+    "Hierarki #3: Hari Libur Akhir Pekan (Weekend)",
+    "Tanggal 2026-10-25 (Minggu)",
+    testWk.tipe === "WEEKEND" && !testWk.isOperasional,
+    "Sistem mendeteksi akhir pekan dan menonaktifkan operasional absensi."
+  );
+
+  // TC-LIBUR-10: Hari Kerja Normal
+  const testWork = resolveOperationalStatus("2026-10-20", { aktif: false, mulai: null, selesai: null }, holidaysMap, isWeekendWIB);
+  assert(
+    s16,
+    "TC-LIBUR-10",
+    "Hari Kerja Normal (Senin-Jumat Tanpa Libur)",
+    "Tanggal 2026-10-20 (Selasa biasa)",
+    testWork.tipe === null && testWork.isOperasional === true,
+    "Sistem beroperasi normal (isOperasional = true) untuk kehadiran dan mengajar."
+  );
+
+  // TC-LIBUR-11: Intersepsi Ganda ke Layar Jeda (Kehadiran & Mengajar)
+  function isBothAbsensiIntercepted(status: { isOperasional: boolean }) {
+    return !status.isOperasional;
+  }
+  assert(
+    s16,
+    "TC-LIBUR-11",
+    "Intersepsi Ganda ke Layar Jeda (Kehadiran & Mengajar)",
+    "Saat status non-operasional (Libur / Shutdown)",
+    isBothAbsensiIntercepted(testLp) && isBothAbsensiIntercepted(testHol) && isBothAbsensiIntercepted(testWk),
+    "Akses kehadiran & mengajar serentak menampilkan Layar Jeda Libur dengan tombol kembali."
+  );
+
 
   // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN

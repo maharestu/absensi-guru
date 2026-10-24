@@ -16,6 +16,10 @@ import { getStatusColorText } from "@/lib/status";
 import { getFaseWaktuSekolah, getTodayWIB, TANGGAL_MULAI_TIDAK_HADIR } from "@/lib/date";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
 import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 
 function getStatusBadge(status: string) {
   const s = status.toLowerCase();
@@ -41,6 +45,7 @@ export default function KepsekDashboardPage() {
   const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
+  const [statusOp, setStatusOp] = useState<StatusOperasionalHariIni | null>(null);
 
   // Pagination items per page
   const itemsPerPage = 10;
@@ -86,14 +91,16 @@ export default function KepsekDashboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [statsData, hadirData, mengajarData] = await Promise.all([
+        const [statsData, hadirData, mengajarData, opData] = await Promise.all([
           getKepsekStats(),
           getKehadiranHariIni(),
           getMengajarHariIni(),
+          getStatusOperasionalHariIni(),
         ]);
         setStats(statsData);
         setKehadiran(hadirData);
         setMengajar(mengajarData);
+        setStatusOp(opData);
       } catch (err) {
         console.error("Gagal memuat data dashboard kepsek:", err);
       } finally {
@@ -107,7 +114,11 @@ export default function KepsekDashboardPage() {
   const isEffective = getTodayWIB() >= TANGGAL_MULAI_TIDAK_HADIR;
 
   let belumAbsenLabel = "Belum Absen";
-  if (fase === "akhir_pekan") {
+  if (statusOp?.tipeLibur === "LIBUR_PANJANG") {
+    belumAbsenLabel = "Libur Panjang";
+  } else if (statusOp?.tipeLibur === "HARI_LIBUR") {
+    belumAbsenLabel = "Hari Libur";
+  } else if (statusOp?.tipeLibur === "WEEKEND" || fase === "akhir_pekan") {
     belumAbsenLabel = "Libur Akhir Pekan";
   } else if (fase === "setelah_pulang" && isEffective) {
     belumAbsenLabel = "Tidak Hadir";
@@ -242,6 +253,29 @@ export default function KepsekDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── BANNER STATUS LIBUR / SHUTDOWN (JIKA AKTIF) ── */}
+      {statusOp && !statusOp.isOperasional && (statusOp.tipeLibur === "LIBUR_PANJANG" || statusOp.tipeLibur === "HARI_LIBUR") && (
+        <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 shadow-2xs flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-700">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">
+              {statusOp.judul}
+            </p>
+            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+              {statusOp.deskripsi}
+              {statusOp.periode && statusOp.tipeLibur === "LIBUR_PANJANG" ? ` (Periode: ${statusOp.periode})` : ""}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── STAT CARDS ── */}
       <ScrollingStatCards

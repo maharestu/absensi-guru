@@ -38,13 +38,24 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
   if (startDate) query = query.gte("tanggal", startDate);
   if (endDate) query = query.lte("tanggal", endDate);
 
-  const [absensiRes, guruRes] = await Promise.all([
+  const [absensiRes, guruRes, hariLiburRes, pengaturanRes] = await Promise.all([
     query,
-    supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif")
+    supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif"),
+    supabaseAdmin.from("hari_libur").select("tanggal"),
+    supabaseAdmin.from("pengaturan_sistem").select("libur_panjang_aktif, libur_panjang_mulai, libur_panjang_selesai").maybeSingle(),
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
   if (guruRes.error) throw new Error(guruRes.error.message);
+
+  const holidaySet = new Set<string>(
+    (hariLiburRes.data ?? []).map((h: any) => (typeof h.tanggal === "string" ? h.tanggal.slice(0, 10) : ""))
+  );
+  const lp = pengaturanRes.data;
+  const isDateInLiburPanjang = (dateStr: string) => {
+    if (!lp?.libur_panjang_aktif || !lp?.libur_panjang_mulai || !lp?.libur_panjang_selesai) return false;
+    return dateStr >= lp.libur_panjang_mulai && dateStr <= lp.libur_panjang_selesai;
+  };
 
   const realRecords: LaporanKehadiran[] = (absensiRes.data ?? []).map((row: any) => ({
     id: row.id,
@@ -104,10 +115,13 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
       // 2. Lewati akhir pekan (Sabtu & Minggu bukan hari sekolah)
       if (isWeekendWIB(dateStr)) continue;
 
-      // 3. Lewati tanggal di masa depan
+      // 3. Lewati hari libur nasional / sekolah & libur panjang (laporan dibiarkan kosong sama seperti akhir pekan)
+      if (holidaySet.has(dateStr) || isDateInLiburPanjang(dateStr)) continue;
+
+      // 4. Lewati tanggal di masa depan
       if (dateStr > todayWIB) continue;
 
-      // 4. Untuk hari ini, belum absen baru dianggap "Tidak Hadir" setelah jam cut-off (16:00 WIB)
+      // 5. Untuk hari ini, belum absen baru dianggap "Tidak Hadir" setelah jam cut-off (16:00 WIB)
       if (dateStr === todayWIB && !isPastCutoff) continue;
 
       // Periksa setiap guru aktif
