@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function PhotoOverlay({
   photoUrl,
@@ -9,6 +10,12 @@ export function PhotoOverlay({
   photoUrl: string | null;
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Cegah scroll di latar belakang saat foto dibuka & dukung tombol Escape
   useEffect(() => {
     if (!photoUrl) return;
@@ -28,19 +35,22 @@ export function PhotoOverlay({
     };
   }, [photoUrl, onClose]);
 
-  if (!photoUrl) return null;
+  if (!mounted || !photoUrl) return null;
 
-  return (
+  // Gunakan createPortal ke document.body agar tidak terjebak stacking context atau scroll container
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-page-enter select-none"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none overflow-hidden"
       onClick={onClose}
     >
-      {/* Tombol Tutup (X) Melayang di Pojok Layar */}
+      {/* Tombol Tutup (X) Melayang di Pojok Kanan Atas Layar */}
       <button
         type="button"
         onClick={onClose}
-        className="fixed top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-lg"
-        aria-label="Tutup"
+        className="fixed top-4 right-4 z-[110] w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-lg"
+        aria-label="Tutup foto"
       >
         <svg
           width="20"
@@ -57,13 +67,18 @@ export function PhotoOverlay({
         </svg>
       </button>
 
-      {/* Foto Utuh - Langsung pas dalam satu layar tanpa scroll */}
-      <img
-        src={photoUrl}
-        alt="Bukti Absensi"
-        className="rounded-2xl shadow-2xl object-contain max-h-[82dvh] max-w-[92vw] w-auto h-auto transition-transform"
+      {/* Foto - Digeser agak ke atas (-translate-y-5) agar pas di tengah atas pandangan mata */}
+      <div
+        className="w-full flex items-center justify-center -translate-y-5 sm:-translate-y-7"
         onClick={(e) => e.stopPropagation()}
-      />
-    </div>
+      >
+        <img
+          src={photoUrl}
+          alt="Bukti Absensi"
+          className="rounded-2xl shadow-2xl object-contain max-h-[76dvh] max-w-[92vw] w-auto h-auto transition-transform"
+        />
+      </div>
+    </div>,
+    document.body
   );
 }
