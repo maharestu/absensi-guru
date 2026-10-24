@@ -1,6 +1,9 @@
 import { getPengaturanSistem, getLokasiSekolah, getHariLibur } from "@/actions/pengaturan";
 import PengaturanClient from "@/components/admin/PengaturanClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = {
   title: "Pengaturan | Admin",
   description: "Konfigurasi sistem absensi: hari libur, waktu, toleransi, dan lokasi sekolah.",

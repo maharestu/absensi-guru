@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { isWithinGeofence } from "@/lib/geo";
+import { revalidatePath } from "next/cache";
 import {
   JAM_MASUK_SEKOLAH,
   JAM_CUTOFF_ABSENSI,
@@ -96,6 +97,7 @@ export async function updateLokasiSekolah(
       if (error) throw new Error(error.message);
     }
 
+    revalidatePath("/admin/pengaturan");
     return { success: true };
   } catch (err: any) {
     console.error("updateLokasiSekolah error:", err);
@@ -179,6 +181,9 @@ export async function upsertPengaturanSistem(
       if (error) throw new Error(error.message);
     }
 
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/guru");
+    revalidatePath("/kepsek");
     return { success: true };
   } catch (err: any) {
     console.error("upsertPengaturanSistem error:", err);
@@ -245,6 +250,10 @@ export async function tambahHariLibur(
       throw new Error(error.message);
     }
 
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/guru");
+    revalidatePath("/kepsek");
+    revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
     console.error("tambahHariLibur error:", err);
@@ -262,6 +271,10 @@ export async function hapusHariLibur(
       .eq("id", id);
 
     if (error) throw new Error(error.message);
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/guru");
+    revalidatePath("/kepsek");
+    revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
     console.error("hapusHariLibur error:", err);
@@ -385,6 +398,10 @@ export async function updateLiburPanjang(
       if (error) throw new Error(error.message);
     }
 
+    revalidatePath("/admin/pengaturan");
+    revalidatePath("/guru");
+    revalidatePath("/kepsek");
+    revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
     console.error("updateLiburPanjang error:", err);

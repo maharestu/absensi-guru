@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import {
   upsertPengaturanSistem,
   updateLokasiSekolah,
   tambahHariLibur,
   hapusHariLibur,
+  getHariLibur,
   updateLiburPanjang,
   type PengaturanSistem,
   type HariLibur,
@@ -260,6 +261,20 @@ function LiburTab({ initialData }: { initialData: HariLibur[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Sinkronisasi data saat props berubah
+  useEffect(() => {
+    setList(initialData);
+  }, [initialData]);
+
+  // Ambil data libur terkini langsung dari server saat tab dimount
+  useEffect(() => {
+    getHariLibur().then((res) => {
+      if (res && res.length > 0) {
+        setList(res);
+      }
+    });
+  }, []);
+
   const handleTambah = () => {
     setFormStatus(null);
     if (!newTanggal || !newKeterangan.trim()) {
@@ -269,10 +284,8 @@ function LiburTab({ initialData }: { initialData: HariLibur[] }) {
     startTransition(async () => {
       const result = await tambahHariLibur(newTanggal, newKeterangan);
       if (result.success) {
-        setList((prev) =>
-          [...prev, { id: `temp-${Date.now()}`, tanggal: newTanggal, keterangan: newKeterangan.trim() }]
-            .sort((a, b) => a.tanggal.localeCompare(b.tanggal))
-        );
+        const fresh = await getHariLibur();
+        setList(fresh);
         setNewTanggal("");
         setNewKeterangan("");
         setFormStatus({ type: "success", msg: "Hari libur berhasil ditambahkan." });
@@ -287,7 +300,8 @@ function LiburTab({ initialData }: { initialData: HariLibur[] }) {
     startTransition(async () => {
       const result = await hapusHariLibur(id);
       if (result.success) {
-        setList((prev) => prev.filter((h) => h.id !== id));
+        const fresh = await getHariLibur();
+        setList(fresh);
       }
       setDeletingId(null);
     });
