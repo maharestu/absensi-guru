@@ -191,7 +191,7 @@ export default function KepsekDashboardPage() {
   ];
 
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-5 sm:space-y-8 animate-page-enter">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>

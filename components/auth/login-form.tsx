@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginAction } from "@/actions/auth";
@@ -17,6 +17,13 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Pre-warm dashboard routes agar transisi pasca-login instan & mulus
+  useEffect(() => {
+    router.prefetch("/guru");
+    router.prefetch("/kepsek");
+    router.prefetch("/admin");
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -31,24 +38,26 @@ export default function LoginForm() {
         
         const nextParam = searchParams.get("next");
         if (nextParam && nextParam.startsWith("/")) {
-          router.push(nextParam);
+          router.replace(nextParam);
           return;
         }
 
-        // Arahkan sesuai role (lowercase sesuai DB schema)
+        // Arahkan sesuai role menggunakan replace agar halaman login tidak muncul kembali
         if (result.user.role === "guru") {
-          router.push("/guru");
+          router.replace("/guru");
         } else if (result.user.role === "kepala_sekolah") {
-          router.push("/kepsek");
+          router.replace("/kepsek");
         } else {
-          router.push("/admin");
+          router.replace("/admin");
         }
+        // Catatan: sengaja tidak memanggil setIsLoading(false) di sini agar state
+        // tombol tetap "Memproses..." sampai dashboard tujuan siap menggantikan halaman login.
       } else {
         setHasError(true);
+        setIsLoading(false);
       }
     } catch {
       setHasError(true);
-    } finally {
       setIsLoading(false);
     }
   };

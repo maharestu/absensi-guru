@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-page-enter">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

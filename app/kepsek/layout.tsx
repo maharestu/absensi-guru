@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import KepsekSidebar from "@/components/kepsek/KepsekSidebar";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 
 export default function KepsekLayout({
   children,
@@ -39,12 +40,8 @@ export default function KepsekLayout({
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "admin") {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    );
+  if (isLoading || !isAuthenticated || user?.role !== "kepala_sekolah") {
+    return <FullScreenLoader bgClass="bg-[#f8fafc]" />;
   }
 
   return (

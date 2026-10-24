@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 
 export default function AdminLayout({
   children,
@@ -36,12 +37,8 @@ export default function AdminLayout({
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  if (isLoading || !isAuthenticated || user?.role === "guru" || user?.role === "kepala_sekolah") {
-    return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    );
+  if (isLoading || !isAuthenticated || user?.role !== "admin") {
+    return <FullScreenLoader bgClass="bg-[#f8fafc]" />;
   }
 
   return (

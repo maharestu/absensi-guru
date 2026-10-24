@@ -57,7 +57,10 @@ export default function DashboardGuruPage() {
 
   useEffect(() => {
     setIsTestActive(getDevTestingConfigClient().isActive);
-  }, []);
+    // Pre-warm halaman absensi agar navigasi guru instan & mulus tanpa jeda
+    router.prefetch("/guru/pilih-status");
+    router.prefetch("/guru/presensi-mengajar");
+  }, [router]);
 
   const today = formatTanggalLengkap(new Date());
   const namaGuru = user?.nama ?? "Nama Guru";
@@ -66,7 +69,7 @@ export default function DashboardGuruPage() {
   const isWeekend = isTestActive ? false : isWeekendWIB();
 
   return (
-    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-14 min-h-full">
+    <div className="flex flex-col bg-[#EEF2F7] px-6 pt-3 pb-14 min-h-full animate-page-enter">
 
       {/* ── Header ── */}
       <header className="mb-6">

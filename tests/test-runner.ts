@@ -548,9 +548,9 @@ async function runAllTests() {
 
   // TC-NEW-13: Perubahan Karakter Signature HMAC
   const parts = freshToken.split(".");
-  const lastChar = parts[1].slice(-1);
-  const swappedChar = lastChar === "a" ? "b" : "a";
-  const corruptedSig = parts[0] + "." + parts[1].slice(0, -1) + swappedChar;
+  const firstChar = parts[1][0];
+  const swappedChar = firstChar === "a" ? "b" : "a";
+  const corruptedSig = parts[0] + "." + swappedChar + parts[1].slice(1);
   const verifyCorruptSig = await verifySessionToken(corruptedSig);
   assert(s13, "TC-NEW-13", "HMAC Signature Tampering", "Manipulasi 1 karakter signature", verifyCorruptSig === null, "Web Crypto API menolak signature yang diubah.");
 

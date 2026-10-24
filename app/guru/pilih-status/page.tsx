@@ -159,6 +159,11 @@ export default function PilihStatusPage() {
     
     if (typeof window !== "undefined") {
       checkStatus();
+      // Pre-warm rute presensi agar transisi saat memilih status instan
+      router.prefetch("/guru/presensi/hadir");
+      router.prefetch("/guru/presensi/sakit");
+      router.prefetch("/guru/presensi/izin");
+      router.prefetch("/guru/presensi/dinas");
       // Bersihkan sisa draft foto/koordinat saat guru membuka menu pilih status
       sessionStorage.removeItem("absensi_captured_photo");
       sessionStorage.removeItem("absensi_photo_status");
@@ -167,7 +172,7 @@ export default function PilihStatusPage() {
     }
     
     return () => { isMounted = false; };
-  }, [user]);
+  }, [user, router]);
 
   const handleSelect = (statusId: string) => {
     // Bersihkan draft sebelumnya sebelum masuk ke alur status baru
@@ -183,7 +188,7 @@ export default function PilihStatusPage() {
 
   if (isWeekend) {
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
         <PageHeader
           backHref="/guru"
           title="Absensi Kehadiran"
@@ -220,7 +225,19 @@ export default function PilihStatusPage() {
   }
 
   if (isAlreadyAbsen === null) {
-    return <div className="min-h-full bg-[#EEF2F7]" />;
+    return (
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
+        <PageHeader
+          backHref="/guru"
+          title="Absensi Kehadiran"
+          subtitle="Memeriksa status absensi..."
+        />
+        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-12 text-center mt-4">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
+          <p className="text-xs text-slate-400 font-medium">Memeriksa data kehadiran hari ini...</p>
+        </div>
+      </div>
+    );
   }
 
   // Tampilan jika user sudah absen hari ini
@@ -233,7 +250,7 @@ export default function PilihStatusPage() {
     const nip = user?.nip ?? "-";
     const nama = user?.nama ?? "-";
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
         <PageHeader
           backHref="/guru"
           title="Absensi Hari Ini"
@@ -294,7 +311,7 @@ export default function PilihStatusPage() {
 
   // Tampilan pilihan status (jika belum absen)
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14 animate-page-enter">
       <PageHeader
         backHref="/guru"
         title="Pilih Status Kehadiran"
