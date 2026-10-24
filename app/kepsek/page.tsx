@@ -281,7 +281,7 @@ export default function KepsekDashboardPage() {
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[32%]">NAMA GURU</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">WAKTU MASUK</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">AKSI</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">FOTO</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -383,7 +383,7 @@ export default function KepsekDashboardPage() {
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">WAKTU ABSENSI</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">JAM MENGAJAR</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">FOTO</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
