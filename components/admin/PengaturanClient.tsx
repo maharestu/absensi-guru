@@ -685,8 +685,8 @@ function LokasiTab({ initialData }: { initialData: { latitude: number; longitude
       setStatus({ type: "error", msg: "Longitude tidak valid (−180 hingga 180)." });
       return;
     }
-    if (isNaN(radiusNum) || radiusNum < 10 || radiusNum > 10000) {
-      setStatus({ type: "error", msg: "Radius harus antara 10 hingga 10.000 meter." });
+    if (isNaN(radiusNum) || radiusNum < 0) {
+      setStatus({ type: "error", msg: "Radius harus berupa angka yang valid (minimal 0 meter)." });
       return;
     }
 
@@ -767,8 +767,7 @@ function LokasiTab({ initialData }: { initialData: { latitude: number; longitude
           <div className="flex items-center gap-2">
             <input
               type="number"
-              min={10}
-              max={10000}
+              min={0}
               value={radius}
               onChange={(e) => setRadius(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-[#f0f4f9] text-sm font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 border border-transparent transition-all"
@@ -777,7 +776,6 @@ function LokasiTab({ initialData }: { initialData: { latitude: number; longitude
               Meter
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-slate-400">Guru hanya bisa absen jika berada dalam radius ini dari titik sekolah.</p>
         </div>
       </div>
 
