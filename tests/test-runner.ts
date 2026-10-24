@@ -455,11 +455,11 @@ async function runAllTests() {
     const isSetelahPulang = fase === "setelah_pulang" && isEffective;
     return isSetelahPulang ? "Tidak Hadir" : "Belum Hadir";
   }
-  const statusSiang = getStatusBelumAbsen("jam_sekolah", "2026-10-21");
+  const statusSiang = getStatusBelumAbsen("jam_sekolah", TANGGAL_MULAI_TIDAK_HADIR);
   assert(s11, "TC-NEW-01", "Status Sebelum Cutoff", "Fase jam_sekolah (<16:00 WIB)", statusSiang === "Belum Hadir", "Status pegawai belum absen adalah 'Belum Hadir'.");
 
   // TC-NEW-02: Setelah cutoff -> status "Tidak Hadir"
-  const statusSore = getStatusBelumAbsen("setelah_pulang", "2026-10-21");
+  const statusSore = getStatusBelumAbsen("setelah_pulang", TANGGAL_MULAI_TIDAK_HADIR);
   assert(s11, "TC-NEW-02", "Status Setelah Cutoff", "Fase setelah_pulang (>=16:00 WIB)", statusSore === "Tidak Hadir", "Status pegawai belum absen otomatis beralih ke 'Tidak Hadir'.");
 
   // TC-NEW-03: ID Unik Unrecorded

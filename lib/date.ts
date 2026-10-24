@@ -3,8 +3,8 @@ const TZ = "Asia/Jakarta";
 export const JAM_MASUK_SEKOLAH = "07:00";
 export const JAM_CUTOFF_ABSENSI = "16:00";
 export const TOLERANSI_TERLAMBAT_MENIT = 5;
-/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Hadir' (Senin, 19 Oktober 2026) */
-export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-19";
+/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Hadir' (Sabtu, 24 Oktober 2026) */
+export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-25";
 
 /** "YYYY-MM-DD" sesuai WIB */
 export function getTodayWIB(): string {
@@ -39,7 +39,7 @@ export function isPastCutoffTodayWIB(cutoffJamStr: string = JAM_CUTOFF_ABSENSI):
   return (nowJam * 60 + nowMenit) >= (targetJam * 60 + targetMenit);
 }
 
-export type FaseWaktuSekolah = 
+export type FaseWaktuSekolah =
   | "akhir_pekan"
   | "sebelum_masuk"
   | "jam_sekolah"
