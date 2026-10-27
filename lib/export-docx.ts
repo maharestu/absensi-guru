@@ -238,7 +238,8 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   ];
 
   const kopTable = new Table({
-    width: { size: 7900, type: WidthType.DXA },
+    alignment: AlignmentType.CENTER,
+    width: { size: 100, type: WidthType.PERCENTAGE },
     borders: {
       top: { style: BorderStyle.NONE },
       bottom: { style: BorderStyle.NONE },
@@ -291,8 +292,9 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
     ],
   });
 
-  // 4. Identitas Guru
+  // 4. Identitas Guru (Indent 610 agar sejajar tepat dengan tabel yang berada di tengah)
   const identitasGuruNama = new Paragraph({
+    indent: { left: 610 },
     spacing: { after: 40 },
     children: [
       new TextRun({
@@ -315,6 +317,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   });
 
   const identitasGuruNip = new Paragraph({
+    indent: { left: 610 },
     spacing: { after: 180 },
     children: [
       new TextRun({
@@ -347,10 +350,10 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
     tableHeader: true,
     children: [
       createHeaderCell("TANGGAL", 1030),
-      createHeaderCell("HARI", 1560),
-      createHeaderCell("JAM MASUK", 1560),
-      createHeaderCell("JAM PULANG", 1560),
-      createHeaderCell("KETERANGAN", 2090),
+      createHeaderCell("HARI", 1561),
+      createHeaderCell("JAM MASUK", 1561),
+      createHeaderCell("JAM PULANG", 1561),
+      createHeaderCell("KETERANGAN", 2092),
     ],
   });
 
@@ -435,10 +438,10 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         height: { value: 250, rule: HeightRule.ATLEAST },
         children: [
           createDataCell(String(dayNumber), 1030, AlignmentType.CENTER),
-          createDataCell(hariName, 1560, AlignmentType.LEFT),
-          createDataCell(jamMasuk, 1560, AlignmentType.CENTER),
-          createDataCell(jamPulang, 1560, AlignmentType.CENTER),
-          createDataCell(keterangan, 2090, AlignmentType.LEFT),
+          createDataCell(hariName, 1561, AlignmentType.CENTER),
+          createDataCell(jamMasuk, 1561, AlignmentType.CENTER),
+          createDataCell(jamPulang, 1561, AlignmentType.CENTER),
+          createDataCell(keterangan, 2092, AlignmentType.CENTER),
         ],
       })
     );
@@ -447,7 +450,8 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   }
 
   const attendanceTable = new Table({
-    width: { size: 7800, type: WidthType.DXA },
+    alignment: AlignmentType.CENTER,
+    width: { size: 7805, type: WidthType.DXA },
     borders: {
       top: cellBorderSingle,
       bottom: cellBorderSingle,
@@ -459,13 +463,13 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
     rows: [tableHeaderRow, ...dataRows],
   });
 
-  // 6. Tanda Tangan Kepala Sekolah (Kanan Bawah)
+  // 6. Tanda Tangan Kepala Sekolah (Kanan Bawah sejajar sisi kanan tabel)
   const signMonth = BULAN_NAMES[endM - 1] || "";
   const signYear = endY;
 
   const ttdTanggal = new Paragraph({
     spacing: { before: 240, after: 30 },
-    indent: { left: 4500 },
+    indent: { left: 5200 },
     children: [
       new TextRun({
         text: `Karawang,    ${signMonth} ${signYear}`,
@@ -477,7 +481,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const ttdJabatan = new Paragraph({
     spacing: { after: 700 }, // Ruang tanda tangan
-    indent: { left: 4500 },
+    indent: { left: 5200 },
     children: [
       new TextRun({
         text: "Kepala Sekolah SMPN 8 Karawang Barat",
@@ -489,7 +493,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const ttdNama = new Paragraph({
     spacing: { after: 30 },
-    indent: { left: 4500 },
+    indent: { left: 5200 },
     children: [
       new TextRun({
         text: kepalaSekolah?.nama || "H. Mamay Abdullah, S.Pd., M.Pd.",
@@ -503,7 +507,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const ttdNip = new Paragraph({
     spacing: { after: 0 },
-    indent: { left: 4500 },
+    indent: { left: 5200 },
     children: [
       new TextRun({
         text: `NIP. ${kepalaSekolah?.nip || "197007241998021003"}`,
@@ -519,11 +523,15 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       {
         properties: {
           page: {
+            size: {
+              width: 11906,  // A4
+              height: 16838, // A4
+            },
             margin: {
-              top: 720,    // 0.5 inci
-              bottom: 720, // 0.5 inci
-              left: 1000,
-              right: 1000,
+              top: 1296,    // 0.9 inci (sesuai template resmi)
+              bottom: 1296, // 0.9 inci
+              left: 1440,   // 1.0 inci (sesuai template resmi)
+              right: 1440,  // 1.0 inci
             },
           },
         },
@@ -542,6 +550,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       },
     ],
   });
+
 
   return await Packer.toBlob(doc);
 }
