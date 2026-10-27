@@ -42,7 +42,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     query,
     supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif"),
     supabaseAdmin.from("hari_libur").select("tanggal"),
-    supabaseAdmin.from("pengaturan_sistem").select("libur_panjang_aktif, libur_panjang_mulai, libur_panjang_selesai").maybeSingle(),
+    supabaseAdmin.from("pengaturan_sistem").select("jam_cutoff, libur_panjang_aktif, libur_panjang_mulai, libur_panjang_selesai").maybeSingle(),
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
@@ -57,29 +57,33 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     return dateStr >= lp.libur_panjang_mulai && dateStr <= lp.libur_panjang_selesai;
   };
 
-  const realRecords: LaporanKehadiran[] = (absensiRes.data ?? []).map((row: any) => ({
-    id: row.id,
-    guru_id: row.guru_id ?? "",
-    tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
-      timeZone: "Asia/Jakarta",
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }),
-    raw_tanggal: typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "",
-    nama: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
-    waktu_masuk: row.waktu_submit 
-      ? formatJamWIB(row.waktu_submit)
-      : "—",
-    status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
-    foto_absensi: row.foto_absensi,
-    file_bukti_izin_sakit: row.file_bukti_izin_sakit
-  }));
+  const realRecords: LaporanKehadiran[] = (absensiRes.data ?? []).map((row: any) => {
+    const isTidakHadir = row.status === "tidak_hadir";
+    return {
+      id: row.id,
+      guru_id: row.guru_id ?? "",
+      tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }),
+      raw_tanggal: typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "",
+      nama: Array.isArray(row.guru) ? row.guru[0]?.nama : (row.guru?.nama ?? "-"),
+      waktu_masuk: (isTidakHadir || !row.waktu_submit)
+        ? "—"
+        : formatJamWIB(row.waktu_submit),
+      status: isTidakHadir ? "Tidak Hadir" : (row.status.charAt(0).toUpperCase() + row.status.slice(1)),
+      foto_absensi: row.foto_absensi,
+      file_bukti_izin_sakit: row.file_bukti_izin_sakit
+    };
+  });
 
   // Rekonsiliasi data "Tidak Hadir" jika periode startDate & endDate ditentukan
   if (startDate && endDate) {
     const todayWIB = getTodayWIB();
-    const isPastCutoff = isPastCutoffTodayWIB();
+    const cutoffJam = (pengaturanRes.data as any)?.jam_cutoff ? String((pengaturanRes.data as any).jam_cutoff).slice(0, 5) : "16:00";
+    const isPastCutoff = isPastCutoffTodayWIB(cutoffJam);
     const activeGurus = guruRes.data ?? [];
 
     // Map pencocokan absensi: key = `${guru_id}_${tanggal}`
@@ -106,7 +110,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
       cur.setUTCDate(cur.getUTCDate() + 1);
     }
 
-    const unrecordedRows: LaporanKehadiran[] = [];
+    const missingRecords: { guru_id: string; tanggal: string; status: "tidak_hadir"; waktu_submit: string }[] = [];
 
     for (const dateStr of dates) {
       // 1. Lewati tanggal sebelum fitur Tidak Hadir resmi berlaku (mulai Senin, 19 Okt 2026)
@@ -121,38 +125,74 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
       // 4. Lewati tanggal di masa depan
       if (dateStr > todayWIB) continue;
 
-      // 5. Untuk hari ini, belum absen baru dianggap "Tidak Hadir" setelah jam cut-off (16:00 WIB)
+      // 5. Untuk hari ini, belum absen baru dianggap "Tidak Hadir" setelah jam cut-off dinamis dari database
       if (dateStr === todayWIB && !isPastCutoff) continue;
 
       // Periksa setiap guru aktif
       for (const guru of activeGurus) {
         const key = `${guru.id}_${dateStr}`;
         if (!existingSet.has(key)) {
-          const [yr, mo, da] = dateStr.split("-").map(Number);
-          const dObj = new Date(Date.UTC(yr, mo - 1, da, 12, 0, 0));
-          const formattedTanggal = dObj.toLocaleDateString("id-ID", {
-            timeZone: "Asia/Jakarta",
-            day: "2-digit",
-            month: "short",
-            year: "numeric"
-          });
-
-          unrecordedRows.push({
-            id: `tidak-hadir-${guru.id}-${dateStr}`,
+          missingRecords.push({
             guru_id: guru.id,
-            tanggal: formattedTanggal,
-            raw_tanggal: dateStr,
-            nama: guru.nama ?? "-",
-            waktu_masuk: "—",
-            status: "Tidak Hadir",
-            foto_absensi: null,
-            file_bukti_izin_sakit: null
+            tanggal: dateStr,
+            status: "tidak_hadir",
+            waktu_submit: `${dateStr}T${cutoffJam}:00+07:00`,
           });
+          existingSet.add(key);
         }
       }
     }
 
-    const combined = [...realRecords, ...unrecordedRows];
+    const guruMap = new Map<string, string>();
+    activeGurus.forEach((g) => guruMap.set(g.id, g.nama ?? "-"));
+
+    const persistedRows: LaporanKehadiran[] = [];
+
+    if (missingRecords.length > 0) {
+      try {
+        await supabaseAdmin
+          .from("absensi_masuk")
+          .upsert(missingRecords, { onConflict: "guru_id, tanggal", ignoreDuplicates: true });
+
+        // Ambil data riil langsung dari database dengan join nama guru
+        const datesToFetch = Array.from(new Set(missingRecords.map((m) => m.tanggal)));
+        const { data: dbRecords } = await supabaseAdmin
+          .from("absensi_masuk")
+          .select("id, guru_id, tanggal, waktu_submit, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
+          .in("guru_id", missingRecords.map((m) => m.guru_id))
+          .in("tanggal", datesToFetch)
+          .eq("status", "tidak_hadir");
+
+        if (dbRecords && dbRecords.length > 0) {
+          for (const row of dbRecords as any[]) {
+            const [yr, mo, da] = String(row.tanggal).slice(0, 10).split("-").map(Number);
+            const dObj = new Date(Date.UTC(yr, mo - 1, da, 12, 0, 0));
+            const guruObj = row.guru;
+            const guruNama = Array.isArray(guruObj) ? guruObj[0]?.nama : (guruObj?.nama ?? guruMap.get(row.guru_id) ?? "-");
+            persistedRows.push({
+              id: row.id, // 100% ID asli dari database Supabase
+              guru_id: row.guru_id,
+              tanggal: dObj.toLocaleDateString("id-ID", {
+                timeZone: "Asia/Jakarta",
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+              }),
+              raw_tanggal: String(row.tanggal).slice(0, 10),
+              nama: guruNama,
+              waktu_masuk: "—",
+              status: "Tidak Hadir",
+              foto_absensi: null,
+              file_bukti_izin_sakit: null
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Gagal melakukan batch upsert tidak hadir ke database:", err);
+      }
+    }
+
+    const combined = [...realRecords, ...persistedRows];
     // Urutkan berdasarkan tanggal terbaru lalu abjad nama guru
     combined.sort((a, b) => {
       const dateA = a.raw_tanggal || "";

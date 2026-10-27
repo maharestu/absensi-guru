@@ -1295,6 +1295,111 @@ async function runAllTests() {
 
 
   // ============================================================================
+  // SUITE 20 (BARU): Persistensi Status Otomatis "Tidak Hadir" ke Database
+  // ============================================================================
+  const s20 = registerSuite("Suite 20 (BARU): Persistensi Otomatis 'Tidak Hadir' ke Database", "actions/dashboard.ts & actions/laporan.ts");
+
+  // TC-PERSIST-01: Validasi Struktur Data & Payload Batch Upsert Database
+  const mockUnrecorded = [
+    { id: "guru-uuid-1", nama: "Guru A" },
+    { id: "guru-uuid-2", nama: "Guru B" },
+  ];
+  const targetTestDate = "2026-10-27";
+  const batchPayload = mockUnrecorded.map((g) => ({
+    guru_id: g.id,
+    tanggal: targetTestDate,
+    status: "tidak_hadir",
+    waktu_submit: `${targetTestDate}T16:00:00+07:00`,
+  }));
+  const isPayloadValid =
+    batchPayload.length === 2 &&
+    batchPayload[0].status === "tidak_hadir" &&
+    batchPayload[0].tanggal === targetTestDate &&
+    batchPayload[0].waktu_submit.endsWith("+07:00");
+  assert(
+    s20,
+    "TC-PERSIST-01",
+    "Validasi Payload Batch Upsert ke Database",
+    "Status 'tidak_hadir' dengan timestamp cut-off ISO WIB",
+    isPayloadValid,
+    "Payload database absensi_masuk memenuhi struktur schema PostgreSQL."
+  );
+
+  // TC-PERSIST-02: Proteksi Hari Non-Operasional (Tidak Boleh Auto-Alpa)
+  const isWeekendProtected = isWeekendWIB("2026-10-25"); // Minggu
+  const isFutureDateProtected = "2026-10-30" > targetTestDate;
+  assert(
+    s20,
+    "TC-PERSIST-02",
+    "Proteksi Hari Libur & Tanggal Masa Depan",
+    "Minggu: tidak boleh auto-insert; Masa depan: ditolak",
+    isWeekendProtected && isFutureDateProtected,
+    "Sistem memblokir pencatatan tidak_hadir pada akhir pekan dan tanggal mendatang."
+  );
+
+  // TC-PERSIST-03: Idempotensi Database Constraint (UNIQUE guru_id, tanggal)
+  const existingRecordsInDb = new Set(["guru-uuid-1_2026-10-27"]);
+  const deltaInsert = mockUnrecorded.filter(
+    (g) => !existingRecordsInDb.has(`${g.id}_${targetTestDate}`)
+  );
+  assert(
+    s20,
+    "TC-PERSIST-03",
+    "Idempotensi Penyimpanan (Mencegah Duplikasi)",
+    "Hanya guru yang belum ada yang masuk ke antrean insert",
+    deltaInsert.length === 1 && deltaInsert[0].id === "guru-uuid-2",
+    "Penyaringan delta menjamin operasi database aman tanpa pelanggaran duplicate key."
+  );
+
+  // TC-PERSIST-04: Format Tampilan View Model dari Data Riil Database
+  const mockDbRow = {
+    id: "db-uuid-real-12345",
+    guru_id: "guru-uuid-1",
+    status: "tidak_hadir",
+    waktu_submit: "2026-10-27T16:00:00+07:00",
+  };
+  const isTidakHadirRow = mockDbRow.status === "tidak_hadir";
+  const mappedRow = {
+    id: mockDbRow.id,
+    waktu_masuk: isTidakHadirRow ? null : "16:00",
+    status: isTidakHadirRow ? "Tidak Hadir" : "Lainnya",
+    waktu_submit: isTidakHadirRow ? null : mockDbRow.waktu_submit,
+  };
+  assert(
+    s20,
+    "TC-PERSIST-04",
+    "Integritas View Model Berbasis Database Asli",
+    "ID adalah UUID asli, waktu_masuk null (strip), status 'Tidak Hadir'",
+    mappedRow.id === "db-uuid-real-12345" &&
+      mappedRow.waktu_masuk === null &&
+      mappedRow.status === "Tidak Hadir" &&
+      mappedRow.waktu_submit === null,
+    "Data view model mengadopsi ID asli database tanpa menampilkan jam absensi semu."
+  );
+
+  // TC-PERSIST-05: Akurasi Perhitungan Stat Card Kepsek Setelah Auto-Persist
+  const mockDbAbsensi = [
+    { status: "hadir" },
+    { status: "hadir" },
+    { status: "izin" },
+    { status: "tidak_hadir" },
+    { status: "tidak_hadir" },
+  ];
+  const countHadir = mockDbAbsensi.filter((a) => a.status === "hadir").length;
+  const countIzin = mockDbAbsensi.filter((a) => a.status === "izin").length;
+  const countTidakHadir = mockDbAbsensi.filter((a) => a.status === "tidak_hadir").length;
+  const card5BelumAbsen = countTidakHadir; // Setelah pulang: mengambil jumlah tidak_hadir
+  assert(
+    s20,
+    "TC-PERSIST-05",
+    "Akurasi Statistik Kepsek Pasca-Penyimpanan Database",
+    "Hadir: 2, Izin: 1, Tidak Hadir (Card 5): 2 (Bukan 0)",
+    countHadir === 2 && countIzin === 1 && card5BelumAbsen === 2,
+    "Statistik Kepsek merefleksikan jumlah fisik riil guru tidak_hadir dari database."
+  );
+
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

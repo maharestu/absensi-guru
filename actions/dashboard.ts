@@ -22,6 +22,7 @@ import {
   isHariLibur,
   isLiburPanjang,
   getStatusOperasionalHariIni,
+  getPengaturanSistem,
 } from "@/actions/pengaturan";
 import { STATUS_AKTIVITAS_LABEL, STATUS_MASUK_LABEL } from "@/lib/status";
 import { StatusAbsensiMasuk } from "@/types/schema";
@@ -100,6 +101,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_masuk")
     .select("id, status, waktu_submit, guru(nama)")
+    .neq("status", "tidak_hadir")
     .order("waktu_submit", { ascending: false })
     .limit(5);
 
@@ -120,11 +122,97 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
   }));
 }
 
+// ── Sinkronisasi Otomatis Status "Tidak Hadir" ke Database ───
+
+/**
+ * Sinkronisasi otomatis status "tidak_hadir" ke database tabel absensi_masuk.
+ * Dijalankan ketika waktu pulang sudah tiba (setelah cut-off) pada hari operasional.
+ * Menyimpan rekaman fisik ke database, bukan sekadar status virtual di memori.
+ */
+export async function sinkronisasiTidakHadirHarian(targetDate?: string): Promise<{ synced: boolean; count: number }> {
+  try {
+    const dateStr = targetDate || getTodayWIB();
+    const todayWIB = getTodayWIB();
+
+    // 1. Validasi: Tidak boleh untuk tanggal di masa depan
+    if (dateStr > todayWIB) return { synced: false, count: 0 };
+
+    // 2. Validasi: Tanggal sebelum batas mulai berlakunya fitur tidak hadir dilewati
+    if (dateStr < TANGGAL_MULAI_TIDAK_HADIR) return { synced: false, count: 0 };
+
+    // 3. Ambil konfigurasi dinamis dari database (tabel pengaturan_sistem)
+    const sysConfig = await getPengaturanSistem();
+
+    // 4. Validasi: Jika tanggal hari ini, pastikan sudah lewat jam cut-off dinamis (waktu pulang)
+    if (dateStr === todayWIB && !isPastCutoffTodayWIB(sysConfig.jam_cutoff)) {
+      return { synced: false, count: 0 };
+    }
+
+    // 5. Validasi Hari Operasional: Tidak mencatat di akhir pekan, libur nasional, atau libur panjang
+    const statusOp = await getStatusOperasionalHariIni(dateStr);
+    if (!statusOp.isOperasional) {
+      return { synced: false, count: 0 };
+    }
+
+    // 6. Ambil semua guru aktif dan absensi yang sudah ada pada tanggal tersebut
+    const [guruRes, absensiRes] = await Promise.all([
+      supabaseAdmin.from("guru").select("id").eq("status", "aktif"),
+      supabaseAdmin.from("absensi_masuk").select("guru_id").eq("tanggal", dateStr),
+    ]);
+
+    if (guruRes.error || !guruRes.data) {
+      console.error("Gagal mengambil data guru aktif untuk sinkronisasi tidak hadir:", guruRes.error);
+      return { synced: false, count: 0 };
+    }
+
+    const existingGuruIds = new Set<string>((absensiRes.data ?? []).map((r) => r.guru_id));
+    const unrecordedGurus = guruRes.data.filter((g) => !existingGuruIds.has(g.id));
+
+    if (unrecordedGurus.length === 0) {
+      return { synced: true, count: 0 };
+    }
+
+    // 7. Siapkan data insert batch dengan status "tidak_hadir" dan waktu cut-off dinamis
+    const recordsToInsert = unrecordedGurus.map((g) => ({
+      guru_id: g.id,
+      tanggal: dateStr,
+      status: "tidak_hadir",
+      waktu_submit: `${dateStr}T${sysConfig.jam_cutoff}:00+07:00`,
+    }));
+
+    // 8. Simpan ke database dengan proteksi onConflict agar idempotent dan aman
+    const { error: insertError } = await supabaseAdmin
+      .from("absensi_masuk")
+      .upsert(recordsToInsert, { onConflict: "guru_id, tanggal", ignoreDuplicates: true });
+
+    if (insertError) {
+      console.error("Gagal mencatat status tidak hadir otomatis ke database:", insertError);
+      return { synced: false, count: 0 };
+    }
+
+    return { synced: true, count: recordsToInsert.length };
+  } catch (err) {
+    console.error("sinkronisasiTidakHadirHarian exception:", err);
+    return { synced: false, count: 0 };
+  }
+}
+
 // ── Kepsek Stats ──────────────────────────────────────────────
 
 export async function getKepsekStats(): Promise<KepsekStats> {
   const today = getTodayWIB();
   const fase = getFaseWaktuSekolah();
+  const isEffective = today >= TANGGAL_MULAI_TIDAK_HADIR;
+  const isSetelahPulang = fase === "setelah_pulang" && isEffective;
+
+  // Cek status operasional harian (libur panjang, tanggal merah, weekend)
+  const statusOp = await getStatusOperasionalHariIni(today);
+  const isOperasional = statusOp.isOperasional;
+
+  // Jika waktu pulang sudah tiba di hari operasional, lakukan sinkronisasi otomatis ke database
+  if (isSetelahPulang && isOperasional) {
+    await sinkronisasiTidakHadirHarian(today);
+  }
 
   // Hitung total guru aktif
   const { count: totalGuru } = await supabaseAdmin
@@ -132,7 +220,7 @@ export async function getKepsekStats(): Promise<KepsekStats> {
     .select("id", { count: "exact", head: true })
     .eq("status", "aktif");
 
-  // Hitung absensi hari ini per status
+  // Hitung absensi hari ini per status dari database
   const { data: absensiHariIni } = await supabaseAdmin
     .from("absensi_masuk")
     .select("status")
@@ -142,15 +230,21 @@ export async function getKepsekStats(): Promise<KepsekStats> {
   const izin = absensiHariIni?.filter((a) => a.status === "izin").length ?? 0;
   const sakit = absensiHariIni?.filter((a) => a.status === "sakit").length ?? 0;
   const dinas = absensiHariIni?.filter((a) => a.status === "dinas").length ?? 0;
-  const sudahAbsen = (absensiHariIni?.length ?? 0);
+  const tidakHadir = absensiHariIni?.filter((a) => a.status === "tidak_hadir").length ?? 0;
 
-  // Cek status operasional harian (libur panjang, tanggal merah, weekend)
-  const statusOp = await getStatusOperasionalHariIni(today);
+  const totalMandiri = hadir + izin + sakit + dinas;
 
   // Jika akhir pekan, sebelum jam masuk, atau hari libur / libur panjang → belumAbsen = 0
-  const belumAbsen = (!statusOp.isOperasional || fase === "sebelum_masuk")
-    ? 0
-    : Math.max(0, (totalGuru ?? 0) - sudahAbsen);
+  // Jika setelah pulang: nilai adalah jumlah guru tidak hadir (yang kini sudah tersimpan di database)
+  // Jika sedang jam sekolah: nilai adalah guru aktif yang belum absen mandiri
+  let belumAbsen = 0;
+  if (isOperasional && fase !== "sebelum_masuk") {
+    if (isSetelahPulang) {
+      belumAbsen = tidakHadir > 0 ? tidakHadir : Math.max(0, (totalGuru ?? 0) - totalMandiri);
+    } else {
+      belumAbsen = Math.max(0, (totalGuru ?? 0) - totalMandiri);
+    }
+  }
 
   return { guruHadir: hadir, izin, sakit, dinas, belumAbsen };
 }
@@ -168,8 +262,13 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
   const isLibur = !statusOp.isOperasional;
   const statusBelumAbsen = isSetelahPulang ? "Tidak Hadir" : "Belum Hadir";
 
-  // 1. Ambil semua data absensi masuk hari ini & data master guru aktif
-  const [absensiRes, guruRes] = await Promise.all([
+  // Jika waktu pulang sudah tiba di hari operasional, lakukan sinkronisasi otomatis ke database
+  if (isSetelahPulang && !isLibur) {
+    await sinkronisasiTidakHadirHarian(today);
+  }
+
+  // 1. Ambil semua data absensi masuk hari ini, data master guru aktif & konfigurasi sistem dinamis
+  const [absensiRes, guruRes, sysConfig] = await Promise.all([
     supabaseAdmin
       .from("absensi_masuk")
       .select("id, guru_id, status, waktu_submit, foto_absensi, file_bukti_izin_sakit")
@@ -177,7 +276,8 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
     supabaseAdmin
       .from("guru")
       .select("id, nama")
-      .eq("status", "aktif")
+      .eq("status", "aktif"),
+    getPengaturanSistem(),
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
@@ -206,25 +306,26 @@ export async function getKehadiranHariIni(): Promise<KehadiranHariIni[]> {
     const abs = absensiMap.get(g.id);
     
     if (abs) {
+      const isTidakHadir = abs.status === "tidak_hadir";
       let ketInfo: KeterlambatanInfo | null = null;
       if (abs.status === "hadir" && abs.waktu_submit) {
-        ketInfo = hitungKeterlambatan(abs.waktu_submit, JAM_MASUK_SEKOLAH, TOLERANSI_TERLAMBAT_MENIT);
+        ketInfo = hitungKeterlambatan(abs.waktu_submit, sysConfig.jam_masuk, sysConfig.toleransi_menit);
       }
 
       return {
         id: abs.id,
         nama_guru: g.nama || "-",
-        waktu_masuk: abs.waktu_submit ? formatJamWIB(abs.waktu_submit) : null,
+        waktu_masuk: isTidakHadir ? null : (abs.waktu_submit ? formatJamWIB(abs.waktu_submit) : null),
         status: STATUS_MASUK_LABEL[abs.status as StatusAbsensiMasuk] || abs.status,
-        terlambat: ketInfo?.terlambat ?? false,
-        menit_terlambat: ketInfo?.menit ?? 0,
-        keterangan_terlambat: ketInfo?.label ?? "",
+        terlambat: isTidakHadir ? false : (ketInfo?.terlambat ?? false),
+        menit_terlambat: isTidakHadir ? 0 : (ketInfo?.menit ?? 0),
+        keterangan_terlambat: isTidakHadir ? "" : (ketInfo?.label ?? ""),
         foto_absensi: abs.foto_absensi ?? null,
         file_bukti_izin_sakit: abs.file_bukti_izin_sakit ?? null,
-        waktu_submit: abs.waktu_submit // Simpan original timestamp untuk sorting
+        waktu_submit: isTidakHadir ? null : abs.waktu_submit // Tetap null agar sorting Level 1 menempatkan Tidak Hadir di bawah
       };
     } else {
-      // Guru belum absen hari ini (otomatis 'Tidak Hadir' jika waktu kerja sudah selesai)
+      // Guru belum absen hari ini (muncul sebelum cutoff jam sekolah tiba atau jika mode libur)
       return {
         id: `unrecorded-${g.id}`,
         nama_guru: g.nama || "-",
