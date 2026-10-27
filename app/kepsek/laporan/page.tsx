@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
-import { Clock, Calendar, Camera, Search } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Clock, Calendar, Camera, Search, FileText } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
 import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
+import { getHariLibur, getPengaturanSistem, HariLibur, PengaturanSistem } from "@/actions/pengaturan";
+import { generateRekapAbsensiDocx, triggerDownload } from "@/lib/export-docx";
 import { Guru, Kelas } from "@/types/schema";
-import { useEffect, useRef } from "react";
 import Pagination from "@/components/ui/pagination";
 import { getStatusColorText } from "@/lib/status";
 
@@ -16,6 +17,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { LaporanDetailModal } from "@/components/kepsek/LaporanDetailModal";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
 import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 
 export default function LaporanAbsensiPage() {
 
@@ -25,7 +27,11 @@ export default function LaporanAbsensiPage() {
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [laporanMengajar, setLaporanMengajar] = useState<LaporanMengajar[]>([]);
+  const [hariLiburList, setHariLiburList] = useState<HariLibur[]>([]);
+  const [pengaturanSistem, setPengaturanSistem] = useState<PengaturanSistem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [exportingGuruId, setExportingGuruId] = useState<string | null>(null);
 
   const [detailModalGuruId, setDetailModalGuruId] = useState<string | null>(null);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
@@ -64,7 +70,94 @@ export default function LaporanAbsensiPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filter Data Kehadiran
+  // Helper rentang tanggal singkat untuk kolom periode
+  const getPeriodeLabel = () => {
+    if (!startDate || !endDate) return "-";
+    try {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) return `${startDate} – ${endDate}`;
+      const startDay = String(s.getDate()).padStart(2, "0");
+      const endDay = String(e.getDate()).padStart(2, "0");
+      const startMonth = s.toLocaleDateString("id-ID", { month: "short" });
+      const endMonth = e.toLocaleDateString("id-ID", { month: "short" });
+      const startYear = s.getFullYear();
+      const endYear = e.getFullYear();
+
+      if (startYear === endYear && startMonth === endMonth) {
+        return `${startDay}–${endDay} ${endMonth} ${endYear}`;
+      } else if (startYear === endYear) {
+        return `${startDay} ${startMonth} – ${endDay} ${endMonth} ${endYear}`;
+      } else {
+        return `${startDay} ${startMonth} ${startYear} – ${endDay} ${endMonth} ${endYear}`;
+      }
+    } catch {
+      return `${startDate} – ${endDate}`;
+    }
+  };
+
+  const periodeLabel = getPeriodeLabel();
+
+  // Rekapitulasi Kehadiran per Guru (1 baris mewakili 1 guru dalam periode aktif)
+  const rekapKehadiranList = useMemo(() => {
+    const mapGuru = new Map<string, { id: string; nama: string; nip: string }>();
+    guruList.forEach((g) => {
+      mapGuru.set(g.id, { id: g.id, nama: g.nama, nip: g.nip });
+    });
+    laporanKehadiran.forEach((r) => {
+      if (r.guru_id && !mapGuru.has(r.guru_id)) {
+        mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: "" });
+      }
+    });
+
+    return Array.from(mapGuru.values()).map((g) => {
+      const records = laporanKehadiran.filter((r) => r.guru_id === g.id);
+      const jumlahHadir = records.filter((r) => r.status.toLowerCase() === "hadir").length;
+      const izin = records.filter((r) => r.status.toLowerCase() === "izin").length;
+      const sakit = records.filter((r) => r.status.toLowerCase() === "sakit").length;
+      const dinasLuar = records.filter((r) => r.status.toLowerCase().includes("dinas")).length;
+      const tidakHadir = records.filter((r) => r.status.toLowerCase().includes("tidak")).length;
+      const totalHari = records.length;
+      const persentaseHadir = totalHari > 0 ? Math.round((jumlahHadir / totalHari) * 100) : 0;
+
+      return {
+        guruId: g.id,
+        nama: g.nama,
+        nip: g.nip,
+        periodeLabel,
+        jumlahHadir,
+        persentaseHadir,
+        izin,
+        sakit,
+        dinasLuar,
+        tidakHadir,
+        totalHari,
+      };
+    });
+  }, [guruList, laporanKehadiran, periodeLabel]);
+
+  // Filter Data Kehadiran per Guru untuk Tabel Utama
+  const filteredGuruKehadiran = useMemo(() => {
+    return rekapKehadiranList.filter((g) => {
+      const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
+      const matchStatus =
+        selectedStatus === "all" ||
+        (selectedStatus === "hadir" && g.jumlahHadir > 0) ||
+        (selectedStatus === "izin" && g.izin > 0) ||
+        (selectedStatus === "sakit" && g.sakit > 0) ||
+        (selectedStatus === "dinas" && g.dinasLuar > 0) ||
+        (selectedStatus.includes("tidak") && g.tidakHadir > 0);
+      const query = searchQuery.toLowerCase().trim();
+      const matchSearch =
+        query === "" ||
+        g.nama.toLowerCase().includes(query) ||
+        g.nip.toLowerCase().includes(query);
+
+      return matchGuru && matchStatus && matchSearch;
+    });
+  }, [rekapKehadiranList, selectedGuru, selectedStatus, searchQuery]);
+
+  // Raw Filter Data Kehadiran (dipertahankan untuk Ringkasan Stat Cards)
   const filteredKehadiran = laporanKehadiran.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchStatus = selectedStatus === "all" || r.status.toLowerCase() === selectedStatus.toLowerCase();
@@ -74,23 +167,27 @@ export default function LaporanAbsensiPage() {
     return matchGuru && matchStatus && matchSearch;
   });
 
-  // Filter Data Mengajar
+  // Filter Data Mengajar (TETAP — TIDAK DIUBAH)
   const filteredMengajar = laporanMengajar.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchKelas = selectedKelas === "all" || r.kelas_id === selectedKelas;
+    const matchStatus = selectedStatus === "all" || 
+      (selectedStatus === "tidak_mengajar"
+        ? r.status.toLowerCase().includes("tidak")
+        : r.status.toLowerCase() === selectedStatus.toLowerCase());
     const matchSearch = searchQuery === "" || 
       r.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
       r.kelas.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.mata_pelajaran.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.status.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchGuru && matchKelas && matchSearch;
+    return matchGuru && matchKelas && matchStatus && matchSearch;
   });
 
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
   const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
   const itemsPerPage = 11;
 
-  const paginatedKehadiran = filteredKehadiran.slice(
+  const paginatedGuruKehadiran = filteredGuruKehadiran.slice(
     (currentPageKehadiran - 1) * itemsPerPage,
     currentPageKehadiran * itemsPerPage
   );
@@ -191,7 +288,7 @@ export default function LaporanAbsensiPage() {
   ];
 
   // Hitung jumlah statistik Mengajar secara dinamis
-  const countMengajar = filteredMengajar.length;
+  const countMengajar = filteredMengajar.filter((r) => r.status.toLowerCase() === "mengajar").length;
   const countJadwal = filteredMengajar.length;
 
   useEffect(() => {
@@ -199,16 +296,20 @@ export default function LaporanAbsensiPage() {
       if (!startDate || !endDate) return;
       setLoading(true);
       try {
-        const [kehadiran, mengajar, gurus, kelasArr] = await Promise.all([
+        const [kehadiran, mengajar, gurus, kelasArr, liburArr, config] = await Promise.all([
           getLaporanKehadiran(startDate, endDate),
           getLaporanMengajar(startDate, endDate),
           getGuruList(),
-          getKelasList()
+          getKelasList(),
+          getHariLibur(),
+          getPengaturanSistem(),
         ]);
         setLaporanKehadiran(kehadiran);
         setLaporanMengajar(mengajar);
         setGuruList(gurus);
         setKelasList(kelasArr);
+        setHariLiburList(liburArr);
+        setPengaturanSistem(config);
       } catch (err) {
         console.error(err);
       } finally {
@@ -235,12 +336,16 @@ export default function LaporanAbsensiPage() {
     if (!startDate || !endDate) return;
     setLoading(true);
     try {
-      const [kehadiran, mengajar] = await Promise.all([
+      const [kehadiran, mengajar, liburArr, config] = await Promise.all([
         getLaporanKehadiran(startDate, endDate),
         getLaporanMengajar(startDate, endDate),
+        getHariLibur(),
+        getPengaturanSistem(),
       ]);
       setLaporanKehadiran(kehadiran);
       setLaporanMengajar(mengajar);
+      setHariLiburList(liburArr);
+      setPengaturanSistem(config);
     } catch(err) {
       console.error(err);
     } finally {
@@ -249,29 +354,103 @@ export default function LaporanAbsensiPage() {
   };
 
   const handleTabChange = (tab: "kehadiran" | "mengajar") => {
+    setFilterLoading(true);
     setActiveTab(tab);
     setSearchQuery(""); // Reset search when switching tabs
+    setTimeout(() => setFilterLoading(false), 200);
+  };
+
+  const handleStatusChange = (val: string) => {
+    setFilterLoading(true);
+    setSelectedStatus(val);
+    setTimeout(() => setFilterLoading(false), 200);
+  };
+
+  const handleGuruChange = (val: string) => {
+    setFilterLoading(true);
+    setSelectedGuru(val);
+    setTimeout(() => setFilterLoading(false), 200);
+  };
+
+  const handleKelasChange = (val: string) => {
+    setFilterLoading(true);
+    setSelectedKelas(val);
+    setTimeout(() => setFilterLoading(false), 200);
+  };
+
+  const handlePeriodeTypeChange = (val: string) => {
+    setFilterLoading(true);
+    setPeriodeType(val);
+    setTimeout(() => setFilterLoading(false), 200);
+  };
+
+  const handleExportDocxPerGuru = async (rekap: {
+    guruId: string;
+    nama: string;
+    nip: string;
+  }) => {
+    try {
+      setExportingGuruId(rekap.guruId);
+      const teacherRecords = laporanKehadiran.filter((r) => r.guru_id === rekap.guruId);
+      const kepsekGuru = guruList.find((g) => g.linked_role === "kepala_sekolah");
+
+      const blob = await generateRekapAbsensiDocx({
+        guru: {
+          id: rekap.guruId,
+          nama: rekap.nama,
+          nip: rekap.nip,
+        },
+        startDate,
+        endDate,
+        records: teacherRecords,
+        hariLiburList,
+        liburPanjang: {
+          aktif: pengaturanSistem?.libur_panjang_aktif,
+          mulai: pengaturanSistem?.libur_panjang_mulai,
+          selesai: pengaturanSistem?.libur_panjang_selesai,
+        },
+        kepalaSekolah: kepsekGuru
+          ? { nama: kepsekGuru.nama, nip: kepsekGuru.nip }
+          : undefined,
+      });
+
+      const cleanName = rekap.nama.replace(/[^a-zA-Z0-9]/g, "_");
+      const filename = `Rekap_Kehadiran_${cleanName}_${startDate}_sd_${endDate}.docx`;
+      triggerDownload(blob, filename);
+    } catch (err) {
+      console.error("Gagal export docx guru:", err);
+      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+    } finally {
+      setExportingGuruId(null);
+    }
   };
 
   const handleExport = () => {
     const isKehadiran = activeTab === "kehadiran";
-    const dataToExport = isKehadiran ? filteredKehadiran : filteredMengajar;
-
-    if (dataToExport.length === 0) {
-      alert("Tidak ada data untuk diekspor.");
-      return;
-    }
 
     let exportData;
     if (isKehadiran) {
-      exportData = (dataToExport as LaporanKehadiran[]).map((row) => ({
-        "Tanggal": row.tanggal,
+      if (filteredGuruKehadiran.length === 0) {
+        alert("Tidak ada data untuk diekspor.");
+        return;
+      }
+      exportData = filteredGuruKehadiran.map((row) => ({
+        "Tanggal Periode": row.periodeLabel,
+        "NIP / NUPTK": row.nip || "-",
         "Nama Guru": row.nama,
-        "Status": row.status,
-        "Waktu Masuk": row.waktu_masuk,
+        "Jumlah Hadir": row.jumlahHadir,
+        "Persentase Hadir": `${row.persentaseHadir}%`,
+        "Izin": row.izin,
+        "Sakit": row.sakit,
+        "Dinas Luar": row.dinasLuar,
+        "Tidak Hadir": row.tidakHadir,
       }));
     } else {
-      exportData = (dataToExport as LaporanMengajar[]).map((row) => ({
+      if (filteredMengajar.length === 0) {
+        alert("Tidak ada data untuk diekspor.");
+        return;
+      }
+      exportData = filteredMengajar.map((row) => ({
         "Tanggal": row.tanggal,
         "Nama Guru": row.nama,
         "Kelas": row.kelas,
@@ -324,7 +503,17 @@ export default function LaporanAbsensiPage() {
 
     // Set Column Widths (Wch = Width in Characters)
     worksheet['!cols'] = isKehadiran 
-      ? [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 15 }] 
+      ? [
+          { wch: 22 }, // Tanggal Periode
+          { wch: 22 }, // NIP/NUPTK
+          { wch: 32 }, // Nama Guru
+          { wch: 14 }, // Hadir
+          { wch: 16 }, // Persentase
+          { wch: 10 }, // Izin
+          { wch: 10 }, // Sakit
+          { wch: 12 }, // Dinas Luar
+          { wch: 12 }, // Tidak Hadir
+        ] 
       : [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
 
     const workbook = XLSX.utils.book_new();
@@ -333,6 +522,10 @@ export default function LaporanAbsensiPage() {
     const fileName = `Laporan_${isKehadiran ? "Kehadiran" : "Mengajar"}_${startDate}_sampai_${endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
+
+  if (loading && guruList.length === 0) {
+    return <FullScreenLoader message="Memuat data laporan absensi..." bgClass="bg-[#f8fafc]" />;
+  }
 
   const pageTitle =
     activeTab === "kehadiran"
@@ -396,7 +589,7 @@ export default function LaporanAbsensiPage() {
             <div className="relative">
               <select 
                 value={periodeType}
-                onChange={(e) => setPeriodeType(e.target.value)}
+                onChange={(e) => handlePeriodeTypeChange(e.target.value)}
                 className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="this_month">Bulan Ini</option>
@@ -434,7 +627,7 @@ export default function LaporanAbsensiPage() {
             <SearchableSelect 
               placeholder="Semua Guru"
               value={selectedGuru}
-              onChange={setSelectedGuru}
+              onChange={handleGuruChange}
               options={[
                 { value: "all", label: "Semua Guru" },
                 ...guruList.map(g => ({ value: g.id, label: g.nama }))
@@ -449,7 +642,7 @@ export default function LaporanAbsensiPage() {
               <div className="relative">
                 <select 
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  onChange={(e) => handleStatusChange(e.target.value)}
                   className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
                   <option value="all">Semua Status</option>
@@ -474,7 +667,7 @@ export default function LaporanAbsensiPage() {
                 <SearchableSelect 
                   placeholder="Semua Kelas"
                   value={selectedKelas}
-                  onChange={setSelectedKelas}
+                  onChange={handleKelasChange}
                   options={[
                     { value: "all", label: "Semua Kelas" },
                     ...kelasList.map(k => ({ value: k.id, label: k.nama_kelas }))
@@ -486,7 +679,7 @@ export default function LaporanAbsensiPage() {
                 <div className="relative">
                   <select 
                     value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    onChange={(e) => handleStatusChange(e.target.value)}
                     className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     <option value="all">Semua Status</option>
@@ -532,7 +725,9 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Jadwal</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countJadwal}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+                  {loading || filterLoading ? "..." : countJadwal}
+                </h2>
               </div>
             </div>
 
@@ -546,7 +741,9 @@ export default function LaporanAbsensiPage() {
               </div>
               <div>
                 <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Mengajar</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">{countMengajar}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+                  {loading || filterLoading ? "..." : countMengajar}
+                </h2>
               </div>
             </div>
           </div>
@@ -577,15 +774,24 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
+            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto min-h-[300px]">
+              {(loading || filterLoading) && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
+                  <div className="w-9 h-9 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                  <p className="mt-3 text-xs font-semibold text-slate-500 animate-pulse">
+                    Memuat data absensi...
+                  </p>
+                </div>
+              )}
               <table className="w-full text-left border-collapse min-w-[640px] sm:min-w-[800px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">TANGGAL</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">KELAS</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">WAKTU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">KELAS</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">MATA PELAJARAN</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">WAKTU</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">STATUS</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
                   </tr>
@@ -593,7 +799,7 @@ export default function LaporanAbsensiPage() {
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                   {filteredMengajar.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                      <td colSpan={8} className="py-8 text-center text-slate-500">
                         Tidak ada data yang sesuai filter.
                       </td>
                     </tr>
@@ -602,28 +808,31 @@ export default function LaporanAbsensiPage() {
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
                       <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
+                      <td className="py-2.5 sm:py-4">
+                        {row.foto_absensi ? (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
+                            className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                            title="Lihat Foto"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.kelas}</td>
                       <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
                       <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu}</td>
                       <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
                       <td className="py-2.5 sm:py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                          {row.foto_absensi && (
-                            <button
-                              onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1 text-xs sm:text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
-                              title="Lihat Foto"
-                            >
-                              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => setDetailModalGuruId(row.guru_id)}
-                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                          >
-                            Detail
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => setDetailModalGuruId(row.guru_id)}
+                          className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                        >
+                          Detail
+                        </button>
                       </td>
                     </tr>
                   )))}
@@ -648,7 +857,7 @@ export default function LaporanAbsensiPage() {
           {/* Summary Cards Kehadiran */}
           <ScrollingStatCards
             items={statCardsKehadiran}
-            loading={loading}
+            loading={loading || filterLoading}
             desktopGridCols="lg:grid-cols-5"
           />
 
@@ -678,58 +887,106 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-[700px]">
+            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto min-h-[300px]">
+              {(loading || filterLoading) && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
+                  <div className="w-9 h-9 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                  <p className="mt-3 text-xs font-semibold text-slate-500 animate-pulse">
+                    Memuat data absensi...
+                  </p>
+                </div>
+              )}
+              <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">TANGGAL</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[35%]">NAMA GURU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">STATUS</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">WAKTU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">AKSI</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">TANGGAL PERIODE</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">JUMLAH HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">PERSENTASE HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">IZIN</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">SAKIT</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">DINAS LUAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">TIDAK HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                  {filteredKehadiran.length === 0 ? (
+                  {filteredGuruKehadiran.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-500">
-                        Tidak ada data yang sesuai filter.
+                      <td colSpan={9} className="py-8 text-center text-slate-500">
+                        Tidak ada data guru yang sesuai filter.
                       </td>
                     </tr>
                   ) : (
-                    paginatedKehadiran.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu_masuk}</td>
-                      <td className="py-2.5 sm:py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                          {(row.foto_absensi || row.file_bukti_izin_sakit) && (
-                            <button
-                              onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
-                              className="border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2 py-1 text-xs sm:text-[13px] font-semibold hover:bg-blue-100 transition-colors flex items-center gap-1"
-                              title="Lihat Foto / Bukti"
+                    paginatedGuruKehadiran.map((row) => (
+                      <tr key={row.guruId} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800 text-xs sm:text-sm">
+                          {row.periodeLabel}
+                        </td>
+                        <td className="py-2.5 sm:py-4">
+                          <div className="font-semibold text-slate-900">{row.nama}</div>
+                          <div className="text-[11px] text-slate-400 font-medium mt-0.5">
+                            {row.nip ? `NIP/NUPTK: ${row.nip}` : "—"}
+                          </div>
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
+                          {row.jumlahHadir}
+                        </td>
+                        <td className="py-2.5 sm:py-4">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="font-bold text-slate-700 text-xs">{row.persentaseHadir}%</span>
+                            <div className="w-14 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-blue-600 h-full rounded-full transition-all"
+                                style={{ width: `${row.persentaseHadir}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-semibold text-orange-600">
+                          {row.izin}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-semibold text-rose-600">
+                          {row.sakit}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-semibold text-teal-600">
+                          {row.dinasLuar}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-semibold text-purple-600">
+                          {row.tidakHadir}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button 
+                              type="button"
+                              onClick={() => setDetailModalGuruId(row.guruId)}
+                              className="border border-slate-300 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
                             >
-                              <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              Detail
                             </button>
-                          )}
-                          <button 
-                            onClick={() => setDetailModalGuruId(row.guru_id)}
-                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                          >
-                            Detail
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )))}
+                            <button
+                              type="button"
+                              onClick={() => handleExportDocxPerGuru(row)}
+                              disabled={exportingGuruId === row.guruId}
+                              className="inline-flex items-center gap-1 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-semibold transition-colors active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
+                              title="Ekspor Rekapitulasi (DOCX)"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span className="hidden xl:inline">
+                                {exportingGuruId === row.guruId ? "..." : "Export"}
+                              </span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
-              {filteredKehadiran.length > 0 && (
+              {filteredGuruKehadiran.length > 0 && (
                 <Pagination
                   currentPage={currentPageKehadiran}
-                  totalItems={filteredKehadiran.length}
+                  totalItems={filteredGuruKehadiran.length}
                   itemsPerPage={itemsPerPage}
                   onPageChange={setCurrentPageKehadiran}
                 />
@@ -742,13 +999,16 @@ export default function LaporanAbsensiPage() {
       {/* ── DETAIL MODAL ── */}
       {detailModalGuruId && (
         <LaporanDetailModal
+          type={activeTab}
           detailModalGuruId={detailModalGuruId}
           guruList={guruList}
           laporanKehadiran={laporanKehadiran}
+          laporanMengajar={laporanMengajar}
           startDate={startDate}
           endDate={endDate}
           onClose={() => setDetailModalGuruId(null)}
           formatDateLabel={formatDateLabel}
+          onPreviewPhoto={(url) => setPhotoOverlayUrl(url)}
         />
       )}
 

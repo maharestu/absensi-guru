@@ -20,6 +20,7 @@ import {
   getStatusOperasionalHariIni,
   StatusOperasionalHariIni,
 } from "@/actions/pengaturan";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 
 function getStatusBadge(status: string) {
   const s = status.toLowerCase();
@@ -201,6 +202,10 @@ export default function KepsekDashboardPage() {
     },
   ];
 
+  if (loading) {
+    return <FullScreenLoader message="Memuat data dashboard..." bgClass="bg-[#f8fafc]" />;
+  }
+
   return (
     <div className="space-y-5 sm:space-y-8 animate-page-enter">
       {/* ── HEADER ROW ── */}
@@ -312,10 +317,10 @@ export default function KepsekDashboardPage() {
           <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[32%]">NAMA GURU</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">WAKTU MASUK</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">FOTO</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[34%]">WAKTU MASUK</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -330,6 +335,20 @@ export default function KepsekDashboardPage() {
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
+                    </td>
+                    <td className="py-2.5 sm:py-4">
+                      {(row.foto_absensi || row.file_bukti_izin_sakit) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
+                          className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                          title="Lihat Foto / Bukti"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-700 font-medium">
                       <div className="flex flex-wrap items-center gap-2">
@@ -350,21 +369,6 @@ export default function KepsekDashboardPage() {
                     </td>
                     <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
-                    </td>
-                    <td className="py-2.5 sm:py-4 text-center">
-                      {(row.foto_absensi || row.file_bukti_izin_sakit) ? (
-                        <button
-                          type="button"
-                          onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
-                          className="inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2.5 py-1 text-xs font-semibold hover:bg-blue-100 transition-colors active:scale-95"
-                          title="Lihat Foto / Bukti"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Foto</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -408,16 +412,16 @@ export default function KepsekDashboardPage() {
 
         {/* Responsive Table for Mengajar */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[650px] sm:min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">KELAS</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">WAKTU ABSENSI</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">JAM MENGAJAR</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[11%] hidden sm:table-cell">JAM MENGAJAR</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">FOTO</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -433,8 +437,25 @@ export default function KepsekDashboardPage() {
                     <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
                     </td>
-                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
-                      {row.mata_pelajaran}
+                    <td className="py-2.5 sm:py-4">
+                      {row.foto_absensi ? (
+                        <button
+                          type="button"
+                          onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
+                          className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                          title="Lihat Foto"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 sm:py-4">
+                      <div className="text-slate-500 font-medium">{row.mata_pelajaran}</div>
+                      <div className="text-[11px] text-slate-400 font-normal sm:hidden mt-0.5">
+                        {row.jam_mengajar}
+                      </div>
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.kelas}
@@ -456,26 +477,11 @@ export default function KepsekDashboardPage() {
                         )}
                       </div>
                     </td>
-                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium hidden sm:table-cell">
                       {row.jam_mengajar}
                     </td>
                     <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
-                    </td>
-                    <td className="py-2.5 sm:py-4 text-center">
-                      {row.foto_absensi ? (
-                        <button
-                          type="button"
-                          onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                          className="inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2.5 py-1 text-xs font-semibold hover:bg-blue-100 transition-colors active:scale-95"
-                          title="Lihat Foto"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Foto</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
                     </td>
                   </tr>
                 ))

@@ -259,6 +259,7 @@ export async function submitPresensiMengajarAction(formData: FormData) {
         .insert({
           jadwal_id: jadwalId,
           tanggal,
+          status: "mengajar",
           foto_absensi: publicUrl,
         });
 

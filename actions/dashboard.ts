@@ -374,7 +374,7 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
   const { data, error } = await supabaseAdmin
     .from("absensi_mengajar")
     .select(
-      "id, waktu_submit, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
+      "id, waktu_submit, status, foto_absensi, jadwal(mata_pelajaran, jam_mulai, jam_selesai, guru(nama), kelas(nama_kelas))"
     )
     .eq("tanggal", today)
     .order("waktu_submit");
@@ -385,9 +385,10 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
     const jadwal = Array.isArray(row.jadwal) ? row.jadwal[0] : row.jadwal;
     const guru = Array.isArray(jadwal?.guru) ? jadwal?.guru[0] : jadwal?.guru;
     const kelas = Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0] : jadwal?.kelas;
+    const isTidakMengajar = row.status === "tidak_mengajar";
 
     let ketInfo: KeterlambatanInfo | null = null;
-    if (row.waktu_submit && jadwal?.jam_mulai) {
+    if (row.waktu_submit && jadwal?.jam_mulai && !isTidakMengajar) {
       ketInfo = hitungKeterlambatan(row.waktu_submit, jadwal.jam_mulai, TOLERANSI_TERLAMBAT_MENIT);
     }
 
@@ -396,15 +397,15 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
       nama_guru: guru?.nama ?? "-",
       mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
       kelas: kelas?.nama_kelas ?? "-",
-      waktu_absen: row.waktu_submit ? formatJamWIB(row.waktu_submit) : "-",
+      waktu_absen: (row.waktu_submit && !isTidakMengajar) ? formatJamWIB(row.waktu_submit) : "-",
       jam_mengajar: jadwal
         ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}`
         : "-",
-      status: "Sudah Mengajar",
-      terlambat: ketInfo?.terlambat ?? false,
-      menit_terlambat: ketInfo?.menit ?? 0,
-      keterangan_terlambat: ketInfo?.label ?? "",
-      foto_absensi: row.foto_absensi ?? null,
+      status: isTidakMengajar ? "Tidak Mengajar" : "Sudah Mengajar",
+      terlambat: isTidakMengajar ? false : (ketInfo?.terlambat ?? false),
+      menit_terlambat: isTidakMengajar ? 0 : (ketInfo?.menit ?? 0),
+      keterangan_terlambat: isTidakMengajar ? "" : (ketInfo?.label ?? ""),
+      foto_absensi: isTidakMengajar ? null : (row.foto_absensi ?? null),
     };
   });
 }

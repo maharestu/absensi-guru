@@ -3,6 +3,7 @@
 export type RoleAkun = "admin" | "kepala_sekolah" | "guru";
 export type StatusAktif = "aktif" | "nonaktif";
 export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin" | "dinas" | "tidak_hadir";
+export type StatusAbsensiMengajar = "mengajar" | "tidak_mengajar";
 export type HariJadwal =
   | "senin"
   | "selasa"
@@ -92,6 +93,7 @@ export interface AbsensiMengajar {
   id: string; // uuid
   jadwal_id: string; // uuid
   tanggal: string; // format YYYY-MM-DD
-  foto_absensi: string;
+  status: StatusAbsensiMengajar;
+  foto_absensi?: string | null;
   waktu_submit: Date | string;
 }

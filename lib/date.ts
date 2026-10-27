@@ -4,7 +4,9 @@ export const JAM_MASUK_SEKOLAH = "07:00";
 export const JAM_CUTOFF_ABSENSI = "16:00";
 export const TOLERANSI_TERLAMBAT_MENIT = 5;
 /** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Hadir' (Sabtu, 24 Oktober 2026) */
-export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-25";
+export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-30";
+/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Mengajar' */
+export const TANGGAL_MULAI_TIDAK_MENGAJAR = "2026-10-30";
 
 /** "YYYY-MM-DD" sesuai WIB */
 export function getTodayWIB(): string {

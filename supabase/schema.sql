@@ -23,6 +23,11 @@ CREATE TYPE status_absensi_masuk AS ENUM (
     'tidak_hadir'
 );
 
+CREATE TYPE status_absensi_mengajar AS ENUM (
+    'mengajar',
+    'tidak_mengajar'
+);
+
 CREATE TYPE hari_jadwal AS ENUM (
     'senin',
     'selasa',
@@ -140,7 +145,8 @@ CREATE TABLE absensi_mengajar (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     jadwal_id UUID NOT NULL,
     tanggal DATE NOT NULL,
-    foto_absensi TEXT NOT NULL,
+    status status_absensi_mengajar NOT NULL DEFAULT 'mengajar',
+    foto_absensi TEXT,
     waktu_submit TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT fk_absensi_mengajar_jadwal
@@ -167,6 +173,40 @@ CREATE TABLE pengaturan_lokasi_sekolah (
 
 
 -- =====================================================
+-- TABLE: pengaturan_sistem
+-- =====================================================
+
+CREATE TABLE pengaturan_sistem (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jam_masuk TIME NOT NULL DEFAULT '07:00',
+    jam_cutoff TIME NOT NULL DEFAULT '16:00',
+    toleransi_menit INTEGER NOT NULL DEFAULT 5,
+    libur_panjang_aktif BOOLEAN NOT NULL DEFAULT FALSE,
+    libur_panjang_mulai DATE,
+    libur_panjang_selesai DATE,
+    libur_panjang_keterangan VARCHAR(255),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed baris awal dengan nilai default
+INSERT INTO pengaturan_sistem (jam_masuk, jam_cutoff, toleransi_menit)
+SELECT '07:00', '16:00', 5
+WHERE NOT EXISTS (SELECT 1 FROM pengaturan_sistem);
+
+
+-- =====================================================
+-- TABLE: hari_libur
+-- =====================================================
+
+CREATE TABLE hari_libur (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tanggal DATE NOT NULL UNIQUE,
+    keterangan VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- =====================================================
 -- INDEXES
 -- =====================================================
 
@@ -184,3 +224,6 @@ CREATE INDEX idx_absensi_masuk_guru_id
 
 CREATE INDEX idx_absensi_mengajar_jadwal_id
     ON absensi_mengajar(jadwal_id);
+
+CREATE INDEX idx_hari_libur_tanggal
+    ON hari_libur(tanggal);
