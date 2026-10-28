@@ -40,6 +40,7 @@ export function LaporanDetailModal({
   laporanMengajar = [],
   startDate,
   endDate,
+  totalJadwalGuru,
   onClose,
   formatDateLabel,
   onPreviewPhoto,
@@ -51,6 +52,7 @@ export function LaporanDetailModal({
   laporanMengajar?: LaporanMengajar[];
   startDate: string;
   endDate: string;
+  totalJadwalGuru?: number;
   onClose: () => void;
   formatDateLabel: (d: string) => string;
   onPreviewPhoto?: (url: string) => void;
@@ -66,8 +68,11 @@ export function LaporanDetailModal({
       (r) => r.status.toLowerCase().includes("tidak") || r.status === "—" || r.status === "-"
     ).length;
     const totalCatatanMengajar = detailMengajarList.length;
+    const persentaseBasis = (totalJadwalGuru !== undefined && totalJadwalGuru > 0)
+      ? totalJadwalGuru
+      : totalCatatanMengajar;
     const persentaseMengajar =
-      totalCatatanMengajar > 0 ? Math.round((detailMengajar / totalCatatanMengajar) * 100) : 0;
+      persentaseBasis > 0 ? Math.round((detailMengajar / persentaseBasis) * 100) : 0;
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -131,15 +136,22 @@ export function LaporanDetailModal({
                 </div>
 
                 {/* Stats Grid */}
-                <div className="flex-1 w-full grid grid-cols-2 gap-3 sm:gap-4">
-                  <div className="border border-blue-100/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-center">
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5">
+                  <div className="border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
+                    <p className="text-xs font-medium text-slate-500">Total jadwal</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 tracking-tight">
+                      {totalJadwalGuru !== undefined ? totalJadwalGuru : totalCatatanMengajar}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1 font-normal">sesi periode ini</p>
+                  </div>
+                  <div className="border border-blue-100/90 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
                     <p className="text-xs font-medium text-slate-500">Mengajar</p>
                     <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1 tracking-tight">{detailMengajar}</p>
                     <p className="text-[11px] text-slate-400 mt-1 font-normal">tercatat</p>
                   </div>
-                  <div className="border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col justify-center">
+                  <div className="border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
                     <p className="text-xs font-medium text-slate-500">Tidak mengajar</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 tracking-tight">{detailTidakMengajar}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-rose-600 mt-1 tracking-tight">{detailTidakMengajar}</p>
                     <p className="text-[11px] text-slate-400 mt-1 font-normal">tercatat</p>
                   </div>
                 </div>
@@ -157,29 +169,50 @@ export function LaporanDetailModal({
                   <table className="w-full text-left text-xs sm:text-sm">
                     <thead className="border-b border-slate-100">
                       <tr className="text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                        <th className="py-3 px-4 sm:px-6 w-[25%] font-bold">TANGGAL</th>
-                        <th className="py-3 px-4 sm:px-6 w-[38%] font-bold">KELAS / MATA PELAJARAN</th>
-                        <th className="py-3 px-4 sm:px-6 w-[17%] font-bold">WAKTU</th>
-                        <th className="py-3 px-4 sm:px-6 w-[20%] font-bold">STATUS</th>
+                        <th className="py-3 px-4 sm:px-6 w-[20%] font-bold">TANGGAL</th>
+                        <th className="py-3 px-4 sm:px-6 w-[10%] font-bold text-center">FOTO</th>
+                        <th className="py-3 px-4 sm:px-6 w-[34%] font-bold">KELAS / MATA PELAJARAN</th>
+                        <th className="py-3 px-4 sm:px-6 w-[20%] font-bold">WAKTU</th>
+                        <th className="py-3 px-4 sm:px-6 w-[16%] font-bold">STATUS</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {detailMengajarList.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-slate-500">Belum ada catatan mengajar</td>
+                          <td colSpan={5} className="py-8 text-center text-slate-500">Belum ada catatan mengajar</td>
                         </tr>
                       ) : (
                         detailMengajarList.map((r) => {
                           const isMengajar = r.status.toLowerCase() === "mengajar";
-                          const displayWaktu = r.waktu ? (r.waktu.includes(" - ") ? r.waktu.split(" - ")[0] : r.waktu) : "—";
+                          const photoUrl = r.foto_absensi;
                           return (
                             <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
                               <td className="py-3 sm:py-3.5 px-4 sm:px-6 font-semibold text-slate-900">{r.tanggal}</td>
+                              <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-center">
+                                {photoUrl ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (onPreviewPhoto) {
+                                        onPreviewPhoto(photoUrl);
+                                      } else {
+                                        setSelectedPhoto(photoUrl);
+                                      }
+                                    }}
+                                    className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                                    title="Lihat Foto Absensi"
+                                  >
+                                    <Camera className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-300 text-xs">—</span>
+                                )}
+                              </td>
                               <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-slate-600 font-medium">
                                 {r.kelas} / {r.mata_pelajaran}
                               </td>
                               <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-slate-600 font-medium" title={r.waktu}>
-                                {displayWaktu}
+                                {r.waktu || "—"}
                               </td>
                               <td className="py-3 sm:py-3.5 px-4 sm:px-6">
                                 <span className={`font-semibold ${isMengajar ? "text-blue-600" : getStatusColorText(r.status)}`}>
@@ -198,6 +231,14 @@ export function LaporanDetailModal({
             
           </div>
         </div>
+
+        {/* Photo Overlay inside Modal */}
+        {selectedPhoto && (
+          <PhotoOverlay
+            photoUrl={selectedPhoto}
+            onClose={() => setSelectedPhoto(null)}
+          />
+        )}
       </div>
     );
   }

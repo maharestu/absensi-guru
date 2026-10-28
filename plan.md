@@ -7,100 +7,61 @@
 
 ---
 
-# HIGH-LEVEL IMPLEMENTATION PLAN: FITUR ABSENSI PULANG GURU
+# HIGH-LEVEL IMPLEMENTATION PLAN: PENYEMPURNAAN TAB ABSENSI MENGAJAR (PENGHAPUSAN KOLOM MAPEL & PERHITUNGAN RIIL TOTAL JADWAL)
 
 ## 1. Ringkasan & Ruang Lingkup
-- **Tujuan**: Menambahkan alur **Absensi Pulang** bagi guru yang mudah dan cepat (tanpa alur kamera berbelit-belit), langsung menampilkan kartu verifikasi detail kepulangan, submit ke server, dan menampilkan halaman konfirmasi berhasil, dengan gaya visual yang selaras dan konsisten dengan fitur Absensi Kehadiran.
+- **Tujuan**:
+  1. Menghapus kolom `MATA PELAJARAN` dari tabel utama Tab "Mengajar" di halaman Laporan Kepala Sekolah (`app/kepsek/laporan/page.tsx`).
+  2. Menghitung **Total Jadwal riil** bagi setiap guru berdasarkan akumulasi sesi KBM aktif dari master `jadwal` pada rentang hari sekolah (`startDate` s.d. `endDate`, tidak termasuk hari libur dan akhir pekan).
+  3. Menampilkan kolom **`TOTAL JADWAL`** tepat di samping kiri kolom `JUMLAH MENGAJAR` pada tabel utama.
+  4. Menambahkan kartu **`Total jadwal`** pada modal detail (`components/kepsek/LaporanDetailModal.tsx`) tepat di samping kiri kartu `Mengajar`, dengan nilai total jadwal riil guru tersebut di periode aktif.
 - **Batasan & Desain**:
-  - Menu ditempatkan di Dashboard Guru (`/guru`) tepat di bawah menu "Absensi Mengajar".
-  - Saat diklik, langsung membuka halaman verifikasi ringkasan kepulangan.
-  - Setelah klik submit, langsung diarahkan ke halaman "Absensi Pulang Berhasil".
-  - Waktu kepulangan tercatat di database dan terintegrasi otomatis ke kolom **JAM PULANG** pada laporan kehadiran dan ekspor dokumen Word (.docx) & Excel.
-  - Menjaga keutuhan seluruh 170 test cases yang sudah ada tanpa menimbulkan *breaking changes*.
+  - Perubahan ini khusus pada modul **Absensi Mengajar**.
+  - Fitur ekspor tetap ditangguhkan sesuai arahan sebelumnya.
+  - Mempertahankan 100% kelulusan dari 20 test suites (170 tests) dan 0 error TypeScript.
 
 ---
 
-## 2. Skema Basis Data (Database Schema)
-Untuk menjaga kesatuan data harian dan efisiensi query tanpa duplikasi record, data kepulangan ditambahkan langsung ke tabel `absensi_masuk`:
-```sql
--- Tambahkan kolom waktu_pulang pada tabel absensi_masuk
-ALTER TABLE absensi_masuk ADD COLUMN IF NOT EXISTS waktu_pulang TIMESTAMPTZ;
-```
-*Keuntungan Arsitektural*:
-- Setiap guru memiliki tepat 1 baris kehadiran per hari (`UNIQUE (guru_id, tanggal)`).
-- `waktu_submit` berfungsi sebagai jam masuk, dan `waktu_pulang` mencatat jam kepulangan pada hari yang sama.
-- Mempermudah rekonsiliasi laporan dan ekspor rekapitulasi tanpa memerlukan *JOIN query* tambahan yang membebani database.
+## 2. Rincian Teknis Perubahan
+
+### A. Tabel Utama Tab "Mengajar" (`app/kepsek/laporan/page.tsx`)
+1. **Perhitungan Total Jadwal Riil**:
+   - Memuat data master jadwal aktif melalui `getJadwalList()`.
+   - Menghitung seluruh kemunculan hari mengajar guru yang jatuh pada hari sekolah aktif (Senin–Jumat) di luar `hariLiburList` dan `liburPanjang`.
+2. **Urutan 7 Kolom Tabel Utama (Setelah Kolom Mata Pelajaran Dihapus)**:
+   1. `TANGGAL` (Rentang periode aktif)
+   2. `NAMA GURU` (dengan NIP/NUPTK di bawah nama)
+   3. **`TOTAL JADWAL`** (Total sesi KBM terjadwal dalam periode aktif)
+   4. **`JUMLAH MENGAJAR`** (Total sesi mengajar terlaksana)
+   5. **`PERSENTASE MENGAJAR`** (`(Jumlah Mengajar / Total Jadwal) * 100%`)
+   6. **`TIDAK MENGAJAR`** (Total sesi jadwal tidak mengajar tercatat)
+   7. **`AKSI`** (Tombol *Detail*)
+3. **Proporsi Lebar Kolom Responsif**:
+   - `TANGGAL`: 16%
+   - `NAMA GURU`: 26%
+   - `TOTAL JADWAL`: 12% (text-center)
+   - `JUMLAH MENGAJAR`: 12% (text-center)
+   - `PERSENTASE MENGAJAR`: 14% (text-center)
+   - `TIDAK MENGAJAR`: 12% (text-center)
+   - `AKSI`: 8% (text-center)
+   Total: 100%.
 
 ---
 
-## 3. Alur Antarmuka Pengguna (UI/UX Flow)
-
-### A. Dashboard Guru (`app/guru/page.tsx`)
-- Menambahkan kartu menu ke-3 pada daftar menu:
-  - **Judul**: *Absensi Pulang*
-  - **Deskripsi**: *Catat waktu kepulangan Anda setelah jam sekolah.*
-  - **Tag**: *Kepulangan harian*
-  - **Warna & Aksen**: Amber / Oranye (`text-amber-600 bg-amber-50`) dengan ikon jam pulang/logout modern.
-  - **Kondisi Cerdas (Smart State)**:
-    - *Belum Absen Hadir*: Tombol disabled atau menampilkan tooltip pemberitahuan bahwa guru perlu presensi masuk terlebih dahulu.
-    - *Sudah Absen Pulang Hari Ini*: Menampilkan badge hijau *"Sudah Absen Pulang"* beserta jam kepulangan.
-    - *Siap Pulang*: Navigasi langsung ke `/guru/presensi-pulang`.
-
-### B. Halaman Verifikasi Pulang (`app/guru/presensi-pulang/page.tsx`)
-- Tampilan identik dan serasi dengan [`components/absensi/verification-card.tsx`](file:///c:/Users/bdstd/absensi-guru/components/absensi/verification-card.tsx):
-  - **Header Halaman**: `PageHeader` dengan tombol panah kembali ke `/guru` dan judul *"Verifikasi Absen Pulang"*.
-  - **Kartu Verifikasi (`VerificationCard`)**:
-    1. `Tanggal Absensi Pulang`: Tanggal hari ini dalam format bahasa Indonesia (contoh: *"Rabu, 28 Oktober 2026"*).
-    2. `Waktu Pulang`: Jam kepulangan saat ini WIB (contoh: *"16:05 WIB"*).
-    3. `Nama Guru`: Nama lengkap guru bersangkutan.
-    4. `NIP / NUPTK`: Nomor identitas guru.
-    5. `Jam Masuk Sebelumnya`: Jam kedatangan guru hari ini (contoh: *"06:48 WIB"*).
-    6. `Status`: Badge *"Absen Pulang"*.
-  - **Tombol Aksi**:
-    - Tombol utama: **"Kirim Absensi Pulang"** (dengan animasi loading saat proses simpan).
-
-### C. Halaman Konfirmasi Berhasil (`app/guru/presensi-pulang/berhasil/page.tsx`)
-- Mengadaptasi layout sukses dari [`app/guru/presensi/berhasil/page.tsx`](file:///c:/Users/bdstd/absensi-guru/app/guru/presensi/berhasil/page.tsx):
-  - Lingkaran centang hijau melayang (`bg-[#16a34a]`).
-  - Judul: **Absensi Pulang<br />Berhasil**.
-  - Deskripsi: *"Data waktu kepulangan Anda hari ini sudah tersimpan."*
-  - Kotak status putih rounded: Tanggal & Waktu WIB + badge hijau *"TERSIMPAN"*.
-  - Tombol **"Selesai"**: Membersihkan status temporer dan kembali ke dashboard guru `/guru`.
+### B. Modal Detail Laporan Mengajar (`components/kepsek/LaporanDetailModal.tsx`)
+1. **Prop `totalJadwalGuru`**:
+   - Diterima dari komponen halaman utama untuk guru yang dipilih.
+2. **3 Kartu Statistik Sejajar**:
+   - **Kartu 1 (Total Jadwal)**: Berada tepat di samping kiri kartu Mengajar, menampilkan angka riil seluruh jadwal guru di periode tersebut (contoh: *75 sesi periode ini*).
+   - **Kartu 2 (Mengajar)**: Jumlah sesi mengajar terlaksana.
+   - **Kartu 3 (Tidak mengajar)**: Jumlah sesi tidak mengajar tercatat.
+3. **Harmonisasi Visual**:
+   - SVG Donut Progress Circle persentase menyesuaikan rasio terhadap `totalJadwalGuru`.
+   - Sub-tabel rincian 5 kolom tetap utuh.
 
 ---
 
-## 4. Logika Server Action (`actions/presensi.ts`)
-- **Fungsi `submitPresensiPulangAction()`**:
-  1. Verifikasi sesi login guru (`getSession()`).
-  2. Ambil tanggal hari ini berbasis WIB (`getTodayWIB()`).
-  3. Cek catatan absensi masuk hari ini:
-     - Jika belum ada atau statusnya bukan `hadir`, tolak dengan pesan: *"Anda belum melakukan presensi masuk (Hadir) hari ini."*
-  4. Cek apakah sudah pernah absen pulang hari ini:
-     - Jika `waktu_pulang` sudah terisi, tolak dengan pesan: *"Anda sudah melakukan absensi pulang hari ini."*
-  5. Jalankan `UPDATE absensi_masuk SET waktu_pulang = NOW() WHERE guru_id = ... AND tanggal = ...`.
-  6. Return `{ success: true, waktuPulang: "HH:mm" }`.
-
-- **Fungsi `cekStatusAbsensiPulangHariIni(guruId, tanggal)`**:
-  - Mengecek apakah guru sudah memiliki nilai `waktu_pulang` untuk tanggal tertentu agar dashboard dapat menampilkan badge selesai.
-
----
-
-## 5. Integrasi Laporan & Ekspor Dokumen
-1. **Query Laporan Kehadiran (`actions/laporan.ts`)**:
-   - Sertakan kolom `waktu_pulang` pada select `absensi_masuk`.
-   - Tambahkan properti `waktu_pulang` (format `HH:mm`) ke interface `LaporanKehadiran`.
-2. **Ekspor Word DOCX (`lib/export-docx.ts`)**:
-   - Tambahkan `waktu_pulang?: string` pada `DocxExportRecord`.
-   - Pada baris tanggal yang memiliki `waktu_pulang`, isi kolom **JAM PULANG** dengan nilai waktu tersebut (jika belum pulang, tetap `-`).
-3. **Modal Detail Kehadiran Kepsek (`components/kepsek/LaporanDetailModal.tsx`)**:
-   - Kolom `JAM PULANG` pada tabel rincian harian guru otomatis menampilkan jam pulang riil.
-
----
-
-## 6. Rencana Pengujian & Validasi
-1. **Type Checking**:
-   - Menjalankan `npx tsc --noEmit` untuk memastikan semua rute baru, props, dan server actions bebas dari error tipe TypeScript.
-2. **Automated Test Runner**:
-   - Menjalankan `npx tsx tests/test-runner.ts` memastikan seluruh 170 unit & integration test cases tetap 100% Pass.
-3. **End-to-End Flow Verification**:
-   - Menguji alur: Guru Hadir -> Menu Absen Pulang aktif -> Buka halaman verifikasi -> Klik submit -> Halaman berhasil muncul -> Dashboard menampilkan status selesai -> Laporan & Ekspor DOCX memuat JAM PULANG dengan benar.
+## 3. Hasil Verifikasi & Pengujian
+1. **Pemeriksaan Tipe TypeScript (`npx tsc --noEmit`)**: **PASS (0 error)**.
+2. **Automated Test Runner (`npx tsx tests/test-runner.ts`)**: **100% PASS (20 Suites, 170 Tests Pass)**.
+3. **Status Implementasi**: **SELESAI (Completed)**.

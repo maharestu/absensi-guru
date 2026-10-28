@@ -7,9 +7,10 @@ import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
 import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
+import { getJadwalList } from "@/actions/jadwal";
 import { getHariLibur, getPengaturanSistem, HariLibur, PengaturanSistem } from "@/actions/pengaturan";
 import { generateRekapAbsensiDocx, triggerDownload } from "@/lib/export-docx";
-import { Guru, Kelas } from "@/types/schema";
+import { Guru, Kelas, JadwalWithDetail } from "@/types/schema";
 import Pagination from "@/components/ui/pagination";
 import { getStatusColorText } from "@/lib/status";
 
@@ -27,6 +28,7 @@ export default function LaporanAbsensiPage() {
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [laporanMengajar, setLaporanMengajar] = useState<LaporanMengajar[]>([]);
+  const [jadwalList, setJadwalList] = useState<JadwalWithDetail[]>([]);
   const [hariLiburList, setHariLiburList] = useState<HariLibur[]>([]);
   const [pengaturanSistem, setPengaturanSistem] = useState<PengaturanSistem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -183,6 +185,128 @@ export default function LaporanAbsensiPage() {
     return matchGuru && matchKelas && matchStatus && matchSearch;
   });
 
+  // Rekapitulasi Mengajar per Guru (1 baris mewakili 1 guru dalam periode aktif)
+  const rekapMengajarList = useMemo(() => {
+    const mapGuru = new Map<string, { id: string; nama: string; nip: string }>();
+    guruList.forEach((g) => {
+      mapGuru.set(g.id, { id: g.id, nama: g.nama, nip: g.nip });
+    });
+    laporanMengajar.forEach((r) => {
+      if (r.guru_id && !mapGuru.has(r.guru_id)) {
+        mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: "" });
+      }
+    });
+
+    const holidaySet = new Set<string>(
+      hariLiburList.map((h) =>
+        typeof h.tanggal === "string" ? h.tanggal.slice(0, 10) : ""
+      )
+    );
+    const lp = pengaturanSistem;
+    const isDateInLiburPanjang = (dateStr: string) => {
+      if (!lp?.libur_panjang_aktif || !lp?.libur_panjang_mulai || !lp?.libur_panjang_selesai) return false;
+      return dateStr >= lp.libur_panjang_mulai && dateStr <= lp.libur_panjang_selesai;
+    };
+    const dayNames = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
+
+    // Kumpulkan tanggal-tanggal hari sekolah aktif dalam periode
+    const schoolDates: string[] = [];
+    if (startDate && endDate) {
+      try {
+        const [sY, sM, sD] = startDate.split("-").map(Number);
+        const [eY, eM, eD] = endDate.split("-").map(Number);
+        const cur = new Date(Date.UTC(sY, sM - 1, sD, 12, 0, 0));
+        const end = new Date(Date.UTC(eY, eM - 1, eD, 12, 0, 0));
+
+        while (cur <= end) {
+          const y = cur.getUTCFullYear();
+          const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(cur.getUTCDate()).padStart(2, "0");
+          const dateStr = `${y}-${m}-${d}`;
+          const dayName = dayNames[cur.getUTCDay()];
+
+          if (dayName !== "sabtu" && dayName !== "minggu") {
+            if (!holidaySet.has(dateStr) && !isDateInLiburPanjang(dateStr)) {
+              schoolDates.push(dayName);
+            }
+          }
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+      } catch {
+        // Abaikan jika parsing gagal
+      }
+    }
+
+    return Array.from(mapGuru.values()).map((g) => {
+      const records = laporanMengajar.filter((r) => r.guru_id === g.id);
+      const jumlahMengajar = records.filter((r) => r.status.toLowerCase() === "mengajar").length;
+      const tidakMengajar = records.filter(
+        (r) => r.status.toLowerCase().includes("tidak") || r.status === "—" || r.status === "-"
+      ).length;
+
+      // Hitung total jadwal riil guru ini di periode yang ditentukan
+      const teacherJadwal = jadwalList.filter(
+        (j) => j.guru_id === g.id && (j.status === "aktif" || !j.status)
+      );
+
+      let totalJadwal = 0;
+      if (teacherJadwal.length > 0 && schoolDates.length > 0) {
+        const dayScheduleCount: Record<string, number> = {};
+        teacherJadwal.forEach((j) => {
+          const h = (j.hari || "").toLowerCase().trim();
+          dayScheduleCount[h] = (dayScheduleCount[h] || 0) + 1;
+        });
+        schoolDates.forEach((dayName) => {
+          totalJadwal += dayScheduleCount[dayName] || 0;
+        });
+      } else {
+        totalJadwal = records.length;
+      }
+
+      const basisTotal = totalJadwal > 0 ? totalJadwal : (records.length > 0 ? records.length : 0);
+      const persentaseMengajar = basisTotal > 0 ? Math.round((jumlahMengajar / basisTotal) * 100) : 0;
+
+      const kelasIds = Array.from(
+        new Set([
+          ...records.map((r) => r.kelas_id),
+          ...teacherJadwal.map((j) => j.kelas_id),
+        ].filter(Boolean))
+      );
+
+      return {
+        guruId: g.id,
+        nama: g.nama,
+        nip: g.nip,
+        periodeLabel,
+        kelasIds,
+        totalJadwal,
+        jumlahMengajar,
+        tidakMengajar,
+        totalSesi: totalJadwal,
+        persentaseMengajar,
+      };
+    });
+  }, [guruList, laporanMengajar, jadwalList, hariLiburList, pengaturanSistem, startDate, endDate, periodeLabel]);
+
+  // Filter Data Mengajar per Guru untuk Tabel Utama
+  const filteredGuruMengajar = useMemo(() => {
+    return rekapMengajarList.filter((g) => {
+      const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
+      const matchKelas = selectedKelas === "all" || g.kelasIds.includes(selectedKelas);
+      const matchStatus =
+        selectedStatus === "all" ||
+        (selectedStatus === "mengajar" && g.jumlahMengajar > 0) ||
+        (selectedStatus === "tidak_mengajar" && g.tidakMengajar > 0);
+      const query = searchQuery.toLowerCase().trim();
+      const matchSearch =
+        query === "" ||
+        g.nama.toLowerCase().includes(query) ||
+        g.nip.toLowerCase().includes(query);
+
+      return matchGuru && matchKelas && matchStatus && matchSearch;
+    });
+  }, [rekapMengajarList, selectedGuru, selectedKelas, selectedStatus, searchQuery]);
+
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
   const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
   const itemsPerPage = 11;
@@ -192,7 +316,7 @@ export default function LaporanAbsensiPage() {
     currentPageKehadiran * itemsPerPage
   );
 
-  const paginatedMengajar = filteredMengajar.slice(
+  const paginatedGuruMengajar = filteredGuruMengajar.slice(
     (currentPageMengajar - 1) * itemsPerPage,
     currentPageMengajar * itemsPerPage
   );
@@ -289,20 +413,21 @@ export default function LaporanAbsensiPage() {
 
   // Hitung jumlah statistik Mengajar secara dinamis
   const countMengajar = filteredMengajar.filter((r) => r.status.toLowerCase() === "mengajar").length;
-  const countJadwal = filteredMengajar.length;
+  const countJadwal = filteredGuruMengajar.reduce((acc, curr) => acc + curr.totalJadwal, 0);
 
   useEffect(() => {
     async function loadData() {
       if (!startDate || !endDate) return;
       setLoading(true);
       try {
-        const [kehadiran, mengajar, gurus, kelasArr, liburArr, config] = await Promise.all([
+        const [kehadiran, mengajar, gurus, kelasArr, liburArr, config, jadwals] = await Promise.all([
           getLaporanKehadiran(startDate, endDate),
           getLaporanMengajar(startDate, endDate),
           getGuruList(),
           getKelasList(),
           getHariLibur(),
           getPengaturanSistem(),
+          getJadwalList(),
         ]);
         setLaporanKehadiran(kehadiran);
         setLaporanMengajar(mengajar);
@@ -310,6 +435,7 @@ export default function LaporanAbsensiPage() {
         setKelasList(kelasArr);
         setHariLiburList(liburArr);
         setPengaturanSistem(config);
+        setJadwalList(jadwals);
       } catch (err) {
         console.error(err);
       } finally {
@@ -765,7 +891,7 @@ export default function LaporanAbsensiPage() {
                 <div className="relative w-full sm:w-64">
                   <input
                     type="text"
-                    placeholder="Cari guru, kelas, mapel..."
+                    placeholder="Cari nama atau NIP guru..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
@@ -791,65 +917,74 @@ export default function LaporanAbsensiPage() {
                   </p>
                 </div>
               )}
-              <table className="w-full text-left border-collapse min-w-[640px] sm:min-w-[800px]">
+              <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">TANGGAL</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">KELAS</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">MATA PELAJARAN</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%]">WAKTU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">STATUS</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">TANGGAL</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[26%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">TOTAL JADWAL</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">JUMLAH MENGAJAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[14%] text-center">PERSENTASE MENGAJAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">TIDAK MENGAJAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                  {filteredMengajar.length === 0 ? (
+                  {filteredGuruMengajar.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-slate-500">
-                        Tidak ada data yang sesuai filter.
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        Tidak ada data guru yang sesuai filter.
                       </td>
                     </tr>
                   ) : (
-                    paginatedMengajar.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
-                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
-                        <td className="py-2.5 sm:py-4">
-                          {row.foto_absensi ? (
-                            <button
-                              type="button"
-                              onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                              className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
-                              title="Lihat Foto"
-                            >
-                              <Camera className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <span className="text-slate-300 text-xs">—</span>
-                          )}
+                    paginatedGuruMengajar.map((row) => (
+                      <tr key={row.guruId} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800 text-xs sm:text-sm">
+                          {row.periodeLabel}
                         </td>
-                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.kelas}</td>
-                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
-                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu}</td>
-                        <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
+                        <td className="py-2.5 sm:py-4">
+                          <div className="font-semibold text-slate-900">{row.nama}</div>
+                          <div className="text-[11px] text-slate-400 font-medium mt-0.5">
+                            {row.nip ? `NIP/NUPTK: ${row.nip}` : "—"}
+                          </div>
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-slate-700 text-sm sm:text-base">
+                          {row.totalJadwal}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
+                          {row.jumlahMengajar}
+                        </td>
+                        <td className="py-2.5 sm:py-4">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="font-bold text-slate-700 text-xs">{row.persentaseMengajar}%</span>
+                            <div className="w-14 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-blue-600 h-full rounded-full transition-all"
+                                style={{ width: `${row.persentaseMengajar}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-semibold text-rose-600 text-sm sm:text-base">
+                          {row.tidakMengajar}
+                        </td>
                         <td className="py-2.5 sm:py-4 text-center">
                           <button
-                            onClick={() => setDetailModalGuruId(row.guru_id)}
-                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                            onClick={() => setDetailModalGuruId(row.guruId)}
+                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
                           >
                             Detail
                           </button>
                         </td>
                       </tr>
-                    )))}
+                    ))
+                  )}
                 </tbody>
               </table>
-              {filteredMengajar.length > 0 && (
+              {filteredGuruMengajar.length > 0 && (
                 <Pagination
                   currentPage={currentPageMengajar}
-                  totalItems={filteredMengajar.length}
+                  totalItems={filteredGuruMengajar.length}
                   itemsPerPage={itemsPerPage}
                   onPageChange={setCurrentPageMengajar}
                 />
@@ -1014,6 +1149,7 @@ export default function LaporanAbsensiPage() {
           laporanMengajar={laporanMengajar}
           startDate={startDate}
           endDate={endDate}
+          totalJadwalGuru={rekapMengajarList.find((r) => r.guruId === detailModalGuruId)?.totalJadwal}
           onClose={() => setDetailModalGuruId(null)}
           formatDateLabel={formatDateLabel}
           onPreviewPhoto={(url) => setPhotoOverlayUrl(url)}
