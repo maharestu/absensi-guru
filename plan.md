@@ -1,76 +1,50 @@
-buatkan plan dengan tulisan high level degnan ketetuan dibawah:
-1. jangan menimbulkan bug baru
-2. tidak mengubah apaun kecuali yang sudah di perintahkan untuk di ubah
-3. jangan menambahkan fitur baru atau apapun selain yang sudah di perintahkan untuk di ubah
-4. selalu uji dulu kodenya
-5. kamu harus selalu membaca dokumentasi terlebih dahulu pada file agents.md
-
-
-
-catatan tambahan:
-- Pada overlay detail, diagram lingkaran persentase dan card-card statistik tetap dipertahankan.
-- Tambahan fitur export per guru: tombol "Export" di samping tombol "Detail" pada tabel utama kehadiran.
-- Format export per guru berupa file DOCX (.docx) yang format, layout, font, dan kop suratnya dibuat semirip mungkin dengan template: `c:\Users\bdstd\Downloads\Format Rekapitulasi Absensi Guru.docx` menggunakan logo di folder `public` (`logo-karawang.jpeg` dan `Logo.png`).
+# KETENTUAN PENGEMBANGAN (AGENTS.md & USER RULES)
+1. Jangan menimbulkan bug baru.
+2. Tidak mengubah apapun kecuali yang sudah diperintahkan untuk diubah.
+3. Jangan menambahkan fitur baru atau apapun selain yang sudah diperintahkan untuk diubah.
+4. Selalu uji dulu kodenya.
+5. Selalu membaca dan menaati dokumentasi pada file `AGENTS.md`.
 
 ---
 
-# HIGH-LEVEL IMPLEMENTATION PLAN
+# HIGH-LEVEL PLAN: PERBAIKAN INTEGRASI JAM MASUK PADA FITUR EKSPOR DOCX
 
 ## 1. Lingkup & Batasan
-- **HANYA Laporan Kehadiran**: Absensi Mengajar TIDAK diubah.
-- Tidak menimbulkan bug baru, mempertahankan loading, filter, dan photo preview.
-- Membaca dan menaati aturan Next.js di `AGENTS.md`.
+- **Tujuan Utama**: Memperbaiki pemetaan data kehadiran guru agar waktu kedatangan/jam masuk riil (contoh: `06:45`) tercetak dengan benar pada kolom **JAM MASUK** di berkas rekapitulasi kehadiran DOCX.
+- **Status Jam Pulang**: Sesuai arahan pengguna, **JAM PULANG tetap bernilai strip (`-`)** untuk saat ini karena fitur absensi pulang belum diimplementasikan di sistem.
+- **Batasan Ketat**:
+  - Tidak merusak fungsionalitas laporan yang sudah berjalan (Donut chart, filter, photo overlay, dan modal detail tetap utuh).
+  - Menjaga kompatibilitas mundur (*backward compatibility*): `recordMap` dapat menerima format ISO `YYYY-MM-DD` maupun format tanggal lokal.
+  - Tidak menyentuh modul di luar alur ekspor kehadiran guru.
 
-## 2. Tabel Utama Laporan Kehadiran (`app/kepsek/laporan/page.tsx`)
-- Mengubah baris tabel dari log harian menjadi agregat per Guru.
-- Kolom tabel utama (9 kolom):
-  1. `TANGGAL PERIODE`: Rentang tanggal aktif (misal: "01 Sep – 17 Sep 2026").
-  2. `NAMA GURU`: Nama guru dengan NIP/NUPTK tepat di bawahnya.
-  3. `JUMLAH HADIR`: Total hari hadir dalam periode aktif.
-  4. `PERSENTASE HADIR`: Persentase kehadiran (`(Hadir / Total Hari) × 100%`).
-  5. `IZIN`: Akumulasi hari izin.
-  6. `SAKIT`: Akumulasi hari sakit.
-  7. `DINAS LUAR`: Akumulasi hari dinas luar.
-  8. `TIDAK HADIR`: Akumulasi hari tidak hadir.
-  9. `AKSI`: Berisi 2 tombol untuk setiap guru:
-     - Tombol `Detail`: Membuka modal overlay rincian harian guru tersebut.
-     - Tombol `Export`: Mengunduh file `.docx` rekapitulasi absensi guru tersebut sesuai template resmi.
+## 2. Analisis Akar Masalah (Root Cause)
+- Pada [`actions/laporan.ts`](file:///c:/Users/bdstd/absensi-guru/actions/laporan.ts), data rekonsiliasi kehadiran menyimpan tanggal ISO `YYYY-MM-DD` di properti `raw_tanggal`, sedangkan properti `tanggal` diformat menjadi teks bahasa Indonesia (contoh: `"28 Okt 2026"`).
+- Pada [`lib/export-docx.ts`](file:///c:/Users/bdstd/absensi-guru/lib/export-docx.ts), pembuatan baris tanggal berjalan dengan format ISO `YYYY-MM-DD` (`dateStr`), tetapi `recordMap` hanya mengindeks record berdasarkan `r.tanggal` (format teks).
+- Akibatnya, pemanggilan `recordMap.get(dateStr)` selalu menghasilkan `undefined`, sehingga sistem menganggap guru tidak memiliki record jam masuk dan memberikan nilai *fallback* strip (`-`).
 
-## 3. Overlay Modal Detail Kehadiran (`components/kepsek/LaporanDetailModal.tsx`)
-- **Tetap Mempertahankan**:
-  - Donut chart persentase kehadiran (`% Hadir`).
-  - Stat cards ringkasan (`Hadir`, `Sakit`, `Izin`, `Dinas luar`, `Tidak hadir`).
-- **Sub-Tabel Rincian Harian (5 Kolom)**:
-  1. `TANGGAL`: Format tanggal harian.
-  2. `FOTO`: Tombol kamera preview foto masuk / surat bukti jika ada (atau `—` jika tidak ada).
-  3. `JAM MASUK`: Waktu absensi masuk guru (atau `—`).
-  4. `JAM PULANG`: Menampilkan strip `—` (sistem belum mencatat absensi pulang).
-  5. `STATUS`: Badge warna status kehadiran.
+## 3. Rincian Teknis Implementasi
+### A. Modul Generator DOCX ([`lib/export-docx.ts`](file:///c:/Users/bdstd/absensi-guru/lib/export-docx.ts))
+1. **Pembaruan Interface `DocxExportRecord`**:
+   - Menambahkan field opsional `raw_tanggal?: string` agar modul menerima tanggal format standar `YYYY-MM-DD`.
+2. **Indeksasi `recordMap` Multi-Format**:
+   - Pada saat iterasi `records.forEach`, simpan record ke dalam `recordMap` menggunakan `r.raw_tanggal` dan `r.tanggal`.
+   - Hal ini memastikan pencarian `recordMap.get(dateStr)` selalu menemukan data kehadiran guru secara akurat.
+3. **Ekstraksi Jam Masuk yang Bersih**:
+   - Saat status guru `Hadir`, ambil `rec.waktu_masuk` jika ada dan bukan strip `"—"`, jika kosong baru gunakan `"-"`.
+   - Jam pulang tetap konsisten bernilai `"-"`.
 
-## 4. Fitur Export DOCX per Guru (`lib/export-docx.ts`)
-- Format dokumen Office Open XML (.docx) sesuai referensi template `Format Rekapitulasi Absensi Guru.docx`:
-  - **Kop Surat**:
-    - Logo Kabupaten Karawang (`public/logo-karawang.jpeg`) di kiri.
-    - Teks Kop Center: PEMERINTAH KABUPATEN KARAWANG, DINAS PENDIDIKAN DAN KEBUDAYAAN, SMP NEGERI 8 KARAWANG BARAT, Alamat & Email.
-    - Logo SMPN 8 (`public/Logo.png`) di kanan.
-    - Garis ganda pembatas kop surat.
-  - **Judul**:
-    - `DAFTAR KEHADIRAN [BULAN] TAHUN [TAHUN]`.
-  - **Identitas Guru**:
-    - `Nama : [NAMA GURU]`
-    - `NIP  : [NIP GURU]`
-  - **Tabel Rekapitulasi Harian**:
-    - Kolom: `TANGGAL`, `HARI`, `JAM MASUK`, `JAM PULANG`, `KETERANGAN`.
-    - Data per tanggal dalam bulan tersebut:
-      - Hari kerja hadir: jam masuk, jam pulang (`-`), keterangan `Hadir`.
-      - Hari kerja izin/sakit/dinas: keterangan `Izin`/`Sakit`/`Dinas Luar`.
-      - Hari kerja tanpa presensi: keterangan `Tidak Hadir`.
-      - Akhir pekan (Sabtu & Minggu): keterangan `Libur`.
-      - tanggal merah/libur panjang juga: keterangannya 'libur'.
-  - **Tanda Tangan**:
-    - Sebelah kanan bawah: `Karawang, [Bulan] [Tahun]`, `Kepala Sekolah SMPN 8 Karawang Barat`, nama Kepala Sekolah (`H. Mamay Abdullah, S.Pd., M.Pd.`), NIP Kepala Sekolah (`NIP. 197007241998021003`).
+### B. Halaman Laporan Kepsek ([`app/kepsek/laporan/page.tsx`](file:///c:/Users/bdstd/absensi-guru/app/kepsek/laporan/page.tsx))
+1. Pada fungsi `handleExportDocxPerGuru`, petakan data `teacherRecords` dari `laporanKehadiran` secara eksplisit:
+   - `tanggal: r.raw_tanggal || r.tanggal`
+   - `raw_tanggal: r.raw_tanggal`
+   - `waktu_masuk: r.waktu_masuk`
+   - `status: r.status`
 
-## 5. Validasi & Pengujian
-- Uji tipe TypeScript: `npx tsc --noEmit`
-- Uji unit testing: `npm test` (memastikan 100% test suite tetap lulus)
-- Uji integrasi unduhan dokumen Word (.docx) dan preview modal.
+## 4. Rencana Pengujian & Validasi
+1. **Type Checking TypeScript**:
+   - Jalankan `npx tsc --noEmit` untuk memastikan tidak ada kesalahan tipe pada `DocxExportRecord` dan `page.tsx`.
+2. **Automated Test Suite Runner**:
+   - Jalankan `npx tsx tests/test-runner.ts` untuk memastikan 170 unit & integration test cases (20 test suite) tetap **100% Pass**.
+3. **Smoke Test Ekspor DOCX Berbasis Data Riil**:
+   - Jalankan skrip uji dengan data absensi contoh (memiliki `raw_tanggal: "2026-10-01"`, `waktu_masuk: "06:48"`).
+   - Validasi bahwa buffer file Word (.docx) terbuat sempurna dan data teks baris tanggal 1 Oktober memuat Jam Masuk `"06:48"` dan Jam Pulang `"-"`.

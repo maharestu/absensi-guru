@@ -48,6 +48,7 @@ export interface DocxExportGuru {
 
 export interface DocxExportRecord {
   tanggal: string;
+  raw_tanggal?: string;
   waktu_masuk?: string;
   status: string;
 }
@@ -106,7 +107,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   // 1. Muat Logo Karawang & Logo Sekolah
   const [logoKarawangBuffer, logoSekolahBuffer] = await Promise.all([
-    fetchImageBuffer("/logo-karawang.jpeg"),
+    fetchImageBuffer("/logo_kabupaten_karawang_transparan.png"),
     fetchImageBuffer("/Logo.png"),
   ]);
 
@@ -129,8 +130,8 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 62, height: 75 },
-                  type: "jpg",
+                  transformation: { width: 55, height: 75 },
+                  type: "png",
                 }),
               ]
             : [],
@@ -360,7 +361,12 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   // Mapping records guru berdasarkan tanggal
   const recordMap = new Map<string, DocxExportRecord>();
   records.forEach((r) => {
-    recordMap.set(r.tanggal, r);
+    if (r.raw_tanggal) {
+      recordMap.set(r.raw_tanggal, r);
+    }
+    if (r.tanggal) {
+      recordMap.set(r.tanggal, r);
+    }
   });
 
   // Set tanggal merah
@@ -409,7 +415,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       if (rec) {
         const sLower = rec.status.toLowerCase();
         if (sLower === "hadir") {
-          jamMasuk = rec.waktu_masuk || "-";
+          jamMasuk = (rec.waktu_masuk && rec.waktu_masuk !== "—") ? rec.waktu_masuk : "-";
           jamPulang = "-";
           keterangan = "Hadir";
         } else if (sLower === "izin") {
@@ -422,7 +428,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
           keterangan = "Tidak Hadir";
         } else {
           keterangan = rec.status;
-          jamMasuk = rec.waktu_masuk || "-";
+          jamMasuk = (rec.waktu_masuk && rec.waktu_masuk !== "—") ? rec.waktu_masuk : "-";
         }
       } else {
         if (dateStr > todayWIB) {

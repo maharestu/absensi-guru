@@ -391,7 +391,14 @@ export default function LaporanAbsensiPage() {
   }) => {
     try {
       setExportingGuruId(rekap.guruId);
-      const teacherRecords = laporanKehadiran.filter((r) => r.guru_id === rekap.guruId);
+      const teacherRecords = laporanKehadiran
+        .filter((r) => r.guru_id === rekap.guruId)
+        .map((r) => ({
+          tanggal: r.raw_tanggal || r.tanggal,
+          raw_tanggal: r.raw_tanggal,
+          waktu_masuk: r.waktu_masuk,
+          status: r.status,
+        }));
       const kepsekGuru = guruList.find((g) => g.linked_role === "kepala_sekolah");
 
       const blob = await generateRekapAbsensiDocx({
