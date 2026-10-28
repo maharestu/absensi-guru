@@ -51,6 +51,26 @@ const menuItems = [
       </svg>
     ),
   },
+  {
+    id: "pulang",
+    href: "/guru/presensi-pulang",
+    title: "Absensi Pulang",
+    description: "Catat waktu kepulangan Anda setelah jam sekolah.",
+    tag: "Kepulangan harian",
+    tagColor: "text-amber-600 bg-amber-50",
+    iconBg: "bg-amber-50",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+          stroke="#d97706"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function DashboardGuruPage() {
@@ -75,6 +95,7 @@ export default function DashboardGuruPage() {
     // Pre-warm halaman absensi agar navigasi guru instan & mulus tanpa jeda
     router.prefetch("/guru/pilih-status");
     router.prefetch("/guru/presensi-mengajar");
+    router.prefetch("/guru/presensi-pulang");
 
     getStatusOperasionalHariIni()
       .then((res) => {

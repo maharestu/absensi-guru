@@ -10,6 +10,7 @@ export interface LaporanKehadiran {
   raw_tanggal?: string;
   nama: string;
   waktu_masuk: string;
+  waktu_pulang?: string;
   status: string;
   foto_absensi?: string | null;
   file_bukti_izin_sakit?: string | null;
@@ -32,7 +33,7 @@ export interface LaporanMengajar {
 export async function getLaporanKehadiran(startDate?: string, endDate?: string): Promise<LaporanKehadiran[]> {
   let query = supabaseAdmin
     .from("absensi_masuk")
-    .select("id, guru_id, tanggal, waktu_submit, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
+    .select("id, guru_id, tanggal, waktu_submit, waktu_pulang, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
     .order("waktu_submit", { ascending: false })
     .limit(1500);
 
@@ -74,6 +75,9 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
       waktu_masuk: (isTidakHadir || !row.waktu_submit)
         ? "—"
         : formatJamWIB(row.waktu_submit),
+      waktu_pulang: (isTidakHadir || !row.waktu_pulang)
+        ? "—"
+        : formatJamWIB(row.waktu_pulang),
       status: isTidakHadir ? "Tidak Hadir" : (row.status.charAt(0).toUpperCase() + row.status.slice(1)),
       foto_absensi: row.foto_absensi,
       file_bukti_izin_sakit: row.file_bukti_izin_sakit
@@ -159,7 +163,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
         const datesToFetch = Array.from(new Set(missingRecords.map((m) => m.tanggal)));
         const { data: dbRecords } = await supabaseAdmin
           .from("absensi_masuk")
-          .select("id, guru_id, tanggal, waktu_submit, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
+          .select("id, guru_id, tanggal, waktu_submit, waktu_pulang, status, foto_absensi, file_bukti_izin_sakit, guru(nama)")
           .in("guru_id", missingRecords.map((m) => m.guru_id))
           .in("tanggal", datesToFetch)
           .eq("status", "tidak_hadir");
@@ -182,6 +186,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
               raw_tanggal: String(row.tanggal).slice(0, 10),
               nama: guruNama,
               waktu_masuk: "—",
+              waktu_pulang: "—",
               status: "Tidak Hadir",
               foto_absensi: null,
               file_bukti_izin_sakit: null

@@ -350,7 +350,7 @@ export function LaporanDetailModal({
                             )}
                           </td>
                           <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-600 font-medium">{r.waktu_masuk || "—"}</td>
-                          <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-400 font-medium">—</td>
+                          <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-600 font-medium">{r.waktu_pulang || "—"}</td>
                           <td className="py-2 sm:py-3 px-3 sm:px-5">
                             <span className={`font-semibold ${getStatusColorText(r.status)}`}>
                               {r.status}

@@ -22,7 +22,7 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
   try {
     const { data, error } = await supabaseAdmin
       .from("absensi_masuk")
-      .select("status, waktu_submit")
+      .select("status, waktu_submit, waktu_pulang")
       .eq("guru_id", guruId)
       .eq("tanggal", tanggal)
       .maybeSingle();
@@ -33,7 +33,13 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
     }
 
     if (data) {
-      return { completed: true, status: data.status, waktu: data.waktu_submit };
+      return {
+        completed: true,
+        status: data.status,
+        waktu: data.waktu_submit,
+        waktuPulang: data.waktu_pulang,
+        isPulang: Boolean(data.waktu_pulang),
+      };
     }
     
     return { completed: false };
@@ -396,5 +402,143 @@ export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: num
   } catch (error) {
     console.error("validasiQrMengajar Error:", error);
     return { ok: false, error: "SYSTEM_ERROR", message: "Terjadi kesalahan sistem." };
+  }
+}
+
+export async function getDetailPresensiPulangHariIni() {
+  try {
+    const session = await getSession();
+    if (!session?.guru_id) {
+      return { success: false, error: "Sesi tidak valid atau Anda bukan guru." };
+    }
+    const guruId = session.guru_id;
+    const tanggal = getTodayWIB();
+
+    const { data: record, error } = await supabaseAdmin
+      .from("absensi_masuk")
+      .select("id, status, waktu_submit, waktu_pulang")
+      .eq("guru_id", guruId)
+      .eq("tanggal", tanggal)
+      .maybeSingle();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    const testConfig = await getDevTestingConfigServer();
+    if (testConfig.isActive && testConfig.bypassPrereq) {
+      return {
+        success: true,
+        canPulang: !record?.waktu_pulang,
+        alreadyPulang: Boolean(record?.waktu_pulang),
+        waktuMasuk: record?.waktu_submit || new Date().toISOString(),
+        waktuPulang: record?.waktu_pulang,
+      };
+    }
+
+    if (!record) {
+      return {
+        success: true,
+        canPulang: false,
+        notYetPresent: true,
+        message: "Anda belum melakukan absensi masuk (Hadir) hari ini.",
+      };
+    }
+
+    if (record.status !== "hadir") {
+      const statusLabel = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+      return {
+        success: true,
+        canPulang: false,
+        notYetPresent: false,
+        statusNonHadir: record.status,
+        message: `Status kehadiran hari ini adalah "${statusLabel}". Absensi pulang hanya berlaku jika status kehadiran adalah Hadir.`,
+      };
+    }
+
+    if (record.waktu_pulang) {
+      return {
+        success: true,
+        canPulang: false,
+        alreadyPulang: true,
+        waktuMasuk: record.waktu_submit,
+        waktuPulang: record.waktu_pulang,
+        message: "Anda sudah melakukan absensi pulang untuk hari ini.",
+      };
+    }
+
+    return {
+      success: true,
+      canPulang: true,
+      alreadyPulang: false,
+      waktuMasuk: record.waktu_submit,
+    };
+  } catch (error: any) {
+    console.error("getDetailPresensiPulangHariIni Error:", error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function submitPresensiPulangAction() {
+  try {
+    const session = await getSession();
+    if (!session?.guru_id) {
+      throw new Error("Sesi tidak valid atau Anda tidak terdaftar sebagai guru.");
+    }
+    const guruId = session.guru_id;
+    const tanggal = getTodayWIB();
+
+    const testConfig = await getDevTestingConfigServer();
+
+    // Validasi operasional sistem (libur panjang, hari libur nasional, weekend)
+    const statusOp = await getStatusOperasionalHariIni(tanggal);
+    if (!testConfig.isActive && !statusOp.isOperasional) {
+      throw new Error(`Absensi pulang tidak dapat dilakukan (${statusOp.judul}): ${statusOp.deskripsi}`);
+    }
+
+    // 1. Cek record absensi masuk hari ini
+    const { data: record, error: recordError } = await supabaseAdmin
+      .from("absensi_masuk")
+      .select("id, status, waktu_submit, waktu_pulang")
+      .eq("guru_id", guruId)
+      .eq("tanggal", tanggal)
+      .maybeSingle();
+
+    if (recordError) {
+      throw new Error(recordError.message);
+    }
+
+    if (!testConfig.isActive || !testConfig.bypassPrereq) {
+      if (!record) {
+        throw new Error("Anda belum melakukan absensi masuk (Hadir) hari ini.");
+      }
+
+      if (record.status !== "hadir") {
+        throw new Error(`Absensi pulang hanya berlaku jika status kehadiran hari ini adalah Hadir (Status Anda: ${record.status}).`);
+      }
+    }
+
+    if (record?.waktu_pulang) {
+      throw new Error("Anda sudah melakukan absensi pulang hari ini.");
+    }
+
+    const nowIso = new Date().toISOString();
+
+    const { error: updateError } = await supabaseAdmin
+      .from("absensi_masuk")
+      .update({ waktu_pulang: nowIso })
+      .eq("id", record!.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    return {
+      success: true,
+      waktuPulang: nowIso,
+    };
+  } catch (error: any) {
+    console.error("Presensi Pulang Error:", error.message);
+    return { success: false, error: error.message };
   }
 }

@@ -161,8 +161,8 @@ export default function LaporanAbsensiPage() {
   const filteredKehadiran = laporanKehadiran.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchStatus = selectedStatus === "all" || r.status.toLowerCase() === selectedStatus.toLowerCase();
-    const matchSearch = searchQuery === "" || 
-      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchSearch = searchQuery === "" ||
+      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.status.toLowerCase().includes(searchQuery.toLowerCase());
     return matchGuru && matchStatus && matchSearch;
   });
@@ -171,12 +171,12 @@ export default function LaporanAbsensiPage() {
   const filteredMengajar = laporanMengajar.filter(r => {
     const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
     const matchKelas = selectedKelas === "all" || r.kelas_id === selectedKelas;
-    const matchStatus = selectedStatus === "all" || 
+    const matchStatus = selectedStatus === "all" ||
       (selectedStatus === "tidak_mengajar"
         ? r.status.toLowerCase().includes("tidak")
         : r.status.toLowerCase() === selectedStatus.toLowerCase());
-    const matchSearch = searchQuery === "" || 
-      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchSearch = searchQuery === "" ||
+      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.kelas.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.mata_pelajaran.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.status.toLowerCase().includes(searchQuery.toLowerCase());
@@ -346,7 +346,7 @@ export default function LaporanAbsensiPage() {
       setLaporanMengajar(mengajar);
       setHariLiburList(liburArr);
       setPengaturanSistem(config);
-    } catch(err) {
+    } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
@@ -397,6 +397,7 @@ export default function LaporanAbsensiPage() {
           tanggal: r.raw_tanggal || r.tanggal,
           raw_tanggal: r.raw_tanggal,
           waktu_masuk: r.waktu_masuk,
+          waktu_pulang: r.waktu_pulang,
           status: r.status,
         }));
       const kepsekGuru = guruList.find((g) => g.linked_role === "kepala_sekolah");
@@ -471,16 +472,16 @@ export default function LaporanAbsensiPage() {
 
     // -- STYLING EXCEL --
     const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
-    
+
     // Header styling (Baris 0)
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_cell({ r: 0, c: C });
       if (!worksheet[address]) continue;
       worksheet[address].s = {
-        fill: { 
+        fill: {
           patternType: "solid",
           fgColor: { rgb: "FDE047" } // Warna kuning (Tailwind yellow-300)
-        }, 
+        },
         font: { bold: true, color: { rgb: "000000" } },
         alignment: { horizontal: "center", vertical: "center" },
         border: {
@@ -509,23 +510,23 @@ export default function LaporanAbsensiPage() {
     }
 
     // Set Column Widths (Wch = Width in Characters)
-    worksheet['!cols'] = isKehadiran 
+    worksheet['!cols'] = isKehadiran
       ? [
-          { wch: 22 }, // Tanggal Periode
-          { wch: 22 }, // NIP/NUPTK
-          { wch: 32 }, // Nama Guru
-          { wch: 14 }, // Hadir
-          { wch: 16 }, // Persentase
-          { wch: 10 }, // Izin
-          { wch: 10 }, // Sakit
-          { wch: 12 }, // Dinas Luar
-          { wch: 12 }, // Tidak Hadir
-        ] 
+        { wch: 22 }, // Tanggal Periode
+        { wch: 22 }, // NIP/NUPTK
+        { wch: 32 }, // Nama Guru
+        { wch: 14 }, // Hadir
+        { wch: 16 }, // Persentase
+        { wch: 10 }, // Izin
+        { wch: 10 }, // Sakit
+        { wch: 12 }, // Dinas Luar
+        { wch: 12 }, // Tidak Hadir
+      ]
       : [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
-    
+
     const fileName = `Laporan_${isKehadiran ? "Kehadiran" : "Mengajar"}_${startDate}_sampai_${endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
@@ -594,7 +595,7 @@ export default function LaporanAbsensiPage() {
           <div className="col-span-1 md:col-span-1 flex-1 space-y-2">
             <label className="text-[11px] font-bold text-slate-900 tracking-wider">Periode</label>
             <div className="relative">
-              <select 
+              <select
                 value={periodeType}
                 onChange={(e) => handlePeriodeTypeChange(e.target.value)}
                 className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -612,15 +613,15 @@ export default function LaporanAbsensiPage() {
             </div>
             {periodeType === "custom" && (
               <div className="flex flex-col xl:flex-row xl:items-center gap-2 mt-2">
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
                 <span className="hidden xl:inline text-slate-400">-</span>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -631,7 +632,7 @@ export default function LaporanAbsensiPage() {
 
           <div className="col-span-1 md:col-span-1 flex-1 space-y-2">
             <label className="text-[11px] font-bold text-slate-900 tracking-wider">Guru</label>
-            <SearchableSelect 
+            <SearchableSelect
               placeholder="Semua Guru"
               value={selectedGuru}
               onChange={handleGuruChange}
@@ -647,7 +648,7 @@ export default function LaporanAbsensiPage() {
             <div className="col-span-2 md:col-span-1 flex-1 space-y-2">
               <label className="text-[11px] font-bold text-slate-900 tracking-wider">Status</label>
               <div className="relative">
-                <select 
+                <select
                   value={selectedStatus}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -671,7 +672,7 @@ export default function LaporanAbsensiPage() {
             <>
               <div className="col-span-1 flex-1 space-y-2">
                 <label className="text-[11px] font-bold text-slate-900 tracking-wider">Kelas</label>
-                <SearchableSelect 
+                <SearchableSelect
                   placeholder="Semua Kelas"
                   value={selectedKelas}
                   onChange={handleKelasChange}
@@ -684,7 +685,7 @@ export default function LaporanAbsensiPage() {
               <div className="col-span-1 flex-1 space-y-2">
                 <label className="text-[11px] font-bold text-slate-900 tracking-wider">Status</label>
                 <div className="relative">
-                  <select 
+                  <select
                     value={selectedStatus}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -759,7 +760,7 @@ export default function LaporanAbsensiPage() {
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h2 className="text-lg font-bold text-slate-900">Rincian Laporan</h2>
-              
+
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                   <input
@@ -813,46 +814,46 @@ export default function LaporanAbsensiPage() {
                   ) : (
                     paginatedMengajar.map((row) => (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
-                      <td className="py-2.5 sm:py-4">
-                        {row.foto_absensi ? (
+                        <td className="py-2.5 sm:py-4 font-semibold text-slate-800">{row.tanggal}</td>
+                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.nama}</td>
+                        <td className="py-2.5 sm:py-4">
+                          {row.foto_absensi ? (
+                            <button
+                              type="button"
+                              onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
+                              className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                              title="Lihat Foto"
+                            >
+                              <Camera className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.kelas}</td>
+                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
+                        <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu}</td>
+                        <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
+                        <td className="py-2.5 sm:py-4 text-center">
                           <button
-                            type="button"
-                            onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                            className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
-                            title="Lihat Foto"
+                            onClick={() => setDetailModalGuruId(row.guru_id)}
+                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                           >
-                            <Camera className="w-4 h-4" />
+                            Detail
                           </button>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.kelas}</td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.mata_pelajaran}</td>
-                      <td className="py-2.5 sm:py-4 text-slate-500 font-medium">{row.waktu}</td>
-                      <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>{row.status}</td>
-                      <td className="py-2.5 sm:py-4 text-center">
-                        <button 
-                          onClick={() => setDetailModalGuruId(row.guru_id)}
-                          className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-                        >
-                          Detail
-                        </button>
-                      </td>
-                    </tr>
-                  )))}
+                        </td>
+                      </tr>
+                    )))}
                 </tbody>
               </table>
-            {filteredMengajar.length > 0 && (
-              <Pagination
-                currentPage={currentPageMengajar}
-                totalItems={filteredMengajar.length}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPageMengajar}
-              />
-            )}
+              {filteredMengajar.length > 0 && (
+                <Pagination
+                  currentPage={currentPageMengajar}
+                  totalItems={filteredMengajar.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPageMengajar}
+                />
+              )}
             </div>
           </div>
 
@@ -872,7 +873,7 @@ export default function LaporanAbsensiPage() {
           <div>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h2 className="text-lg font-bold text-slate-900">Rincian Laporan</h2>
-              
+
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                   <input
@@ -964,7 +965,7 @@ export default function LaporanAbsensiPage() {
                         </td>
                         <td className="py-2.5 sm:py-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setDetailModalGuruId(row.guruId)}
                               className="border border-slate-300 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
@@ -1020,9 +1021,9 @@ export default function LaporanAbsensiPage() {
       )}
 
       {/* ── PHOTO OVERLAY ── */}
-      <PhotoOverlay 
-        photoUrl={photoOverlayUrl} 
-        onClose={() => setPhotoOverlayUrl(null)} 
+      <PhotoOverlay
+        photoUrl={photoOverlayUrl}
+        onClose={() => setPhotoOverlayUrl(null)}
       />
 
     </div>

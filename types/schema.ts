@@ -86,6 +86,7 @@ export interface AbsensiMasuk {
   file_bukti_izin_sakit?: string | null; // Wajib jika Sakit/Izin
   latitude?: number | null; // Lokasi validasi (jika Hadir)
   longitude?: number | null;
+  waktu_pulang?: Date | string | null;
   waktu_submit: Date | string;
 }
 

@@ -50,6 +50,7 @@ export interface DocxExportRecord {
   tanggal: string;
   raw_tanggal?: string;
   waktu_masuk?: string;
+  waktu_pulang?: string;
   status: string;
 }
 
@@ -416,7 +417,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         const sLower = rec.status.toLowerCase();
         if (sLower === "hadir") {
           jamMasuk = (rec.waktu_masuk && rec.waktu_masuk !== "—") ? rec.waktu_masuk : "-";
-          jamPulang = "-";
+          jamPulang = (rec.waktu_pulang && rec.waktu_pulang !== "—") ? rec.waktu_pulang : "-";
           keterangan = "Hadir";
         } else if (sLower === "izin") {
           keterangan = "Izin";
