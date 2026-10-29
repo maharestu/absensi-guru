@@ -21,7 +21,6 @@ export default function PresensiPulangVerifikasiPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [waktuMasuk, setWaktuMasuk] = useState<string | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   const now = new Date();
   const today = formatTanggalLengkap(now);
@@ -38,7 +37,6 @@ export default function PresensiPulangVerifikasiPage() {
       router.replace("/guru/presensi-pulang");
       return;
     }
-    setPhotoPreview(savedPhoto);
 
     // Ambil detail jam masuk
     async function loadDetail() {
@@ -144,20 +142,9 @@ export default function PresensiPulangVerifikasiPage() {
             </div>
           )}
 
-          {photoPreview && (
-            <div className="w-24 h-24 sm:w-28 sm:h-28 mx-auto rounded-2xl overflow-hidden border-2 border-white shadow-sm relative bg-slate-100">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photoPreview}
-                alt="Preview Foto Selfie Pulang"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-
           {loading ? (
             <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center">
-              <div className="w-6 h-6 border-3 border-amber-200 border-t-amber-600 rounded-full animate-spin mb-2" />
+              <div className="w-6 h-6 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2" />
               <p className="text-xs text-slate-400">Memuat rincian...</p>
             </div>
           ) : (

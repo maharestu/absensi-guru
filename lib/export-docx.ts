@@ -131,7 +131,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 55, height: 75 },
+                  transformation: { width: 50, height: 68 },
                   type: "png",
                 }),
               ]
@@ -153,7 +153,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       children: [
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 20 },
+          spacing: { after: 10 },
           children: [
             new TextRun({
               text: "PEMERINTAH KABUPATEN KARAWANG",
@@ -165,7 +165,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 20 },
+          spacing: { after: 10 },
           children: [
             new TextRun({
               text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
@@ -177,7 +177,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 40 },
+          spacing: { after: 20 },
           children: [
             new TextRun({
               text: "SMP NEGERI 8 KARAWANG BARAT",
@@ -189,7 +189,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 20 },
+          spacing: { after: 10 },
           children: [
             new TextRun({
               text: "Jl. Pasir Malang Blok Sibak Kel. Karangpawitan–Karawang 41315",
@@ -229,7 +229,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoSekolahBuffer),
-                  transformation: { width: 70, height: 70 },
+                  transformation: { width: 62, height: 62 },
                   type: "png",
                 }),
               ]
@@ -266,7 +266,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
         color: "000000",
       },
     },
-    spacing: { after: 200 },
+    spacing: { after: 120 },
   });
 
   // 3. Tentukan Judul Periode
@@ -283,7 +283,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const judulParagraph = new Paragraph({
     alignment: AlignmentType.CENTER,
-    spacing: { before: 120, after: 200 },
+    spacing: { before: 60, after: 120 },
     children: [
       new TextRun({
         text: judulPeriode,
@@ -297,7 +297,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   // 4. Identitas Guru (Indent 610 agar sejajar tepat dengan tabel yang berada di tengah)
   const identitasGuruNama = new Paragraph({
     indent: { left: 610 },
-    spacing: { after: 40 },
+    spacing: { after: 20 },
     children: [
       new TextRun({
         text: "Nama",
@@ -320,7 +320,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const identitasGuruNip = new Paragraph({
     indent: { left: 610 },
-    spacing: { after: 180 },
+    spacing: { after: 100 },
     children: [
       new TextRun({
         text: "NIP",
@@ -348,7 +348,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   };
 
   const tableHeaderRow = new TableRow({
-    height: { value: 340, rule: HeightRule.ATLEAST },
+    height: { value: 260, rule: HeightRule.ATLEAST },
     tableHeader: true,
     children: [
       createHeaderCell("TANGGAL", 1030),
@@ -442,7 +442,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
     dataRows.push(
       new TableRow({
-        height: { value: 250, rule: HeightRule.ATLEAST },
+        height: { value: 210, rule: HeightRule.ATLEAST },
         children: [
           createDataCell(String(dayNumber), 1030, AlignmentType.CENTER),
           createDataCell(hariName, 1561, AlignmentType.CENTER),
@@ -475,7 +475,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   const signYear = endY;
 
   const ttdTanggal = new Paragraph({
-    spacing: { before: 240, after: 30 },
+    spacing: { before: 100, after: 20 },
     indent: { left: 5200 },
     children: [
       new TextRun({
@@ -487,7 +487,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   });
 
   const ttdJabatan = new Paragraph({
-    spacing: { after: 700 }, // Ruang tanda tangan
+    spacing: { after: 480 }, // Ruang tanda tangan proporsional
     indent: { left: 5200 },
     children: [
       new TextRun({
@@ -499,7 +499,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   });
 
   const ttdNama = new Paragraph({
-    spacing: { after: 30 },
+    spacing: { after: 20 },
     indent: { left: 5200 },
     children: [
       new TextRun({
@@ -535,10 +535,10 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
               height: 16838, // A4
             },
             margin: {
-              top: 1296,    // 0.9 inci (sesuai template resmi)
-              bottom: 1296, // 0.9 inci
-              left: 1440,   // 1.0 inci (sesuai template resmi)
-              right: 1440,  // 1.0 inci
+              top: 720,    // 0.5 inci (kompak agar muat 1 halaman)
+              bottom: 720, // 0.5 inci
+              left: 1080,  // 0.75 inci
+              right: 1080, // 0.75 inci
             },
           },
         },
@@ -567,10 +567,11 @@ function createHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "FFFFFF" },
-    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    margins: { top: 30, bottom: 30, left: 60, right: 60 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0, line: 220 },
         children: [
           new TextRun({
             text,
@@ -592,10 +593,11 @@ function createDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 40, bottom: 40, left: 80, right: 80 },
+    margins: { top: 15, bottom: 15, left: 60, right: 60 },
     children: [
       new Paragraph({
         alignment,
+        spacing: { before: 0, after: 0, line: 200 },
         children: [
           new TextRun({
             text,

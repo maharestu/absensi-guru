@@ -152,7 +152,7 @@ export default function PresensiPulangPage() {
             subtitle="Memeriksa prasyarat kehadiran..."
           />
           <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-12 text-center mt-2">
-            <div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mb-3" />
+            <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
             <p className="text-xs text-slate-400 font-medium">
               Memeriksa status kehadiran hari ini...
             </p>
