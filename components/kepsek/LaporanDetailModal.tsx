@@ -41,6 +41,8 @@ export function LaporanDetailModal({
   startDate,
   endDate,
   totalJadwalGuru,
+  totalHariKerjaGuru,
+  persentaseHadirGuru,
   onClose,
   formatDateLabel,
   onPreviewPhoto,
@@ -53,6 +55,8 @@ export function LaporanDetailModal({
   startDate: string;
   endDate: string;
   totalJadwalGuru?: number;
+  totalHariKerjaGuru?: number;
+  persentaseHadirGuru?: number;
   onClose: () => void;
   formatDateLabel: (d: string) => string;
   onPreviewPhoto?: (url: string) => void;
@@ -251,7 +255,13 @@ export function LaporanDetailModal({
   const detailDinasLuar = detailKehadiran.filter((r) => r.status.toLowerCase() === "dinas").length;
   const detailTidakHadir = detailKehadiran.filter((r) => r.status.toLowerCase().includes("tidak")).length;
   const totalCatatan = detailKehadiran.length;
-  const persentaseHadir = totalCatatan > 0 ? Math.round((detailHadir / totalCatatan) * 100) : 0;
+  const persentaseBasis = (totalHariKerjaGuru !== undefined && totalHariKerjaGuru > 0)
+    ? totalHariKerjaGuru
+    : totalCatatan;
+  const totalHadirDanDinas = detailHadir + detailDinasLuar;
+  const persentaseHadir = persentaseHadirGuru !== undefined
+    ? persentaseHadirGuru
+    : (persentaseBasis > 0 ? Math.round((totalHadirDanDinas / persentaseBasis) * 100) : 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
@@ -313,6 +323,13 @@ export function LaporanDetailModal({
 
               {/* Stats Grid */}
               <div className="flex-1 flex gap-2 md:gap-4 overflow-x-auto pb-2">
+                <div className="border border-slate-200/80 bg-slate-50/70 rounded-xl p-3 flex-1 min-w-[85px] text-center">
+                  <p className="text-[11px] font-semibold text-slate-600 mb-1">Hari kerja</p>
+                  <p className="text-xl font-bold text-slate-900">
+                    {totalHariKerjaGuru !== undefined && totalHariKerjaGuru > 0 ? totalHariKerjaGuru : totalCatatan}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">periode ini</p>
+                </div>
                 <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
                   <p className="text-[11px] font-semibold text-slate-500 mb-1">Hadir</p>
                   <p className="text-xl font-bold text-blue-600">{detailHadir}</p>

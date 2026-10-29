@@ -5,9 +5,10 @@ import { Kelas } from "@/types/schema";
 interface ClassA4PrintTemplateProps {
   classData: Kelas;
   logoBase64?: string;
+  logoKarawangBase64?: string;
 }
 
-export function ClassA4PrintTemplate({ classData, logoBase64 }: ClassA4PrintTemplateProps) {
+export function ClassA4PrintTemplate({ classData, logoBase64, logoKarawangBase64 }: ClassA4PrintTemplateProps) {
   const [qrSvg, setQrSvg] = useState<string>("");
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
   const cleanBaseUrl = baseUrl.replace(/\/$/, "");
@@ -48,16 +49,51 @@ export function ClassA4PrintTemplate({ classData, logoBase64 }: ClassA4PrintTemp
 
       <div className="relative z-10 flex flex-col h-full px-8 py-8">
         {/* Kop Surat */}
-        <div className="flex items-center justify-between border-b-[3px] border-slate-800 pb-6 mb-8 w-full px-4">
-          <div className="flex-shrink-0">
-            <img src={logoBase64 || "/Logo.png"} alt="Logo" className="w-[100px] h-[100px] object-contain" />
+        <div className="w-full mb-6">
+          <div className="flex items-center justify-between w-full px-2">
+            {/* Logo Kiri: Logo Kabupaten Karawang */}
+            <div className="w-[95px] flex-shrink-0 flex items-center justify-center">
+              <img
+                src={logoKarawangBase64 || "/logo_kabupaten_karawang_transparan.png"}
+                alt="Logo Kabupaten Karawang"
+                className="w-[85px] h-[95px] object-contain"
+              />
+            </div>
+
+            {/* Teks Kop Surat */}
+            <div className="text-center flex-1 px-4">
+              <h3 className="text-base font-bold text-slate-800 tracking-wider leading-tight uppercase font-sans">
+                PEMERINTAH KABUPATEN KARAWANG
+              </h3>
+              <h3 className="text-base font-bold text-slate-800 tracking-wider leading-tight uppercase font-sans mt-0.5">
+                DINAS PENDIDIKAN DAN KEBUDAYAAN
+              </h3>
+              <h2 className="text-xl font-black text-slate-900 tracking-widest uppercase font-sans mt-1">
+                SMP NEGERI 8 KARAWANG BARAT
+              </h2>
+              <p className="text-xs text-slate-700 font-medium mt-1 leading-snug">
+                Jl. Pasir Malang Blok Sibak Kel. Karangpawitan–Karawang 41315
+              </p>
+              <p className="text-xs text-slate-700 font-medium leading-snug">
+                E-mail : smpnegeri8karawangbarat@gmail.com
+              </p>
+            </div>
+
+            {/* Logo Kanan: Logo Sekolah (SMPN 8 Karawang Barat) */}
+            <div className="w-[95px] flex-shrink-0 flex items-center justify-center">
+              <img
+                src={logoBase64 || "/Logo.png"}
+                alt="Logo SMPN 8 Karawang Barat"
+                className="w-[85px] h-[85px] object-contain"
+              />
+            </div>
           </div>
-          <div className="text-center flex-1 px-6">
-            <h4 className="text-sm font-bold text-slate-700 tracking-wider">PEMERINTAH KABUPATEN KARAWANG</h4>
-            <h2 className="text-2xl font-black text-slate-900 tracking-widest mt-1">SMP NEGERI 8 KARAWANG BARAT</h2>
-            <p className="text-xs text-slate-600 mt-2">Jl. Karangpawitan, Karawang Barat, Jawa Barat - TA {academicYear}</p>
+
+          {/* Garis Pembatas Kop Surat (Garis Ganda Khas Dinas) */}
+          <div className="w-full mt-3">
+            <div className="border-b-[3px] border-slate-900"></div>
+            <div className="border-b-[1px] border-slate-900 mt-[2px]"></div>
           </div>
-          <div className="w-[100px] flex-shrink-0"></div> {/* Spacer to keep the text perfectly centered */}
         </div>
 
         {/* Content */}

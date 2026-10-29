@@ -9,6 +9,8 @@ export interface StatCardItem {
   bgIcon: string;
   shadowIcon: string;
   icon: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
 }
 
 interface ScrollingStatCardsProps {
@@ -27,6 +29,7 @@ export function ScrollingStatCards({
   const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isPointerDownRef = useRef(false);
+  const hasDraggedRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
@@ -55,6 +58,7 @@ export function ScrollingStatCards({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
 
+    hasDraggedRef.current = false;
     startInteracting();
     isPointerDownRef.current = true;
     setIsDragging(true);
@@ -74,6 +78,9 @@ export function ScrollingStatCards({
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isPointerDownRef.current || !statScrollRef.current) return;
     const x = e.pageX - statScrollRef.current.offsetLeft;
+    if (Math.abs(x - startXRef.current) > 6) {
+      hasDraggedRef.current = true;
+    }
     const walk = (x - startXRef.current) * 1.2;
     statScrollRef.current.scrollLeft = startScrollLeftRef.current - walk;
   };
@@ -92,6 +99,9 @@ export function ScrollingStatCards({
     }
 
     scheduleResume(1500);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 100);
   };
 
   // Wheel handling for trackpad / mousewheel horizontal scroll
@@ -146,26 +156,42 @@ export function ScrollingStatCards({
     };
   }, []);
 
-  const renderStatCard = (item: StatCardItem, keySuffix: string = "") => (
-    <div
-      key={`${item.id}${keySuffix}`}
-      className="min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 select-none cursor-default"
-    >
+  const renderStatCard = (item: StatCardItem, keySuffix: string = "") => {
+    const isClickable = Boolean(item.onClick);
+    return (
       <div
-        className={`w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl ${item.bgIcon} flex items-center justify-center text-white flex-shrink-0 shadow-md ${item.shadowIcon}`}
+        key={`${item.id}${keySuffix}`}
+        onClick={() => {
+          if (item.onClick && !hasDraggedRef.current) {
+            item.onClick();
+          }
+        }}
+        className={`min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink bg-white rounded-2xl border p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 select-none transition-all ${
+          isClickable
+            ? "cursor-pointer hover:shadow-md hover:border-slate-300 active:scale-[0.98]"
+            : "cursor-default"
+        } ${
+          item.active
+            ? "ring-2 ring-blue-500 border-blue-500/80 bg-blue-50/20 shadow-xs"
+            : "border-slate-100"
+        }`}
       >
-        {item.icon}
+        <div
+          className={`w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl ${item.bgIcon} flex items-center justify-center text-white flex-shrink-0 shadow-md ${item.shadowIcon}`}
+        >
+          {item.icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10.5px] sm:text-xs font-semibold text-slate-400 truncate">
+            {item.label}
+          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight truncate">
+            {loading ? "..." : item.value}
+          </h2>
+        </div>
       </div>
-      <div>
-        <p className="text-[10.5px] sm:text-xs font-semibold text-slate-400">
-          {item.label}
-        </p>
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-          {loading ? "..." : item.value}
-        </h2>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>

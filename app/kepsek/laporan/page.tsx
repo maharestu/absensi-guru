@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Clock, Calendar, Camera, Search, FileText } from "lucide-react";
+import { Clock, Calendar, Camera, Search, FileText, TrendingUp, Users, Award, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
@@ -9,7 +9,7 @@ import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
 import { getJadwalList } from "@/actions/jadwal";
 import { getHariLibur, getPengaturanSistem, HariLibur, PengaturanSistem } from "@/actions/pengaturan";
-import { generateRekapAbsensiDocx, triggerDownload } from "@/lib/export-docx";
+import { generateRekapAbsensiDocx, generateRekapSemuaGuruDocx, triggerDownload } from "@/lib/export-docx";
 import { Guru, Kelas, JadwalWithDetail } from "@/types/schema";
 import Pagination from "@/components/ui/pagination";
 import { getStatusColorText } from "@/lib/status";
@@ -34,12 +34,14 @@ export default function LaporanAbsensiPage() {
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [exportingGuruId, setExportingGuruId] = useState<string | null>(null);
+  const [isExportingAllDocx, setIsExportingAllDocx] = useState(false);
 
   const [detailModalGuruId, setDetailModalGuruId] = useState<string | null>(null);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
 
   const [selectedGuru, setSelectedGuru] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [activeKehadiranCardId, setActiveKehadiranCardId] = useState<string>("avg-kehadiran");
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
 
   const [periodeType, setPeriodeType] = useState<string>("this_month");
@@ -66,6 +68,17 @@ export default function LaporanAbsensiPage() {
       const m = parts.find(p => p.type === 'month')?.value || String(today.getMonth() + 1).padStart(2, '0');
       setStartDate(`${y}-${m}-01`);
       const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
+    } else if (periodeType === "last_month") {
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const parts = formatter.formatToParts(today);
+      const currY = Number(parts.find(p => p.type === 'year')?.value || today.getFullYear());
+      const currM = Number(parts.find(p => p.type === 'month')?.value || (today.getMonth() + 1));
+      const lastMonthDate = new Date(currY, currM - 2, 1);
+      const y = lastMonthDate.getFullYear();
+      const m = String(lastMonthDate.getMonth() + 1).padStart(2, "0");
+      setStartDate(`${y}-${m}-01`);
+      const lastDay = new Date(y, Number(m), 0).getDate();
       setEndDate(`${y}-${m}-${String(lastDay).padStart(2, '0')}`);
     }
   }, [periodeType]);
@@ -100,17 +113,85 @@ export default function LaporanAbsensiPage() {
 
   const periodeLabel = getPeriodeLabel();
 
+  // Filter hanya guru dengan status aktif (sesuai status aktif di Admin Kelola Guru & Dashboard Admin)
+  const activeGuruList = useMemo(() => {
+    return guruList.filter((g) => (g.status ?? "aktif").toLowerCase() === "aktif");
+  }, [guruList]);
+
   // Rekapitulasi Kehadiran per Guru (1 baris mewakili 1 guru dalam periode aktif)
   const rekapKehadiranList = useMemo(() => {
     const mapGuru = new Map<string, { id: string; nama: string; nip: string }>();
-    guruList.forEach((g) => {
+    activeGuruList.forEach((g) => {
       mapGuru.set(g.id, { id: g.id, nama: g.nama, nip: g.nip });
     });
     laporanKehadiran.forEach((r) => {
       if (r.guru_id && !mapGuru.has(r.guru_id)) {
-        mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: "" });
+        const found = activeGuruList.find((ag) => ag.id === r.guru_id);
+        if (found) {
+          mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: found.nip || "" });
+        }
       }
     });
+
+    const holidaySet = new Set<string>(
+      hariLiburList.map((h) =>
+        typeof h.tanggal === "string" ? h.tanggal.slice(0, 10) : ""
+      )
+    );
+    const lp = pengaturanSistem;
+    const isDateInLiburPanjang = (dateStr: string) => {
+      if (!lp?.libur_panjang_aktif || !lp?.libur_panjang_mulai || !lp?.libur_panjang_selesai) return false;
+      return dateStr >= lp.libur_panjang_mulai && dateStr <= lp.libur_panjang_selesai;
+    };
+
+    let totalHariKerjaPeriode = 0;
+    if (startDate && endDate) {
+      try {
+        const todayWIB = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+        // Batasi hari kerja efektif sampai dengan hari ini untuk periode berjalan (Poin 3)
+        const effectiveEndStr = endDate > todayWIB ? todayWIB : endDate;
+
+        // Smart Auto-Detect: Cari tanggal presensi aktif perdana di sekolah pada periode ini
+        const activeDates = laporanKehadiran
+          .filter((r) => {
+            const st = (r.status || "").toLowerCase();
+            return st === "hadir" || st.includes("dinas") || st === "izin" || st === "sakit";
+          })
+          .map((r) => r.raw_tanggal)
+          .filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)))
+          .sort();
+
+        const earliestActiveDate = activeDates.length > 0 ? activeDates[0] : null;
+        // Jika sistem baru mulai dipakai pertengahan bulan, tanggal awal hari kerja bergeser ke hari perdana sekolah aktif
+        const effectiveStartStr = (earliestActiveDate && earliestActiveDate > startDate)
+          ? earliestActiveDate
+          : startDate;
+
+        if (effectiveStartStr <= effectiveEndStr) {
+          const [sY, sM, sD] = effectiveStartStr.split("-").map(Number);
+          const [eY, eM, eD] = effectiveEndStr.split("-").map(Number);
+          const cur = new Date(Date.UTC(sY, sM - 1, sD, 12, 0, 0));
+          const end = new Date(Date.UTC(eY, eM - 1, eD, 12, 0, 0));
+
+          while (cur <= end) {
+            const y = cur.getUTCFullYear();
+            const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
+            const d = String(cur.getUTCDate()).padStart(2, "0");
+            const dateStr = `${y}-${m}-${d}`;
+            const dayOfWeek = cur.getUTCDay();
+
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+              if (!holidaySet.has(dateStr) && !isDateInLiburPanjang(dateStr)) {
+                totalHariKerjaPeriode++;
+              }
+            }
+            cur.setUTCDate(cur.getUTCDate() + 1);
+          }
+        }
+      } catch {
+        // Abaikan jika parsing gagal
+      }
+    }
 
     return Array.from(mapGuru.values()).map((g) => {
       const records = laporanKehadiran.filter((r) => r.guru_id === g.id);
@@ -119,36 +200,49 @@ export default function LaporanAbsensiPage() {
       const sakit = records.filter((r) => r.status.toLowerCase() === "sakit").length;
       const dinasLuar = records.filter((r) => r.status.toLowerCase().includes("dinas")).length;
       const tidakHadir = records.filter((r) => r.status.toLowerCase().includes("tidak")).length;
-      const totalHari = records.length;
-      const persentaseHadir = totalHari > 0 ? Math.round((jumlahHadir / totalHari) * 100) : 0;
+      const totalHariKerja = totalHariKerjaPeriode > 0 ? totalHariKerjaPeriode : records.length;
+      // Dinas luar diakui sebagai kehadiran tugas resmi kedinasan (Poin 1)
+      const totalHadirDanDinas = jumlahHadir + dinasLuar;
+      const persentaseHadir = totalHariKerja > 0 ? Math.round((totalHadirDanDinas / totalHariKerja) * 100) : 0;
 
       return {
         guruId: g.id,
         nama: g.nama,
         nip: g.nip,
         periodeLabel,
+        totalHariKerja,
         jumlahHadir,
         persentaseHadir,
         izin,
         sakit,
         dinasLuar,
         tidakHadir,
-        totalHari,
+        totalHari: totalHariKerja,
       };
     });
-  }, [guruList, laporanKehadiran, periodeLabel]);
+  }, [activeGuruList, laporanKehadiran, periodeLabel, startDate, endDate, hariLiburList, pengaturanSistem]);
 
   // Filter Data Kehadiran per Guru untuk Tabel Utama
   const filteredGuruKehadiran = useMemo(() => {
     return rekapKehadiranList.filter((g) => {
       const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
-      const matchStatus =
-        selectedStatus === "all" ||
-        (selectedStatus === "hadir" && g.jumlahHadir > 0) ||
-        (selectedStatus === "izin" && g.izin > 0) ||
-        (selectedStatus === "sakit" && g.sakit > 0) ||
-        (selectedStatus === "dinas" && g.dinasLuar > 0) ||
-        (selectedStatus.includes("tidak") && g.tidakHadir > 0);
+      let matchStatus = true;
+      if (selectedStatus === "sempurna") {
+        matchStatus = g.persentaseHadir === 100;
+      } else if (selectedStatus === "rendah") {
+        matchStatus = g.persentaseHadir < 80;
+      } else if (selectedStatus === "alpha") {
+        matchStatus = g.tidakHadir > 0;
+      } else if (selectedStatus === "binaan") {
+        matchStatus = g.persentaseHadir < 80 || g.tidakHadir > 0;
+      } else if (selectedStatus !== "all") {
+        matchStatus =
+          (selectedStatus === "hadir" && g.jumlahHadir > 0) ||
+          (selectedStatus === "izin" && g.izin > 0) ||
+          (selectedStatus === "sakit" && g.sakit > 0) ||
+          (selectedStatus === "dinas" && g.dinasLuar > 0) ||
+          (selectedStatus.includes("tidak") && g.tidakHadir > 0);
+      }
       const query = searchQuery.toLowerCase().trim();
       const matchSearch =
         query === "" ||
@@ -158,16 +252,6 @@ export default function LaporanAbsensiPage() {
       return matchGuru && matchStatus && matchSearch;
     });
   }, [rekapKehadiranList, selectedGuru, selectedStatus, searchQuery]);
-
-  // Raw Filter Data Kehadiran (dipertahankan untuk Ringkasan Stat Cards)
-  const filteredKehadiran = laporanKehadiran.filter(r => {
-    const matchGuru = selectedGuru === "all" || r.guru_id === selectedGuru;
-    const matchStatus = selectedStatus === "all" || r.status.toLowerCase() === selectedStatus.toLowerCase();
-    const matchSearch = searchQuery === "" ||
-      r.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.status.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchGuru && matchStatus && matchSearch;
-  });
 
   // Filter Data Mengajar (TETAP — TIDAK DIUBAH)
   const filteredMengajar = laporanMengajar.filter(r => {
@@ -188,12 +272,15 @@ export default function LaporanAbsensiPage() {
   // Rekapitulasi Mengajar per Guru (1 baris mewakili 1 guru dalam periode aktif)
   const rekapMengajarList = useMemo(() => {
     const mapGuru = new Map<string, { id: string; nama: string; nip: string }>();
-    guruList.forEach((g) => {
+    activeGuruList.forEach((g) => {
       mapGuru.set(g.id, { id: g.id, nama: g.nama, nip: g.nip });
     });
     laporanMengajar.forEach((r) => {
       if (r.guru_id && !mapGuru.has(r.guru_id)) {
-        mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: "" });
+        const found = activeGuruList.find((ag) => ag.id === r.guru_id);
+        if (found) {
+          mapGuru.set(r.guru_id, { id: r.guru_id, nama: r.nama, nip: found.nip || "" });
+        }
       }
     });
 
@@ -213,24 +300,43 @@ export default function LaporanAbsensiPage() {
     const schoolDates: string[] = [];
     if (startDate && endDate) {
       try {
-        const [sY, sM, sD] = startDate.split("-").map(Number);
-        const [eY, eM, eD] = endDate.split("-").map(Number);
-        const cur = new Date(Date.UTC(sY, sM - 1, sD, 12, 0, 0));
-        const end = new Date(Date.UTC(eY, eM - 1, eD, 12, 0, 0));
+        const todayWIB = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+        const effectiveEndStr = endDate > todayWIB ? todayWIB : endDate;
 
-        while (cur <= end) {
-          const y = cur.getUTCFullYear();
-          const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
-          const d = String(cur.getUTCDate()).padStart(2, "0");
-          const dateStr = `${y}-${m}-${d}`;
-          const dayName = dayNames[cur.getUTCDay()];
+        const activeMengajarDates = laporanMengajar
+          .map((r) => {
+            const t = r.tanggal;
+            if (!t) return "";
+            if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+            return "";
+          })
+          .filter(Boolean)
+          .sort();
+        const earliestMengajar = activeMengajarDates.length > 0 ? activeMengajarDates[0] : null;
+        const effectiveStartStr = (earliestMengajar && earliestMengajar > startDate)
+          ? earliestMengajar
+          : startDate;
 
-          if (dayName !== "sabtu" && dayName !== "minggu") {
-            if (!holidaySet.has(dateStr) && !isDateInLiburPanjang(dateStr)) {
-              schoolDates.push(dayName);
+        if (effectiveStartStr <= effectiveEndStr) {
+          const [sY, sM, sD] = effectiveStartStr.split("-").map(Number);
+          const [eY, eM, eD] = effectiveEndStr.split("-").map(Number);
+          const cur = new Date(Date.UTC(sY, sM - 1, sD, 12, 0, 0));
+          const end = new Date(Date.UTC(eY, eM - 1, eD, 12, 0, 0));
+
+          while (cur <= end) {
+            const y = cur.getUTCFullYear();
+            const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
+            const d = String(cur.getUTCDate()).padStart(2, "0");
+            const dateStr = `${y}-${m}-${d}`;
+            const dayName = dayNames[cur.getUTCDay()];
+
+            if (dayName !== "sabtu" && dayName !== "minggu") {
+              if (!holidaySet.has(dateStr) && !isDateInLiburPanjang(dateStr)) {
+                schoolDates.push(dayName);
+              }
             }
+            cur.setUTCDate(cur.getUTCDate() + 1);
           }
-          cur.setUTCDate(cur.getUTCDate() + 1);
         }
       } catch {
         // Abaikan jika parsing gagal
@@ -286,7 +392,7 @@ export default function LaporanAbsensiPage() {
         persentaseMengajar,
       };
     });
-  }, [guruList, laporanMengajar, jadwalList, hariLiburList, pengaturanSistem, startDate, endDate, periodeLabel]);
+  }, [activeGuruList, laporanMengajar, jadwalList, hariLiburList, pengaturanSistem, startDate, endDate, periodeLabel]);
 
   // Filter Data Mengajar per Guru untuk Tabel Utama
   const filteredGuruMengajar = useMemo(() => {
@@ -327,87 +433,83 @@ export default function LaporanAbsensiPage() {
     setCurrentPageMengajar(1);
   }, [searchQuery]);
 
-  // Hitung jumlah statistik Kehadiran secara dinamis
-  const countHadir = filteredKehadiran.filter((r) => r.status.toLowerCase() === "hadir").length;
-  const countIzin = filteredKehadiran.filter((r) => r.status.toLowerCase() === "izin").length;
-  const countSakit = filteredKehadiran.filter((r) => r.status.toLowerCase() === "sakit").length;
-  const countDinas = filteredKehadiran.filter((r) => r.status.toLowerCase() === "dinas").length;
-  const countTidakHadir = filteredKehadiran.filter((r) => r.status.toLowerCase().includes("tidak")).length;
+  // Hitung statistik Kehadiran berbasis ringkasan guru (Executive Metrics)
+  const baseGuruKehadiran = useMemo(() => {
+    return rekapKehadiranList.filter((g) => selectedGuru === "all" || g.guruId === selectedGuru);
+  }, [rekapKehadiranList, selectedGuru]);
+
+  const totalGuruAktif = selectedGuru === "all" ? activeGuruList.length : baseGuruKehadiran.length;
+  const avgNum = totalGuruAktif > 0
+    ? baseGuruKehadiran.reduce((sum, g) => sum + g.persentaseHadir, 0) / totalGuruAktif
+    : 0;
+  const avgKehadiran = totalGuruAktif > 0
+    ? (avgNum % 1 === 0 ? `${avgNum}%` : `${avgNum.toFixed(1)}%`)
+    : "0%";
+  const countSempurna = baseGuruKehadiran.filter((g) => g.persentaseHadir === 100).length;
+  const countPerluBinaan = baseGuruKehadiran.filter((g) => g.persentaseHadir < 80 || g.tidakHadir > 0).length;
 
   const statCardsKehadiran: StatCardItem[] = [
     {
-      id: "guru-hadir",
-      label: "Guru Hadir",
-      value: countHadir,
+      id: "avg-kehadiran",
+      label: "Rata-rata Kehadiran",
+      value: avgKehadiran,
       bgIcon: "bg-indigo-600",
       shadowIcon: "shadow-indigo-500/20",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="18" height="18" x="3" y="3" rx="4" />
-          <circle cx="12" cy="10" r="3" />
-          <path d="M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
-        </svg>
-      ),
+      icon: <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => {
+        setActiveKehadiranCardId("avg-kehadiran");
+        handleStatusChange("all");
+      },
+      active: activeKehadiranCardId === "avg-kehadiran" && selectedStatus === "all",
     },
     {
-      id: "izin",
-      label: "Izin",
-      value: countIzin,
-      bgIcon: "bg-orange-500",
-      shadowIcon: "shadow-orange-500/20",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="14" height="18" x="5" y="3" rx="3" />
-          <path d="M9 9h6" />
-          <path d="M9 13h6" />
-          <path d="M9 17h4" />
-        </svg>
-      ),
+      id: "total-guru",
+      label: "Total Guru Aktif",
+      value: `${totalGuruAktif} Guru`,
+      bgIcon: "bg-slate-700",
+      shadowIcon: "shadow-slate-500/20",
+      icon: <Users className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => {
+        setActiveKehadiranCardId("total-guru");
+        handleStatusChange("all");
+      },
+      active: activeKehadiranCardId === "total-guru" && selectedStatus === "all",
     },
     {
-      id: "sakit",
-      label: "Sakit",
-      value: countSakit,
+      id: "kehadiran-sempurna",
+      label: "Kehadiran Sempurna (100%)",
+      value: `${countSempurna} Guru`,
+      bgIcon: "bg-emerald-500",
+      shadowIcon: "shadow-emerald-500/20",
+      icon: <Award className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => {
+        if (selectedStatus === "sempurna") {
+          setActiveKehadiranCardId("avg-kehadiran");
+          handleStatusChange("all");
+        } else {
+          setActiveKehadiranCardId("kehadiran-sempurna");
+          handleStatusChange("sempurna");
+        }
+      },
+      active: selectedStatus === "sempurna",
+    },
+    {
+      id: "perlu-pembinaan",
+      label: "Kehadiran < 80%",
+      value: `${countPerluBinaan} Guru`,
       bgIcon: "bg-rose-500",
       shadowIcon: "shadow-rose-500/20",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="18" height="18" x="3" y="4" rx="3" />
-          <path d="M16 2v4" />
-          <path d="M8 2v4" />
-          <path d="M3 10h18" />
-          <path d="M10 16h4" />
-          <path d="M12 14v4" />
-        </svg>
-      ),
-    },
-    {
-      id: "dinas-luar",
-      label: "Dinas Luar",
-      value: countDinas,
-      bgIcon: "bg-teal-500",
-      shadowIcon: "shadow-teal-500/20",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-        </svg>
-      ),
-    },
-    {
-      id: "tidak-hadir",
-      label: "Tidak Hadir",
-      value: countTidakHadir,
-      bgIcon: "bg-purple-600",
-      shadowIcon: "shadow-purple-500/20",
-      icon: (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="18" height="14" x="3" y="5" rx="3" />
-          <path d="M3 10h18" />
-          <path d="m15 15 4 4" />
-          <path d="m19 15-4 4" />
-        </svg>
-      ),
+      icon: <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => {
+        if (selectedStatus === "binaan") {
+          setActiveKehadiranCardId("avg-kehadiran");
+          handleStatusChange("all");
+        } else {
+          setActiveKehadiranCardId("perlu-pembinaan");
+          handleStatusChange("binaan");
+        }
+      },
+      active: selectedStatus === "binaan",
     },
   ];
 
@@ -483,12 +585,23 @@ export default function LaporanAbsensiPage() {
     setFilterLoading(true);
     setActiveTab(tab);
     setSearchQuery(""); // Reset search when switching tabs
+    setSelectedStatus("all"); // Reset status when switching tabs
+    setActiveKehadiranCardId("avg-kehadiran");
     setTimeout(() => setFilterLoading(false), 200);
   };
 
   const handleStatusChange = (val: string) => {
     setFilterLoading(true);
     setSelectedStatus(val);
+    if (val === "sempurna") {
+      setActiveKehadiranCardId("kehadiran-sempurna");
+    } else if (val === "binaan") {
+      setActiveKehadiranCardId("perlu-pembinaan");
+    } else if (val === "all") {
+      setActiveKehadiranCardId((prev) => (prev === "total-guru" ? "total-guru" : "avg-kehadiran"));
+    } else {
+      setActiveKehadiranCardId("");
+    }
     setTimeout(() => setFilterLoading(false), 200);
   };
 
@@ -526,7 +639,9 @@ export default function LaporanAbsensiPage() {
           waktu_pulang: r.waktu_pulang,
           status: r.status,
         }));
-      const kepsekGuru = guruList.find((g) => g.linked_role === "kepala_sekolah");
+      const kepsekGuru = guruList.find(
+        (g) => g.linked_role === "kepala_sekolah" || (g.jabatan && g.jabatan.toLowerCase().includes("kepala sekolah"))
+      );
 
       const blob = await generateRekapAbsensiDocx({
         guru: {
@@ -559,44 +674,67 @@ export default function LaporanAbsensiPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const isKehadiran = activeTab === "kehadiran";
 
-    let exportData;
     if (isKehadiran) {
       if (filteredGuruKehadiran.length === 0) {
         alert("Tidak ada data untuk diekspor.");
         return;
       }
-      exportData = filteredGuruKehadiran.map((row) => ({
-        "Tanggal Periode": row.periodeLabel,
-        "NIP / NUPTK": row.nip || "-",
-        "Nama Guru": row.nama,
-        "Jumlah Hadir": row.jumlahHadir,
-        "Persentase Hadir": `${row.persentaseHadir}%`,
-        "Izin": row.izin,
-        "Sakit": row.sakit,
-        "Dinas Luar": row.dinasLuar,
-        "Tidak Hadir": row.tidakHadir,
-      }));
-    } else {
-      if (filteredMengajar.length === 0) {
-        alert("Tidak ada data untuk diekspor.");
-        return;
+      try {
+        setIsExportingAllDocx(true);
+        const kepsekGuru = guruList.find(
+          (g) => g.linked_role === "kepala_sekolah" || (g.jabatan && g.jabatan.toLowerCase().includes("kepala sekolah"))
+        );
+        const blob = await generateRekapSemuaGuruDocx({
+          startDate,
+          endDate,
+          rows: filteredGuruKehadiran.map((row) => ({
+            nama: row.nama,
+            nip: row.nip || "-",
+            totalHariKerja: row.totalHariKerja,
+            persentaseHadir: row.persentaseHadir,
+            jumlahHadir: row.jumlahHadir,
+            izin: row.izin,
+            sakit: row.sakit,
+            dinasLuar: row.dinasLuar,
+            tidakHadir: row.tidakHadir,
+          })),
+          statistik: {
+            avgKehadiran,
+            totalGuru: totalGuruAktif,
+          },
+          kepalaSekolah: kepsekGuru ? { nama: kepsekGuru.nama, nip: kepsekGuru.nip } : undefined,
+        });
+
+        const fileName = `Laporan_Kehadiran_Guru_${startDate}_sampai_${endDate}.docx`;
+        triggerDownload(blob, fileName);
+      } catch (err) {
+        console.error("Gagal export docx keseluruhan guru:", err);
+        alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+      } finally {
+        setIsExportingAllDocx(false);
       }
-      exportData = filteredMengajar.map((row) => ({
-        "Tanggal": row.tanggal,
-        "Nama Guru": row.nama,
-        "Kelas": row.kelas,
-        "Mata Pelajaran": row.mata_pelajaran,
-        "Waktu": row.waktu,
-        "Status": row.status,
-      }));
+      return;
     }
+
+    if (filteredMengajar.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+    const exportData = filteredMengajar.map((row) => ({
+      "Tanggal": row.tanggal,
+      "Nama Guru": row.nama,
+      "Kelas": row.kelas,
+      "Mata Pelajaran": row.mata_pelajaran,
+      "Waktu": row.waktu,
+      "Status": row.status,
+    }));
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-    // -- STYLING EXCEL --
+    // -- STYLING EXCEL (TAB MENGAJAR) --
     const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
 
     // Header styling (Baris 0)
@@ -636,24 +774,12 @@ export default function LaporanAbsensiPage() {
     }
 
     // Set Column Widths (Wch = Width in Characters)
-    worksheet['!cols'] = isKehadiran
-      ? [
-        { wch: 22 }, // Tanggal Periode
-        { wch: 22 }, // NIP/NUPTK
-        { wch: 32 }, // Nama Guru
-        { wch: 14 }, // Hadir
-        { wch: 16 }, // Persentase
-        { wch: 10 }, // Izin
-        { wch: 10 }, // Sakit
-        { wch: 12 }, // Dinas Luar
-        { wch: 12 }, // Tidak Hadir
-      ]
-      : [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
+    worksheet['!cols'] = [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
 
-    const fileName = `Laporan_${isKehadiran ? "Kehadiran" : "Mengajar"}_${startDate}_sampai_${endDate}.xlsx`;
+    const fileName = `Laporan_Mengajar_${startDate}_sampai_${endDate}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -727,6 +853,7 @@ export default function LaporanAbsensiPage() {
                 className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="this_month">Bulan Ini</option>
+                <option value="last_month">Bulan Lalu</option>
                 <option value="today">Hari Ini</option>
                 <option value="last_7_days">7 Hari Terakhir</option>
                 <option value="custom">Kustom</option>
@@ -764,7 +891,7 @@ export default function LaporanAbsensiPage() {
               onChange={handleGuruChange}
               options={[
                 { value: "all", label: "Semua Guru" },
-                ...guruList.map(g => ({ value: g.id, label: g.nama }))
+                ...activeGuruList.map(g => ({ value: g.id, label: g.nama }))
               ]}
             />
           </div>
@@ -772,19 +899,16 @@ export default function LaporanAbsensiPage() {
           {activeTab === "kehadiran" ? (
             // Filter untuk Kehadiran
             <div className="col-span-2 md:col-span-1 flex-1 space-y-2">
-              <label className="text-[11px] font-bold text-slate-900 tracking-wider">Status</label>
+              <label className="text-[11px] font-bold text-slate-900 tracking-wider">Kedisiplinan</label>
               <div className="relative">
                 <select
                   value={selectedStatus}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="hadir">Hadir</option>
-                  <option value="sakit">Sakit</option>
-                  <option value="izin">Izin</option>
-                  <option value="dinas">Dinas Luar</option>
-                  <option value="tidak hadir">Tidak Hadir</option>
+                  <option value="all">Semua Guru</option>
+                  <option value="sempurna">Kehadiran Sempurna (100%)</option>
+                  <option value="binaan">Kehadiran &lt; 80%</option>
                 </select>
                 <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
@@ -1001,7 +1125,7 @@ export default function LaporanAbsensiPage() {
           <ScrollingStatCards
             items={statCardsKehadiran}
             loading={loading || filterLoading}
-            desktopGridCols="lg:grid-cols-5"
+            desktopGridCols="lg:grid-cols-4"
           />
 
           {/* Table Section Kehadiran */}
@@ -1023,9 +1147,10 @@ export default function LaporanAbsensiPage() {
                 <button
                   type="button"
                   onClick={handleExport}
-                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                  disabled={isExportingAllDocx}
+                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0 disabled:opacity-50"
                 >
-                  Ekspor
+                  {isExportingAllDocx ? "Mengekspor..." : "Ekspor"}
                 </button>
               </div>
             </div>
@@ -1039,24 +1164,25 @@ export default function LaporanAbsensiPage() {
                   </p>
                 </div>
               )}
-              <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[800px] sm:min-w-[950px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">TANGGAL PERIODE</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">JUMLAH HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">TANGGAL PERIODE</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[21%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">TOTAL HARI KERJA</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">PERSENTASE HADIR</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">IZIN</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">SAKIT</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">DINAS LUAR</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">TIDAK HADIR</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[9%] text-center">JUMLAH HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[6%] text-center">IZIN</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[6%] text-center">SAKIT</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">DINAS LUAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">TIDAK HADIR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[7%] text-center">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
                   {filteredGuruKehadiran.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-8 text-center text-slate-500">
+                      <td colSpan={10} className="py-8 text-center text-slate-500">
                         Tidak ada data guru yang sesuai filter.
                       </td>
                     </tr>
@@ -1072,8 +1198,8 @@ export default function LaporanAbsensiPage() {
                             {row.nip ? `NIP/NUPTK: ${row.nip}` : "—"}
                           </div>
                         </td>
-                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
-                          {row.jumlahHadir}
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-slate-800 text-sm sm:text-base">
+                          {row.totalHariKerja}
                         </td>
                         <td className="py-2.5 sm:py-4">
                           <div className="flex flex-col items-center justify-center gap-1">
@@ -1085,6 +1211,9 @@ export default function LaporanAbsensiPage() {
                               />
                             </div>
                           </div>
+                        </td>
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
+                          {row.jumlahHadir}
                         </td>
                         <td className="py-2.5 sm:py-4 text-center font-semibold text-orange-600">
                           {row.izin}
@@ -1150,6 +1279,8 @@ export default function LaporanAbsensiPage() {
           startDate={startDate}
           endDate={endDate}
           totalJadwalGuru={rekapMengajarList.find((r) => r.guruId === detailModalGuruId)?.totalJadwal}
+          totalHariKerjaGuru={rekapKehadiranList.find((r) => r.guruId === detailModalGuruId)?.totalHariKerja}
+          persentaseHadirGuru={rekapKehadiranList.find((r) => r.guruId === detailModalGuruId)?.persentaseHadir}
           onClose={() => setDetailModalGuruId(null)}
           formatDateLabel={formatDateLabel}
           onPreviewPhoto={(url) => setPhotoOverlayUrl(url)}

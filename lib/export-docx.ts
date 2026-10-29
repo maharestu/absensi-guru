@@ -12,6 +12,7 @@ import {
   ImageRun,
   VerticalAlign,
   HeightRule,
+  PageOrientation,
 } from "docx";
 import { isWeekendWIB } from "./date";
 
@@ -39,6 +40,40 @@ const HARI_NAMES = [
   "Jum'at",
   "Sabtu",
 ];
+
+export function formatJudulPeriode(
+  startDate: string,
+  endDate: string,
+  prefix: string = "DAFTAR REKAPITULASI KEHADIRAN GURU"
+): string {
+  if (!startDate || !endDate) return prefix;
+  try {
+    const [startY, startM, startD] = startDate.split("-").map(Number);
+    const [endY, endM, endD] = endDate.split("-").map(Number);
+
+    const startBulan = BULAN_NAMES[startM - 1]?.toUpperCase() || "";
+    const endBulan = BULAN_NAMES[endM - 1]?.toUpperCase() || "";
+
+    const lastDayOfMonth = new Date(startY, startM, 0).getDate();
+    const isFullMonth = startY === endY && startM === endM && startD === 1 && endD === lastDayOfMonth;
+
+    if (isFullMonth) {
+      return `${prefix} BULAN ${endBulan} TAHUN ${endY}`;
+    }
+    if (startDate === endDate) {
+      return `${prefix} TANGGAL ${startD} ${startBulan} ${startY}`;
+    }
+    if (startY === endY && startM === endM) {
+      return `${prefix} PERIODE ${startD} S.D. ${endD} ${endBulan} ${endY}`;
+    }
+    if (startY === endY) {
+      return `${prefix} PERIODE ${startD} ${startBulan} S.D. ${endD} ${endBulan} ${endY}`;
+    }
+    return `${prefix} PERIODE ${startD} ${startBulan} ${startY} S.D. ${endD} ${endBulan} ${endY}`;
+  } catch {
+    return `${prefix} PERIODE ${startDate} S.D. ${endDate}`;
+  }
+}
 
 export interface DocxExportGuru {
   id: string;
@@ -269,17 +304,8 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
     spacing: { after: 150 },
   });
 
-  // 3. Tentukan Judul Periode
-  const [startY, startM] = startDate.split("-").map(Number);
-  const [endY, endM] = endDate.split("-").map(Number);
-
-  let judulPeriode = "";
-  if (startY === endY && startM === endM) {
-    const bulanStr = BULAN_NAMES[startM - 1]?.toUpperCase() || "";
-    judulPeriode = `DAFTAR KEHADIRAN ${bulanStr} TAHUN ${startY}`;
-  } else {
-    judulPeriode = `DAFTAR KEHADIRAN PERIODE ${startDate} S.D. ${endDate}`;
-  }
+  // 3. Tentukan Judul Periode Dinamis
+  const judulPeriode = formatJudulPeriode(startDate, endDate, "DAFTAR KEHADIRAN");
 
   const judulParagraph = new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -471,6 +497,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   });
 
   // 6. Tanda Tangan Kepala Sekolah (Kanan Bawah sejajar sisi kanan tabel)
+  const [endY, endM] = endDate.split("-").map(Number);
   const signMonth = BULAN_NAMES[endM - 1] || "";
   const signYear = endY;
 
@@ -620,4 +647,515 @@ export function triggerDownload(blob: Blob, filename: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export interface RekapGuruKehadiranRow {
+  nama: string;
+  nip: string;
+  totalHariKerja: number;
+  persentaseHadir: number;
+  jumlahHadir: number;
+  izin: number;
+  sakit: number;
+  dinasLuar: number;
+  tidakHadir: number;
+}
+
+export interface ExportSemuaGuruDocxOptions {
+  startDate: string;
+  endDate: string;
+  rows: RekapGuruKehadiranRow[];
+  statistik?: {
+    avgKehadiran?: string;
+    totalGuru?: number;
+  };
+  kepalaSekolah?: {
+    nama: string;
+    nip: string;
+  };
+}
+
+function createCompactHeaderCell(text: string, widthDxa: number): TableCell {
+  const lines = text.split("\n");
+  return new TableCell({
+    width: { size: widthDxa, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    shading: { fill: "F8FAFC" },
+    margins: { top: 25, bottom: 25, left: 30, right: 30 },
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0, line: 190 },
+        children: lines.map((line, idx) =>
+          new TextRun({
+            text: line,
+            font: "Arial",
+            bold: true,
+            size: 14, // 7pt
+            break: idx > 0 ? 1 : 0,
+          })
+        ),
+      }),
+    ],
+  });
+}
+
+function createCompactDataCell(
+  text: string,
+  widthDxa: number,
+  alignment: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.CENTER
+): TableCell {
+  return new TableCell({
+    width: { size: widthDxa, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 20, bottom: 20, left: 30, right: 30 },
+    children: [
+      new Paragraph({
+        alignment,
+        spacing: { before: 0, after: 0, line: 195 },
+        children: [
+          new TextRun({
+            text,
+            font: "Arial",
+            size: 14, // 7pt
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOptions): Promise<Blob> {
+  const {
+    startDate,
+    endDate,
+    rows,
+    statistik,
+    kepalaSekolah,
+  } = options;
+
+  // 1. Muat Logo Karawang & Logo Sekolah
+  const [logoKarawangBuffer, logoSekolahBuffer] = await Promise.all([
+    fetchImageBuffer("/logo_kabupaten_karawang_transparan.png"),
+    fetchImageBuffer("/Logo.png"),
+  ]);
+
+  // 2. Buat Kop Surat A4 Portrait (Lebar total 10500 DXA)
+  const kopRowCells: TableCell[] = [
+    // Kolom Kiri: Logo Karawang
+    new TableCell({
+      width: { size: 1200, type: WidthType.DXA },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: logoKarawangBuffer
+            ? [
+                new ImageRun({
+                  data: new Uint8Array(logoKarawangBuffer),
+                  transformation: { width: 44, height: 60 },
+                  type: "png",
+                }),
+              ]
+            : [],
+        }),
+      ],
+    }),
+
+    // Kolom Tengah: Teks Identitas Sekolah
+    new TableCell({
+      width: { size: 8100, type: WidthType.DXA },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 10 },
+          children: [
+            new TextRun({
+              text: "PEMERINTAH KABUPATEN KARAWANG",
+              font: "Arial",
+              bold: true,
+              size: 20, // 10pt
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 10 },
+          children: [
+            new TextRun({
+              text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
+              font: "Arial",
+              bold: true,
+              size: 20, // 10pt
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 16 },
+          children: [
+            new TextRun({
+              text: "SMP NEGERI 8 KARAWANG BARAT",
+              font: "Arial",
+              bold: true,
+              size: 24, // 12pt
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 10 },
+          children: [
+            new TextRun({
+              text: "Jl. Pasir Malang Blok Sibak Kel. Karangpawitan–Karawang 41315",
+              font: "Arial",
+              size: 15, // 7.5pt
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 0 },
+          children: [
+            new TextRun({
+              text: "E-mail : smpnegeri8karawangbarat@gmail.com",
+              font: "Arial",
+              size: 15, // 7.5pt
+            }),
+          ],
+        }),
+      ],
+    }),
+
+    // Kolom Kanan: Logo SMPN 8
+    new TableCell({
+      width: { size: 1200, type: WidthType.DXA },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: {
+        top: { style: BorderStyle.NONE },
+        bottom: { style: BorderStyle.NONE },
+        left: { style: BorderStyle.NONE },
+        right: { style: BorderStyle.NONE },
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: logoSekolahBuffer
+            ? [
+                new ImageRun({
+                  data: new Uint8Array(logoSekolahBuffer),
+                  transformation: { width: 54, height: 54 },
+                  type: "png",
+                }),
+              ]
+            : [],
+        }),
+      ],
+    }),
+  ];
+
+  const kopTable = new Table({
+    alignment: AlignmentType.CENTER,
+    columnWidths: [1200, 8100, 1200],
+    width: { size: 10500, type: WidthType.DXA },
+    borders: {
+      top: { style: BorderStyle.NONE },
+      bottom: { style: BorderStyle.NONE },
+      left: { style: BorderStyle.NONE },
+      right: { style: BorderStyle.NONE },
+      insideHorizontal: { style: BorderStyle.NONE },
+      insideVertical: { style: BorderStyle.NONE },
+    },
+    rows: [
+      new TableRow({
+        children: kopRowCells,
+      }),
+    ],
+  });
+
+  const kopDivider = new Paragraph({
+    border: {
+      bottom: {
+        style: BorderStyle.DOUBLE,
+        size: 16,
+        color: "000000",
+      },
+    },
+    spacing: { after: 100 },
+  });
+
+  // 3. Judul Rekapitulasi Dinamis Sesuai Periode
+  const judulPeriode = formatJudulPeriode(startDate, endDate, "DAFTAR REKAPITULASI KEHADIRAN GURU");
+
+  const judulParagraph = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 40, after: 100 },
+    children: [
+      new TextRun({
+        text: judulPeriode,
+        font: "Arial",
+        bold: true,
+        size: 20, // 10pt
+      }),
+    ],
+  });
+
+  // 4. Susun Tabel Rekapitulasi Kehadiran Seluruh Guru (A4 Portrait - Total 10500 DXA)
+  const cellBorderSingle = {
+    style: BorderStyle.SINGLE,
+    size: 4,
+    color: "000000",
+  };
+
+  const colWidths = [450, 2650, 1900, 950, 750, 750, 700, 700, 850, 800]; // Total: 10500 DXA
+
+  const tableHeaderRow = new TableRow({
+    height: { value: 300, rule: HeightRule.ATLEAST },
+    tableHeader: true,
+    cantSplit: true,
+    children: [
+      createCompactHeaderCell("NO", colWidths[0]),
+      createCompactHeaderCell("NAMA GURU", colWidths[1]),
+      createCompactHeaderCell("NIP / NUPTK", colWidths[2]),
+      createCompactHeaderCell("TOTAL\nHARI", colWidths[3]),
+      createCompactHeaderCell("%\nHADIR", colWidths[4]),
+      createCompactHeaderCell("HADIR", colWidths[5]),
+      createCompactHeaderCell("IZIN", colWidths[6]),
+      createCompactHeaderCell("SAKIT", colWidths[7]),
+      createCompactHeaderCell("DINAS\nLUAR", colWidths[8]),
+      createCompactHeaderCell("TIDAK\nHADIR", colWidths[9]),
+    ],
+  });
+
+  const dataRows = rows.map((row, index) => {
+    return new TableRow({
+      cantSplit: true,
+      children: [
+        createCompactDataCell(String(index + 1), colWidths[0], AlignmentType.CENTER),
+        createCompactDataCell(row.nama || "-", colWidths[1], AlignmentType.LEFT),
+        createCompactDataCell(row.nip ? row.nip : "—", colWidths[2], AlignmentType.CENTER),
+        createCompactDataCell(String(row.totalHariKerja ?? 0), colWidths[3], AlignmentType.CENTER),
+        createCompactDataCell(`${row.persentaseHadir ?? 0}%`, colWidths[4], AlignmentType.CENTER),
+        createCompactDataCell(String(row.jumlahHadir ?? 0), colWidths[5], AlignmentType.CENTER),
+        createCompactDataCell(String(row.izin ?? 0), colWidths[6], AlignmentType.CENTER),
+        createCompactDataCell(String(row.sakit ?? 0), colWidths[7], AlignmentType.CENTER),
+        createCompactDataCell(String(row.dinasLuar ?? 0), colWidths[8], AlignmentType.CENTER),
+        createCompactDataCell(String(row.tidakHadir ?? 0), colWidths[9], AlignmentType.CENTER),
+      ],
+    });
+  });
+
+  const attendanceTable = new Table({
+    alignment: AlignmentType.CENTER,
+    columnWidths: colWidths,
+    width: { size: 10500, type: WidthType.DXA },
+    borders: {
+      top: cellBorderSingle,
+      bottom: cellBorderSingle,
+      left: cellBorderSingle,
+      right: cellBorderSingle,
+      insideHorizontal: cellBorderSingle,
+      insideVertical: cellBorderSingle,
+    },
+    rows: [tableHeaderRow, ...dataRows],
+  });
+
+  // 5. Bagian Bawah: Ringkasan Info Kehadiran + Tanda Tangan Kepala Sekolah (Total 10500 DXA)
+  const [endY, endM] = endDate.split("-").map(Number);
+  const signMonth = BULAN_NAMES[endM - 1] || "";
+  const signYear = endY;
+  const totalGuruTercatat = statistik?.totalGuru ?? rows.length;
+  const avgKehadiranText = statistik?.avgKehadiran ?? "0%";
+
+  const footerTable = new Table({
+    alignment: AlignmentType.CENTER,
+    columnWidths: [5500, 5000],
+    width: { size: 10500, type: WidthType.DXA },
+    borders: {
+      top: { style: BorderStyle.NONE },
+      bottom: { style: BorderStyle.NONE },
+      left: { style: BorderStyle.NONE },
+      right: { style: BorderStyle.NONE },
+      insideHorizontal: { style: BorderStyle.NONE },
+      insideVertical: { style: BorderStyle.NONE },
+    },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          // Kolom Kiri: Keterangan / Ringkasan Persentase Kehadiran
+          new TableCell({
+            width: { size: 5500, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.TOP,
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.NONE },
+              left: { style: BorderStyle.NONE },
+              right: { style: BorderStyle.NONE },
+            },
+            children: [
+              new Paragraph({
+                spacing: { before: 100, after: 20 },
+                children: [
+                  new TextRun({
+                    text: "Ringkasan Eksekutif Kehadiran:",
+                    font: "Arial",
+                    bold: true,
+                    size: 15, // 7.5pt
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { before: 0, after: 15 },
+                children: [
+                  new TextRun({
+                    text: "• Total Guru Terdaftar      : ",
+                    font: "Arial",
+                    size: 15,
+                  }),
+                  new TextRun({
+                    text: `${totalGuruTercatat} Orang Guru`,
+                    font: "Arial",
+                    bold: true,
+                    size: 15,
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { before: 0, after: 0 },
+                children: [
+                  new TextRun({
+                    text: "• Rata-rata Kehadiran Guru : ",
+                    font: "Arial",
+                    size: 15,
+                  }),
+                  new TextRun({
+                    text: `${avgKehadiranText}`,
+                    font: "Arial",
+                    bold: true,
+                    size: 15,
+                  }),
+                ],
+              }),
+            ],
+          }),
+
+          // Kolom Kanan: Tanda Tangan Kepala Sekolah
+          new TableCell({
+            width: { size: 5000, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.TOP,
+            borders: {
+              top: { style: BorderStyle.NONE },
+              bottom: { style: BorderStyle.NONE },
+              left: { style: BorderStyle.NONE },
+              right: { style: BorderStyle.NONE },
+            },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 100, after: 20 },
+                children: [
+                  new TextRun({
+                    text: `Karawang,    ${signMonth} ${signYear}`,
+                    font: "Arial",
+                    size: 15, // 7.5pt
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 420 },
+                children: [
+                  new TextRun({
+                    text: "Kepala Sekolah SMPN 8 Karawang Barat",
+                    font: "Arial",
+                    size: 15, // 7.5pt
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 20 },
+                children: [
+                  new TextRun({
+                    text: kepalaSekolah?.nama || "H. Mamay Abdullah, S.Pd., M.Pd.",
+                    font: "Arial",
+                    bold: true,
+                    size: 15, // 7.5pt
+                    underline: {},
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 0 },
+                children: [
+                  new TextRun({
+                    text: `NIP. ${kepalaSekolah?.nip || "197007241998021003"}`,
+                    font: "Arial",
+                    size: 15, // 7.5pt
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  // Paragraf pemisah (Enter) antara tabel utama dan tabel ringkasan/tanda tangan
+  const tableSpacer = new Paragraph({
+    spacing: { before: 140, after: 80 },
+    children: [
+      new TextRun({
+        text: "",
+      }),
+    ],
+  });
+
+  // 6. Bangun Dokumen A4 Portrait Standar (Lebar: 11906 DXA / 21cm, Tinggi: 16838 DXA / 29.7cm)
+  const doc = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            size: {
+              width: 11906,  // A4 Portrait width
+              height: 16838, // A4 Portrait height
+            },
+            margin: {
+              top: 600,    // ~1.05 cm
+              bottom: 600, // ~1.05 cm
+              left: 700,   // ~1.23 cm
+              right: 700,  // ~1.23 cm
+            },
+          },
+        },
+        children: [
+          kopTable,
+          kopDivider,
+          judulParagraph,
+          attendanceTable,
+          tableSpacer,
+          footerTable,
+        ],
+      },
+    ],
+  });
+
+  return await Packer.toBlob(doc);
 }
