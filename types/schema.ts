@@ -87,6 +87,7 @@ export interface AbsensiMasuk {
   latitude?: number | null; // Lokasi validasi (jika Hadir)
   longitude?: number | null;
   waktu_pulang?: Date | string | null;
+  foto_pulang?: string | null;
   waktu_submit: Date | string;
 }
 

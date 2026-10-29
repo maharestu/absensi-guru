@@ -416,7 +416,7 @@ export async function getDetailPresensiPulangHariIni() {
 
     const { data: record, error } = await supabaseAdmin
       .from("absensi_masuk")
-      .select("id, status, waktu_submit, waktu_pulang")
+      .select("id, status, waktu_submit, waktu_pulang, foto_pulang")
       .eq("guru_id", guruId)
       .eq("tanggal", tanggal)
       .maybeSingle();
@@ -433,6 +433,7 @@ export async function getDetailPresensiPulangHariIni() {
         alreadyPulang: Boolean(record?.waktu_pulang),
         waktuMasuk: record?.waktu_submit || new Date().toISOString(),
         waktuPulang: record?.waktu_pulang,
+        fotoPulang: record?.foto_pulang,
       };
     }
 
@@ -463,6 +464,7 @@ export async function getDetailPresensiPulangHariIni() {
         alreadyPulang: true,
         waktuMasuk: record.waktu_submit,
         waktuPulang: record.waktu_pulang,
+        fotoPulang: record.foto_pulang,
         message: "Anda sudah melakukan absensi pulang untuk hari ini.",
       };
     }
@@ -479,7 +481,7 @@ export async function getDetailPresensiPulangHariIni() {
   }
 }
 
-export async function submitPresensiPulangAction() {
+export async function submitPresensiPulangAction(formData: FormData) {
   try {
     const session = await getSession();
     if (!session?.guru_id) {
@@ -487,6 +489,14 @@ export async function submitPresensiPulangAction() {
     }
     const guruId = session.guru_id;
     const tanggal = getTodayWIB();
+
+    const file = formData.get("file") as File;
+    const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
+    const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
+
+    if (!file) {
+      throw new Error("Foto selfie wajib diambil untuk absensi pulang.");
+    }
 
     const testConfig = await getDevTestingConfigServer();
 
@@ -522,21 +532,84 @@ export async function submitPresensiPulangAction() {
       throw new Error("Anda sudah melakukan absensi pulang hari ini.");
     }
 
-    const nowIso = new Date().toISOString();
+    // 2. Validasi geofencing GPS di sisi server
+    if (testConfig.isActive && testConfig.bypassGps) {
+      // Bypass GPS untuk keperluan pengetesan dev
+    } else {
+      if (!latitude || !longitude) {
+        throw new Error("Lokasi (GPS) wajib diisi untuk absensi pulang.");
+      }
 
-    const { error: updateError } = await supabaseAdmin
-      .from("absensi_masuk")
-      .update({ waktu_pulang: nowIso })
-      .eq("id", record!.id);
+      const config = await getLokasiSekolah();
+      const isValidLocation = isWithinGeofence(
+        latitude,
+        longitude,
+        config.latitude,
+        config.longitude,
+        config.radius_meter
+      );
 
-    if (updateError) {
-      throw new Error(updateError.message);
+      if (!isValidLocation) {
+        throw new Error("Absensi pulang ditolak: Anda terdeteksi berada di luar area sekolah.");
+      }
     }
 
-    return {
-      success: true,
-      waktuPulang: nowIso,
-    };
+    let uploadedPhotoUrl: string | null = null;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      // Upload foto ke Supabase Storage
+      const publicUrl = await uploadFotoAbsensi({
+        buffer,
+        guruId,
+        kategori: "pulang",
+        tanggal,
+      });
+      uploadedPhotoUrl = publicUrl;
+
+      const nowIso = new Date().toISOString();
+
+      let targetId = record?.id;
+      if (!targetId && testConfig.isActive && testConfig.bypassPrereq) {
+        const { data: newRec, error: insErr } = await supabaseAdmin
+          .from("absensi_masuk")
+          .insert({
+            guru_id: guruId,
+            tanggal,
+            status: "hadir",
+            waktu_pulang: nowIso,
+            foto_pulang: publicUrl,
+          })
+          .select("id")
+          .single();
+        if (insErr) throw new Error(insErr.message);
+        targetId = newRec?.id;
+      } else {
+        if (!targetId) {
+          throw new Error("Record absensi masuk tidak ditemukan.");
+        }
+        const { error: updateError } = await supabaseAdmin
+          .from("absensi_masuk")
+          .update({
+            waktu_pulang: nowIso,
+            foto_pulang: publicUrl,
+          })
+          .eq("id", targetId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      }
+
+      return {
+        success: true,
+        waktuPulang: nowIso,
+        fotoPulang: publicUrl,
+      };
+    } catch (innerError: any) {
+      if (uploadedPhotoUrl) await deleteFotoAbsensi(uploadedPhotoUrl);
+      throw innerError;
+    }
   } catch (error: any) {
     console.error("Presensi Pulang Error:", error.message);
     return { success: false, error: error.message };

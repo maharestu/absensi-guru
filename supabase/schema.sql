@@ -126,6 +126,7 @@ CREATE TABLE absensi_masuk (
     latitude NUMERIC(9,6),
     longitude NUMERIC(9,6),
     waktu_pulang TIMESTAMPTZ,
+    foto_pulang TEXT,
     waktu_submit TIMESTAMPTZ DEFAULT NOW(),
 
     CONSTRAINT fk_absensi_masuk_guru

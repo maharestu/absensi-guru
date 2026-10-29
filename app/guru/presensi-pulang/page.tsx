@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
-import VerificationCard from "@/components/absensi/verification-card";
+import CameraCapture from "@/components/absensi/camera-capture";
 import Button from "@/components/ui/button";
 import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
 import { useAuth } from "@/context/AuthContext";
@@ -14,17 +14,16 @@ import {
   getStatusOperasionalHariIni,
   StatusOperasionalHariIni,
 } from "@/actions/pengaturan";
-import {
-  getDetailPresensiPulangHariIni,
-  submitPresensiPulangAction,
-} from "@/actions/presensi";
+import { getDetailPresensiPulangHariIni } from "@/actions/presensi";
 
-export default function PresensiPulangVerifikasiPage() {
+const PHOTO_STORAGE_KEY = "pulang_captured_photo";
+const PHOTO_STATUS_KEY = "pulang_photo_status";
+
+export default function PresensiPulangPage() {
   const router = useRouter();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [waktuMasuk, setWaktuMasuk] = useState<string | null>(null);
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
@@ -33,15 +32,26 @@ export default function PresensiPulangVerifikasiPage() {
   const [alreadyPulang, setAlreadyPulang] = useState(false);
   const [waktuPulangExisting, setWaktuPulangExisting] = useState<string | null>(null);
   const [statusOperasional, setStatusOperasional] = useState<StatusOperasionalHariIni | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const now = new Date();
   const today = formatTanggalLengkap(now);
-  const waktuPulangSaatIni = `${formatJamWIB(now)} WIB`;
   const nama = user?.nama ?? "-";
   const nip = user?.nip ?? "-";
 
   useEffect(() => {
     let isMounted = true;
+
+    // Cek sessionStorage untuk foto yang tersimpan
+    const photoStatus = sessionStorage.getItem(PHOTO_STATUS_KEY);
+    const saved = sessionStorage.getItem(PHOTO_STORAGE_KEY);
+    if (saved && photoStatus === "pulang") {
+      setCapturedImage(saved);
+    } else {
+      sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+      sessionStorage.removeItem(PHOTO_STATUS_KEY);
+      setCapturedImage(null);
+    }
 
     getStatusOperasionalHariIni()
       .then((res) => {
@@ -90,22 +100,27 @@ export default function PresensiPulangVerifikasiPage() {
     };
   }, []);
 
-  const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-      setErrorMsg("");
+  const handleCapture = (imageSrc: string) => {
+    setCapturedImage(imageSrc);
+    sessionStorage.setItem(PHOTO_STORAGE_KEY, imageSrc);
+    sessionStorage.setItem(PHOTO_STATUS_KEY, "pulang");
+  };
 
-      const res = await submitPresensiPulangAction();
-      if (!res.success) {
-        throw new Error(res.error || "Gagal mengirim absensi pulang.");
-      }
+  const handleRetake = () => {
+    setCapturedImage(null);
+    sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+    sessionStorage.removeItem(PHOTO_STATUS_KEY);
+  };
 
-      router.push("/guru/presensi-pulang/berhasil");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Terjadi kesalahan saat menyimpan absensi pulang.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleContinue = () => {
+    router.push("/guru/presensi-pulang/lokasi");
+  };
+
+  const handleBack = () => {
+    sessionStorage.removeItem(PHOTO_STORAGE_KEY);
+    sessionStorage.removeItem(PHOTO_STATUS_KEY);
+    setCapturedImage(null);
+    router.push("/guru");
   };
 
   const testConfig = getDevTestingConfigClient();
@@ -233,7 +248,7 @@ export default function PresensiPulangVerifikasiPage() {
     );
   }
 
-  // ── 3. Tampilan Jika Guru Sudah Absen Pulang Hari Ini (Mirip Tampilan Sudah Absen Kehadiran) ──
+  // ── 3. Tampilan Jika Guru Sudah Absen Pulang Hari Ini ──
   if (alreadyPulang) {
     return (
       <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
@@ -244,7 +259,6 @@ export default function PresensiPulangVerifikasiPage() {
         />
 
         <div className="max-w-md w-full mx-auto">
-          {/* Card Tampilan Sudah Absen Pulang */}
           <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
             <div className="w-14 h-14 bg-[#16a34a] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-green-200">
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -301,7 +315,6 @@ export default function PresensiPulangVerifikasiPage() {
             </div>
           </div>
 
-          {/* Tombol Selesai */}
           <div className="mt-8">
             <Button onClick={() => router.push("/guru")}>
               Selesai
@@ -312,57 +325,42 @@ export default function PresensiPulangVerifikasiPage() {
     );
   }
 
-  // ── 4. Form Verifikasi Absen Pulang (Siap Submit) ──
-  const rows = [
-    { label: "Tanggal Absensi Pulang", value: today },
-    { label: "Waktu Pulang", value: waktuPulangSaatIni },
-    { label: "Nama Guru", value: nama },
-    { label: "NIP / NUPTK", value: nip },
-    ...(waktuMasuk
-      ? [
-          {
-            label: "Jam Masuk Hari Ini",
-            value: `${waktuMasuk} WIB`,
-          },
-        ]
-      : []),
-    {
-      label: "Status",
-      value: (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-50 text-amber-600 border border-amber-200">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          Absen Pulang
-        </span>
-      ),
-    },
-  ];
-
+  // ── 4. Langkah 1: Kamera Selfie Pulang (Jika canPulang = true) ──
   return (
-    <div className="flex flex-col min-h-screen bg-[#EEF2F7]">
-      <div className="max-w-md w-full mx-auto px-4 pt-4">
-        <PageHeader title="Verifikasi Absen Pulang" backHref="/guru" />
-      </div>
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14 animate-page-enter">
+      <PageHeader
+        onBack={handleBack}
+        title={capturedImage ? "Ambil Foto Pulang" : "Ambil Foto Absensi Pulang"}
+        subtitle="Pastikan wajah Anda terlihat jelas dan pencahayaan cukup."
+      />
 
-      <div className="flex-1 max-w-md w-full mx-auto px-4 py-4 flex flex-col justify-between">
-        <div className="space-y-4">
-          {errorMsg && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-700 font-medium leading-relaxed">
-              {errorMsg}
+      <div className="-mt-2 flex flex-col items-center w-full">
+        {!capturedImage ? (
+          <div className="w-full max-w-[354px]">
+            <CameraCapture onCapture={handleCapture} />
+          </div>
+        ) : (
+          <div className="w-full max-w-[354px] flex flex-col">
+            <div className="w-full aspect-[3/4] max-h-[56vh] min-h-[320px] relative bg-slate-200 rounded-[24px] overflow-hidden shadow-sm border border-slate-200/60">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={capturedImage}
+                alt="Preview wajah pulang"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
             </div>
-          )}
 
-          <VerificationCard rows={rows} />
-        </div>
+            <div className="flex flex-col gap-3 mt-6 flex-shrink-0">
+              <Button onClick={handleContinue}>
+                Lanjutkan
+              </Button>
 
-        <div className="pt-6 pb-4">
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white py-3.5 rounded-xl font-bold shadow-md shadow-green-600/20 active:scale-[0.98] transition-all cursor-pointer"
-          >
-            {isSubmitting ? "Menyimpan Absensi Pulang..." : "Kirim Absensi Pulang"}
-          </Button>
-        </div>
+              <Button variant="outline" onClick={handleRetake}>
+                Ulangi
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

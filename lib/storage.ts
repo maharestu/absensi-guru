@@ -5,7 +5,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase";
 
-export type KategoriAbsensi = "hadir" | "sakit" | "izin" | "dinas" | "mengajar";
+export type KategoriAbsensi = "hadir" | "sakit" | "izin" | "dinas" | "mengajar" | "pulang";
 
 export interface UploadFotoParams {
   buffer: Buffer;
