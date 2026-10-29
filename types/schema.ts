@@ -50,6 +50,9 @@ export interface Kelas {
   id: string; // uuid
   nama_kelas: string;
   kode_qr: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radius_meter?: number | null;
   created_at: Date | string;
 }
 

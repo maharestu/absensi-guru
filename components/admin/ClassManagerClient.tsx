@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Edit2, Trash2, Printer, Filter, ChevronDown } from "lucide-react";
+import { Edit2, Trash2, Printer, Filter, ChevronDown, MapPin, Navigation, CheckCircle2, AlertCircle } from "lucide-react";
 import { Kelas } from "@/types/schema";
-import { getKelasList, createKelas, updateKelas, deleteKelas, deleteAllKelas, checkKelasRelations } from "@/actions/kelas";
+import { getKelasList, createKelas, updateKelas, updateLokasiKelas, deleteKelas, deleteAllKelas, checkKelasRelations } from "@/actions/kelas";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
 import { Button } from "../ui/button";
@@ -22,6 +22,16 @@ export default function ClassManagerClient() {
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Kelas | null>(null);
+
+  // States untuk Lokasi Kelas
+  const [locationModalClass, setLocationModalClass] = useState<Kelas | null>(null);
+  const [locLat, setLocLat] = useState("");
+  const [locLng, setLocLng] = useState("");
+  const [locRadius, setLocRadius] = useState("10");
+  const [locError, setLocError] = useState("");
+  const [locSuccess, setLocSuccess] = useState("");
+  const [isLocSaving, setIsLocSaving] = useState(false);
+  const [isLocDetecting, setIsLocDetecting] = useState(false);
 
   const [createMode, setCreateMode] = useState(false);
   const [createName, setCreateName] = useState("");
@@ -268,6 +278,88 @@ export default function ClassManagerClient() {
     }
   };
 
+  const handleOpenLocationModal = (kelas: Kelas) => {
+    setLocationModalClass(kelas);
+    setLocLat(kelas.latitude !== null && kelas.latitude !== undefined ? String(kelas.latitude) : "");
+    setLocLng(kelas.longitude !== null && kelas.longitude !== undefined ? String(kelas.longitude) : "");
+    setLocRadius(kelas.radius_meter !== null && kelas.radius_meter !== undefined ? String(kelas.radius_meter) : "10");
+    setLocError("");
+    setLocSuccess("");
+  };
+
+  const handleDetectCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocError("GPS / Geolocation tidak didukung oleh browser Anda.");
+      return;
+    }
+    setIsLocDetecting(true);
+    setLocError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocLat(pos.coords.latitude.toFixed(6));
+        setLocLng(pos.coords.longitude.toFixed(6));
+        setIsLocDetecting(false);
+      },
+      (err) => {
+        console.error("GPS error:", err);
+        setLocError("Gagal mengambil titik GPS. Pastikan izin lokasi browser aktif.");
+        setIsLocDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+
+  const handleSaveLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!locationModalClass) return;
+
+    setLocError("");
+    setLocSuccess("");
+
+    const parsedLat = parseFloat(locLat);
+    const parsedLng = parseFloat(locLng);
+    const parsedRadius = parseInt(locRadius, 10);
+
+    if (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+      setLocError("Latitude tidak valid (harus antara -90 hingga 90).");
+      return;
+    }
+
+    if (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+      setLocError("Longitude tidak valid (harus antara -180 hingga 180).");
+      return;
+    }
+
+    if (isNaN(parsedRadius) || parsedRadius <= 0) {
+      setLocError("Radius harus berupa angka positif (minimal 1 meter).");
+      return;
+    }
+
+    try {
+      setIsLocSaving(true);
+      const res = await updateLokasiKelas(locationModalClass.id, {
+        latitude: parsedLat,
+        longitude: parsedLng,
+        radius_meter: parsedRadius,
+      });
+
+      if (res.success) {
+        setLocSuccess("Lokasi dan radius kelas berhasil disimpan ke database!");
+        await loadData();
+        setTimeout(() => {
+          setLocationModalClass(null);
+          setLocSuccess("");
+        }, 1200);
+      } else {
+        setLocError(res.error || "Gagal menyimpan lokasi kelas.");
+      }
+    } catch (err: any) {
+      setLocError("Error: " + (err.message || "Terjadi kesalahan sistem"));
+    } finally {
+      setIsLocSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deletingClass) return;
     try {
@@ -461,18 +553,39 @@ export default function ClassManagerClient() {
                 key={kelas.id}
                 className="py-3.5 flex items-center justify-between gap-3"
               >
-                <div className="text-sm font-semibold text-slate-800 truncate pr-1">
-                  {kelas.nama_kelas}
+                <div className="flex flex-col truncate pr-1">
+                  <div className="text-sm font-semibold text-slate-800 truncate">
+                    {kelas.nama_kelas}
+                  </div>
+                  {kelas.latitude != null && kelas.longitude != null ? (
+                    <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3 shrink-0" /> Geofence {kelas.radius_meter ?? 10}m
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 mt-0.5">Lokasi belum diatur</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenLocationModal(kelas)}
+                    className={`p-2 rounded-lg transition-colors cursor-pointer border ${
+                      kelas.latitude != null && kelas.longitude != null
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                        : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    }`}
+                    title="Simpan / Ubah Lokasi Kelas"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                  </button>
                   <Button
                     variant="primary"
                     size="sm"
                     fullWidth={false}
                     onClick={() => setSelectedClass(kelas)}
-                    className="bg-blue-600 hover:bg-blue-700 font-semibold px-3 py-1.5 text-xs h-auto"
+                    className="bg-blue-600 hover:bg-blue-700 font-semibold px-2.5 py-1.5 text-xs h-auto"
                   >
-                    Lihat QR
+                    QR
                   </Button>
                   <button
                     onClick={() => {
@@ -502,8 +615,8 @@ export default function ClassManagerClient() {
         <table className="hidden sm:table w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-              <th className="pb-4 font-semibold w-[80%]">Nama Kelas</th>
-              <th className="pb-4 font-semibold text-right w-[20%]"></th>
+              <th className="pb-4 font-semibold w-[55%]">Nama Kelas</th>
+              <th className="pb-4 font-semibold text-right w-[45%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100/80">
@@ -519,18 +632,43 @@ export default function ClassManagerClient() {
               paginatedList.map((kelas) => (
                 <tr key={kelas.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-slate-800">
-                      {kelas.nama_kelas}
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-sm font-semibold text-slate-800">
+                        {kelas.nama_kelas}
+                      </span>
+                      {kelas.latitude != null && kelas.longitude != null ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Geofence ({kelas.radius_meter ?? 10}m)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-400">
+                          Lokasi belum diatur
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-3">
+                    <div className="flex items-center justify-end gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenLocationModal(kelas)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          kelas.latitude != null && kelas.longitude != null
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 active:scale-[0.98]"
+                            : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 active:scale-[0.98]"
+                        }`}
+                        title="Simpan / Ubah Lokasi Kelas"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{kelas.latitude != null && kelas.longitude != null ? "Ubah Lokasi" : "Simpan Lokasi"}</span>
+                      </button>
                       <Button
                         variant="primary"
                         size="sm"
                         fullWidth={false}
                         onClick={() => setSelectedClass(kelas)}
-                        className="bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-2 h-auto"
+                        className="bg-blue-600 hover:bg-blue-700 font-semibold px-4 py-1.5 text-xs h-auto"
                       >
                         Lihat QR
                       </Button>
@@ -540,14 +678,14 @@ export default function ClassManagerClient() {
                           setEditName(kelas.nama_kelas);
                           setEditError("");
                         }}
-                        className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer ml-4"
+                        className="text-slate-400 hover:text-slate-800 transition-colors p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer ml-1"
                         title="Edit Kelas"
                       >
                         <Edit2 className="w-[18px] h-[18px]" />
                       </button>
                       <button
                         onClick={() => setDeletingClass(kelas)}
-                        className="text-slate-400 hover:text-red-600 transition-colors p-1 cursor-pointer ml-1"
+                        className="text-slate-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 cursor-pointer ml-1"
                         title="Hapus Kelas"
                       >
                         <Trash2 className="w-[18px] h-[18px]" />
@@ -686,6 +824,160 @@ export default function ClassManagerClient() {
               className="w-[120px] py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-bold text-white shadow-sm transition-all disabled:opacity-50"
             >
               {submitting ? "Menyimpan..." : "Simpan"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Simpan / Ubah Lokasi Kelas */}
+      <Modal
+        isOpen={!!locationModalClass}
+        onClose={() => {
+          if (!isLocSaving) {
+            setLocationModalClass(null);
+            setLocError("");
+            setLocSuccess("");
+          }
+        }}
+        maxWidth="max-w-[460px]"
+      >
+        <div className="pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">
+                Lokasi Ruang {locationModalClass?.nama_kelas}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Konfigurasi titik koordinat GPS & radius geofencing presensi
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveLocation} className="space-y-4 mt-5">
+          {/* Button Deteksi GPS Otomatis */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/70 border border-blue-100">
+            <div className="text-xs text-blue-900 pr-2">
+              <p className="font-bold">Ambil dari GPS Browser?</p>
+              <p className="text-blue-600 text-[11px]">Bawa perangkat ke dalam ruang kelas ini</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDetectCurrentLocation}
+              disabled={isLocDetecting || isLocSaving}
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-xs font-semibold text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <Navigation className={`w-3.5 h-3.5 ${isLocDetecting ? "animate-spin" : ""}`} />
+              <span>{isLocDetecting ? "Mendeteksi..." : "Ambil GPS"}</span>
+            </button>
+          </div>
+
+          {/* Input Latitude */}
+          <div className="space-y-1.5 flex flex-col">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Latitude
+            </label>
+            <input
+              type="number"
+              step="any"
+              placeholder="Contoh: -6.2088"
+              value={locLat}
+              onChange={(e) => {
+                setLocLat(e.target.value);
+                setLocError("");
+              }}
+              required
+              disabled={isLocSaving}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white disabled:bg-slate-50"
+            />
+          </div>
+
+          {/* Input Longitude */}
+          <div className="space-y-1.5 flex flex-col">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Longitude
+            </label>
+            <input
+              type="number"
+              step="any"
+              placeholder="Contoh: 106.8456"
+              value={locLng}
+              onChange={(e) => {
+                setLocLng(e.target.value);
+                setLocError("");
+              }}
+              required
+              disabled={isLocSaving}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white disabled:bg-slate-50"
+            />
+          </div>
+
+          {/* Input Radius (meter) */}
+          <div className="space-y-1.5 flex flex-col">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Radius Toleransi (Meter)
+              </label>
+              <span className="text-[11px] font-medium text-slate-400">Default: 10 meter</span>
+            </div>
+            <input
+              type="number"
+              min="1"
+              max="500"
+              placeholder="10"
+              value={locRadius}
+              onChange={(e) => {
+                setLocRadius(e.target.value);
+                setLocError("");
+              }}
+              required
+              disabled={isLocSaving}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all bg-white disabled:bg-slate-50"
+            />
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Guru wajib berada dalam radius ini saat scan QR kelas untuk presensi mengajar.
+            </p>
+          </div>
+
+          {/* Pesan Sukses */}
+          {locSuccess && (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-medium">{locSuccess}</span>
+            </div>
+          )}
+
+          {/* Pesan Error */}
+          {locError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{locError}</span>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setLocationModalClass(null);
+                setLocError("");
+                setLocSuccess("");
+              }}
+              disabled={isLocSaving}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isLocSaving}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-bold text-white shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              {isLocSaving ? "Menyimpan..." : "Simpan Lokasi"}
             </button>
           </div>
         </form>

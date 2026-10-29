@@ -81,6 +81,9 @@ CREATE TABLE kelas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nama_kelas VARCHAR NOT NULL,
     kode_qr VARCHAR NOT NULL UNIQUE,
+    latitude NUMERIC(9,6),
+    longitude NUMERIC(9,6),
+    radius_meter INTEGER DEFAULT 10,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

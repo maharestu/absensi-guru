@@ -300,7 +300,7 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
 
     const { data: kelas } = await supabaseAdmin
       .from("kelas")
-      .select("id, kode_qr")
+      .select("*")
       .eq("id", jadwal.kelas_id)
       .single();
 
@@ -309,9 +309,15 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
     // Validasi lokasi jika dikirim (dilewati jika mode testing aktif)
     const testConfig = await getDevTestingConfigServer();
     if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
-      const config = await getLokasiSekolah();
-      const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
-      if (!isValid) return false;
+      if (kelas.latitude != null && kelas.longitude != null) {
+        const radius = Number(kelas.radius_meter) || 10;
+        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
+        if (!isValid) return false;
+      } else {
+        const config = await getLokasiSekolah();
+        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
+        if (!isValid) return false;
+      }
     }
 
     return kelas.kode_qr === scannedQr || kelas.id === scannedQr;
@@ -330,24 +336,36 @@ export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: num
     const guruId = session.guru_id;
     const testConfig = await getDevTestingConfigServer();
 
-    // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)
-    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
-      const config = await getLokasiSekolah();
-      const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
-      if (!isValid) {
-        return { ok: false, error: "DILUAR_AREA", message: "Absensi ditolak: Anda terdeteksi berada di luar area sekolah." };
-      }
-    }
-
     // 1. Cek kode QR kelas
     const { data: kelas } = await supabaseAdmin
       .from("kelas")
-      .select("id, nama_kelas, kode_qr")
+      .select("*")
       .eq("kode_qr", kodeQr)
       .maybeSingle();
 
     if (!kelas) {
       return { ok: false, error: "QR_TIDAK_DIKENAL", message: "Kode QR tidak valid atau kelas tidak ditemukan." };
+    }
+
+    // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)
+    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
+      if (kelas.latitude != null && kelas.longitude != null) {
+        const radius = Number(kelas.radius_meter) || 10;
+        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
+        if (!isValid) {
+          return {
+            ok: false,
+            error: "DILUAR_AREA",
+            message: `Absensi ditolak: Anda terdeteksi berada di luar jangkauan ruang ${kelas.nama_kelas} (radius maksimal ${radius} meter).`
+          };
+        }
+      } else {
+        const config = await getLokasiSekolah();
+        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
+        if (!isValid) {
+          return { ok: false, error: "DILUAR_AREA", message: "Absensi ditolak: Anda terdeteksi berada di luar area sekolah." };
+        }
+      }
     }
 
     // 2. Cek absen masuk guru hari ini (dilewati jika mode testing aktif)
