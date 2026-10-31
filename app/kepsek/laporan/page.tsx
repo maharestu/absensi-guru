@@ -9,7 +9,7 @@ import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
 import { getJadwalList } from "@/actions/jadwal";
 import { getHariLibur, getPengaturanSistem, HariLibur, PengaturanSistem } from "@/actions/pengaturan";
-import { generateRekapAbsensiDocx, generateRekapSemuaGuruDocx, triggerDownload } from "@/lib/export-docx";
+import { generateRekapAbsensiDocx, generateRekapMengajarGuruDocx, generateRekapSemuaGuruDocx, generateRekapSemuaGuruMengajarDocx, triggerDownload } from "@/lib/export-docx";
 import { Guru, Kelas, JadwalWithDetail } from "@/types/schema";
 import Pagination from "@/components/ui/pagination";
 import { getStatusColorText } from "@/lib/status";
@@ -34,6 +34,7 @@ export default function LaporanAbsensiPage() {
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [exportingGuruId, setExportingGuruId] = useState<string | null>(null);
+  const [exportingMengajarGuruId, setExportingMengajarGuruId] = useState<string | null>(null);
   const [isExportingAllDocx, setIsExportingAllDocx] = useState(false);
 
   const [detailModalGuruId, setDetailModalGuruId] = useState<string | null>(null);
@@ -702,6 +703,74 @@ export default function LaporanAbsensiPage() {
     }
   };
 
+  const handleExportDocxPerGuruMengajar = async (rekap: {
+    guruId: string;
+    nama: string;
+    nip: string;
+    totalJadwal: number;
+    persentaseMengajar: number;
+    jumlahMengajar: number;
+    tidakMengajar: number;
+  }) => {
+    try {
+      setExportingMengajarGuruId(rekap.guruId);
+      const teacherRecords = laporanMengajar
+        .filter((r) => r.guru_id === rekap.guruId)
+        .map((r) => ({
+          tanggal: r.tanggal,
+          raw_tanggal: r.raw_tanggal,
+          jadwal_id: r.jadwal_id,
+          kelas: r.kelas,
+          mata_pelajaran: r.mata_pelajaran,
+          waktu: r.waktu,
+          waktu_absen: r.waktu_absen,
+          status: r.status,
+        }));
+      const teacherJadwal = jadwalList.filter(
+        (j) => j.guru_id === rekap.guruId && (j.status === "aktif" || !j.status)
+      );
+      const kepsekGuru = guruList.find(
+        (g) => g.linked_role === "kepala_sekolah" || (g.jabatan && g.jabatan.toLowerCase().includes("kepala sekolah"))
+      );
+
+      const blob = await generateRekapMengajarGuruDocx({
+        guru: {
+          id: rekap.guruId,
+          nama: rekap.nama,
+          nip: rekap.nip,
+        },
+        startDate,
+        endDate,
+        records: teacherRecords,
+        jadwalList: teacherJadwal,
+        hariLiburList,
+        liburPanjang: {
+          aktif: pengaturanSistem?.libur_panjang_aktif,
+          mulai: pengaturanSistem?.libur_panjang_mulai,
+          selesai: pengaturanSistem?.libur_panjang_selesai,
+        },
+        statistik: {
+          totalJadwal: rekap.totalJadwal,
+          persentaseMengajar: rekap.persentaseMengajar,
+          jumlahMengajar: rekap.jumlahMengajar,
+          tidakMengajar: rekap.tidakMengajar,
+        },
+        kepalaSekolah: kepsekGuru
+          ? { nama: kepsekGuru.nama, nip: kepsekGuru.nip }
+          : undefined,
+      });
+
+      const cleanName = rekap.nama.replace(/[^a-zA-Z0-9]/g, "_");
+      const filename = `Rekap_Mengajar_${cleanName}_${startDate}_sd_${endDate}.docx`;
+      triggerDownload(blob, filename);
+    } catch (err) {
+      console.error("Gagal export docx mengajar guru:", err);
+      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+    } finally {
+      setExportingMengajarGuruId(null);
+    }
+  };
+
   const handleExport = async () => {
     const isKehadiran = activeTab === "kehadiran";
 
@@ -747,68 +816,43 @@ export default function LaporanAbsensiPage() {
       return;
     }
 
-    if (filteredMengajar.length === 0) {
+    if (filteredGuruMengajar.length === 0) {
       alert("Tidak ada data untuk diekspor.");
       return;
     }
-    const exportData = filteredMengajar.map((row) => ({
-      "Tanggal": row.tanggal,
-      "Nama Guru": row.nama,
-      "Kelas": row.kelas,
-      "Mata Pelajaran": row.mata_pelajaran,
-      "Waktu": row.waktu,
-      "Status": row.status,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-
-    // -- STYLING EXCEL (TAB MENGAJAR) --
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
-
-    // Header styling (Baris 0)
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const address = XLSX.utils.encode_cell({ r: 0, c: C });
-      if (!worksheet[address]) continue;
-      worksheet[address].s = {
-        fill: {
-          patternType: "solid",
-          fgColor: { rgb: "FDE047" } // Warna kuning (Tailwind yellow-300)
+    try {
+      setIsExportingAllDocx(true);
+      const kepsekGuru = guruList.find(
+        (g) => g.linked_role === "kepala_sekolah" || (g.jabatan && g.jabatan.toLowerCase().includes("kepala sekolah"))
+      );
+      const blob = await generateRekapSemuaGuruMengajarDocx({
+        startDate,
+        endDate,
+        rows: filteredGuruMengajar.map((row) => ({
+          nama: row.nama,
+          nip: row.nip || "-",
+          totalJadwal: row.totalJadwal,
+          persentaseMengajar: row.persentaseMengajar,
+          jumlahMengajar: row.jumlahMengajar,
+          tidakMengajar: row.tidakMengajar,
+        })),
+        statistik: {
+          avgMengajar,
+          totalGuru: selectedGuru === "all" ? activeGuruList.length : filteredGuruMengajar.length,
+          countMengajar,
+          countTidakMengajar,
         },
-        font: { bold: true, color: { rgb: "000000" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "D1D5DB" } },
-          bottom: { style: "thin", color: { rgb: "D1D5DB" } },
-          left: { style: "thin", color: { rgb: "D1D5DB" } },
-          right: { style: "thin", color: { rgb: "D1D5DB" } },
-        }
-      };
+        kepalaSekolah: kepsekGuru ? { nama: kepsekGuru.nama, nip: kepsekGuru.nip } : undefined,
+      });
+
+      const fileName = `Laporan_Mengajar_Guru_${startDate}_sampai_${endDate}.docx`;
+      triggerDownload(blob, fileName);
+    } catch (err) {
+      console.error("Gagal export docx keseluruhan guru mengajar:", err);
+      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+    } finally {
+      setIsExportingAllDocx(false);
     }
-
-    // Body styling (Baris 1 ke bawah)
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!worksheet[address]) continue;
-        worksheet[address].s = {
-          border: {
-            top: { style: "thin", color: { rgb: "D1D5DB" } },
-            bottom: { style: "thin", color: { rgb: "D1D5DB" } },
-            left: { style: "thin", color: { rgb: "D1D5DB" } },
-            right: { style: "thin", color: { rgb: "D1D5DB" } },
-          }
-        };
-      }
-    }
-
-    // Set Column Widths (Wch = Width in Characters)
-    worksheet['!cols'] = [{ wch: 18 }, { wch: 35 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
-
-    const fileName = `Laporan_Mengajar_${startDate}_sampai_${endDate}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
   };
 
   if (loading && guruList.length === 0) {
@@ -1081,9 +1125,10 @@ export default function LaporanAbsensiPage() {
                 <button
                   type="button"
                   onClick={handleExport}
-                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+                  disabled={isExportingAllDocx}
+                  className="w-full sm:w-[134px] h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0 disabled:opacity-50"
                 >
-                  Ekspor
+                  {isExportingAllDocx ? "Mengekspor..." : "Ekspor"}
                 </button>
               </div>
             </div>
@@ -1102,12 +1147,12 @@ export default function LaporanAbsensiPage() {
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">TANGGAL</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[26%]">NAMA GURU</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[24%]">NAMA GURU</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">TOTAL JADWAL</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">JUMLAH MENGAJAR</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[14%] text-center">PERSENTASE MENGAJAR</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">JUMLAH MENGAJAR</th>
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[12%] text-center">TIDAK MENGAJAR</th>
-                    <th className="pb-2.5 sm:pb-4 font-semibold w-[8%] text-center">AKSI</th>
+                    <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -1132,9 +1177,6 @@ export default function LaporanAbsensiPage() {
                         <td className="py-2.5 sm:py-4 text-center font-bold text-slate-700 text-sm sm:text-base">
                           {row.totalJadwal}
                         </td>
-                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
-                          {row.jumlahMengajar}
-                        </td>
                         <td className="py-2.5 sm:py-4">
                           <div className="flex flex-col items-center justify-center gap-1">
                             <span className="font-bold text-slate-700 text-xs">{row.persentaseMengajar}%</span>
@@ -1146,16 +1188,34 @@ export default function LaporanAbsensiPage() {
                             </div>
                           </div>
                         </td>
+                        <td className="py-2.5 sm:py-4 text-center font-bold text-blue-600 text-sm sm:text-base">
+                          {row.jumlahMengajar}
+                        </td>
                         <td className="py-2.5 sm:py-4 text-center font-semibold text-rose-600 text-sm sm:text-base">
                           {row.tidakMengajar}
                         </td>
                         <td className="py-2.5 sm:py-4 text-center">
-                          <button
-                            onClick={() => setDetailModalGuruId(row.guruId)}
-                            className="border border-slate-300 rounded-lg px-2.5 sm:px-4 py-1 text-xs sm:text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-                          >
-                            Detail
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setDetailModalGuruId(row.guruId)}
+                              className="border border-slate-300 rounded-lg px-2.5 sm:px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
+                            >
+                              Detail
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleExportDocxPerGuruMengajar(row)}
+                              disabled={exportingMengajarGuruId === row.guruId}
+                              className="inline-flex items-center gap-1 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-semibold transition-colors active:scale-95 cursor-pointer disabled:opacity-50 shrink-0"
+                              title="Ekspor Rekapitulasi (DOCX)"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span className="hidden xl:inline">
+                                {exportingMengajarGuruId === row.guruId ? "..." : "Export"}
+                              </span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

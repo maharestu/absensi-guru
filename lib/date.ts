@@ -13,6 +13,15 @@ export function getTodayWIB(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 }
 
+/** Konversi Date atau ISO string ke format "YYYY-MM-DD" sesuai zona waktu WIB */
+export function toDateStrWIB(d: Date | string): string {
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+    return d.trim();
+  }
+  const dateObj = typeof d === "string" ? new Date(d) : d;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(dateObj);
+}
+
 /** "senin" | "selasa" | ... | "minggu" sesuai WIB */
 export function getHariWIB(): string {
   const nama = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];

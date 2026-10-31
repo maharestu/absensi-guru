@@ -89,7 +89,7 @@ export async function updateLokasiKelas(
       return { success: false, error: "Longitude tidak valid (-180 hingga 180)." };
     }
 
-    const radius = radius_meter !== undefined ? Number(radius_meter) : 10;
+    const radius = radius_meter !== undefined ? Number(radius_meter) : 5;
     if (isNaN(radius) || radius <= 0 || radius > 500) {
       return { success: false, error: "Radius toleransi harus berupa angka positif (1 - 500 meter)." };
     }

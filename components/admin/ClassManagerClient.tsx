@@ -282,7 +282,7 @@ export default function ClassManagerClient() {
     setLocationModalClass(kelas);
     setLocLat(kelas.latitude !== null && kelas.latitude !== undefined ? String(kelas.latitude) : "");
     setLocLng(kelas.longitude !== null && kelas.longitude !== undefined ? String(kelas.longitude) : "");
-    setLocRadius(kelas.radius_meter !== null && kelas.radius_meter !== undefined ? String(kelas.radius_meter) : "10");
+    setLocRadius(kelas.radius_meter !== null && kelas.radius_meter !== undefined ? String(kelas.radius_meter) : "5");
     setLocError("");
     setLocSuccess("");
   };
@@ -559,7 +559,7 @@ export default function ClassManagerClient() {
                   </div>
                   {kelas.latitude != null && kelas.longitude != null ? (
                     <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 shrink-0" /> Geofence {kelas.radius_meter ?? 10}m
+                      <MapPin className="w-3 h-3 shrink-0" /> Radius {kelas.radius_meter ?? 5}m
                     </span>
                   ) : (
                     <span className="text-[11px] text-slate-400 mt-0.5">Lokasi belum diatur</span>
@@ -639,7 +639,7 @@ export default function ClassManagerClient() {
                       {kelas.latitude != null && kelas.longitude != null ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Geofence ({kelas.radius_meter ?? 10}m)
+                          Radius {kelas.radius_meter ?? 5}m
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-normal bg-slate-100 text-slate-400">
@@ -851,7 +851,7 @@ export default function ClassManagerClient() {
                 Lokasi Ruang {locationModalClass?.nama_kelas}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Konfigurasi titik koordinat GPS & radius geofencing presensi
+                Konfigurasi titik koordinat GPS & radius jangkauan presensi
               </p>
             </div>
           </div>
@@ -921,13 +921,13 @@ export default function ClassManagerClient() {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Radius Toleransi (Meter)
               </label>
-              <span className="text-[11px] font-medium text-slate-400">Default: 10 meter</span>
+              <span className="text-[11px] font-medium text-slate-400">Default: 5 meter</span>
             </div>
             <input
               type="number"
               min="1"
               max="500"
-              placeholder="10"
+              placeholder="5"
               value={locRadius}
               onChange={(e) => {
                 setLocRadius(e.target.value);

@@ -310,7 +310,7 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
     const testConfig = await getDevTestingConfigServer();
     if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
       if (kelas.latitude != null && kelas.longitude != null) {
-        const radius = Number(kelas.radius_meter) || 10;
+        const radius = Number(kelas.radius_meter) || 5;
         const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
         if (!isValid) return false;
       } else {
@@ -350,7 +350,7 @@ export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: num
     // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)
     if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
       if (kelas.latitude != null && kelas.longitude != null) {
-        const radius = Number(kelas.radius_meter) || 10;
+        const radius = Number(kelas.radius_meter) || 5;
         const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
         if (!isValid) {
           return {

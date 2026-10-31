@@ -17,6 +17,7 @@ import {
   isPastCutoffTodayWIB,
   TANGGAL_MULAI_TIDAK_HADIR,
   getFaseWaktuSekolah,
+  toDateStrWIB,
 } from "@/lib/date";
 import {
   isHariLibur,
@@ -140,6 +141,24 @@ export async function sinkronisasiTidakHadirHarian(targetDate?: string): Promise
     // 2. Validasi: Tanggal sebelum batas mulai berlakunya fitur tidak hadir dilewati
     if (dateStr < TANGGAL_MULAI_TIDAK_HADIR) return { synced: false, count: 0 };
 
+    // 2b. Validasi: Cek apakah sudah pernah ada aktivitas absensi aktif di sekolah
+    const { data: earliestRecord } = await supabaseAdmin
+      .from("absensi_masuk")
+      .select("tanggal")
+      .in("status", ["hadir", "izin", "sakit", "dinas"])
+      .order("tanggal", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!earliestRecord) {
+      return { synced: false, count: 0 };
+    }
+
+    const earliestDate = typeof earliestRecord.tanggal === "string" ? earliestRecord.tanggal.slice(0, 10) : "";
+    if (earliestDate && dateStr < earliestDate) {
+      return { synced: false, count: 0 };
+    }
+
     // 3. Ambil konfigurasi dinamis dari database (tabel pengaturan_sistem)
     const sysConfig = await getPengaturanSistem();
 
@@ -156,7 +175,7 @@ export async function sinkronisasiTidakHadirHarian(targetDate?: string): Promise
 
     // 6. Ambil semua guru aktif dan absensi yang sudah ada pada tanggal tersebut
     const [guruRes, absensiRes] = await Promise.all([
-      supabaseAdmin.from("guru").select("id").eq("status", "aktif"),
+      supabaseAdmin.from("guru").select("id, created_at").eq("status", "aktif"),
       supabaseAdmin.from("absensi_masuk").select("guru_id").eq("tanggal", dateStr),
     ]);
 
@@ -166,7 +185,14 @@ export async function sinkronisasiTidakHadirHarian(targetDate?: string): Promise
     }
 
     const existingGuruIds = new Set<string>((absensiRes.data ?? []).map((r) => r.guru_id));
-    const unrecordedGurus = guruRes.data.filter((g) => !existingGuruIds.has(g.id));
+    const unrecordedGurus = guruRes.data.filter((g) => {
+      if (existingGuruIds.has(g.id)) return false;
+      const guruCreatedDateStr = (g as any).created_at ? toDateStrWIB((g as any).created_at) : "";
+      if (guruCreatedDateStr && dateStr < guruCreatedDateStr) {
+        return false;
+      }
+      return true;
+    });
 
     if (unrecordedGurus.length === 0) {
       return { synced: true, count: 0 };

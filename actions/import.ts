@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/session";
 import { cleanNameString, isNameMatch } from "@/lib/name-matcher";
+import { konsolidasiJadwalTerpotongIstirahat } from "@/actions/jadwal";
 
 export type ParsedData = {
   ptk: {
@@ -528,6 +529,13 @@ export async function importExcelData(data: ParsedData) {
         .insert(jadwalsToInsert);
 
       if (insertJadwalErr) throw insertJadwalErr;
+    }
+
+    // Konsolidasi otomatis jika ada jadwal-jadwal yang terpotong jam istirahat sekolah
+    try {
+      await konsolidasiJadwalTerpotongIstirahat();
+    } catch (kErr) {
+      console.warn("Gagal konsolidasi jadwal terpotong istirahat pasca-import:", kErr);
     }
 
     return {

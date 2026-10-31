@@ -1,7 +1,7 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { formatJamWIB, getTodayWIB, isWeekendWIB, isPastCutoffTodayWIB, TANGGAL_MULAI_TIDAK_HADIR, TANGGAL_MULAI_TIDAK_MENGAJAR, getJamWIB } from "@/lib/date";
+import { formatJamWIB, getTodayWIB, isWeekendWIB, isPastCutoffTodayWIB, TANGGAL_MULAI_TIDAK_HADIR, TANGGAL_MULAI_TIDAK_MENGAJAR, getJamWIB, toDateStrWIB } from "@/lib/date";
 
 export interface LaporanKehadiran {
   id: string;
@@ -20,12 +20,15 @@ export interface LaporanMengajar {
   id: string;
   guru_id: string;
   kelas_id: string;
+  jadwal_id?: string;
   tanggal: string;
   raw_tanggal?: string;
   nama: string;
   kelas: string;
   mata_pelajaran: string;
   waktu: string;
+  waktu_submit?: string | null;
+  waktu_absen?: string | null;
   status: string;
   foto_absensi?: string | null;
 }
@@ -40,15 +43,68 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
   if (startDate) query = query.gte("tanggal", startDate);
   if (endDate) query = query.lte("tanggal", endDate);
 
-  const [absensiRes, guruRes, hariLiburRes, pengaturanRes] = await Promise.all([
+  const [absensiRes, guruRes, hariLiburRes, pengaturanRes, earliestActiveRes] = await Promise.all([
     query,
-    supabaseAdmin.from("guru").select("id, nama").eq("status", "aktif"),
+    supabaseAdmin.from("guru").select("id, nama, created_at").eq("status", "aktif"),
     supabaseAdmin.from("hari_libur").select("tanggal"),
     supabaseAdmin.from("pengaturan_sistem").select("jam_cutoff, libur_panjang_aktif, libur_panjang_mulai, libur_panjang_selesai").maybeSingle(),
+    supabaseAdmin
+      .from("absensi_masuk")
+      .select("tanggal")
+      .in("status", ["hadir", "izin", "sakit", "dinas"])
+      .order("tanggal", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
   if (guruRes.error) throw new Error(guruRes.error.message);
+
+  // Guard 2: Cek apakah sudah pernah ada aktivitas absensi riil di sekolah
+  const earliestActiveDate = earliestActiveRes.data?.tanggal
+    ? (typeof earliestActiveRes.data.tanggal === "string" ? earliestActiveRes.data.tanggal.slice(0, 10) : "")
+    : null;
+
+  if (!earliestActiveDate) {
+    // Belum pernah ada satupun guru yang absen mandiri/izin/sakit/dinas di sistem.
+    // Bersihkan data 'tidak_hadir' prematur yang mungkin terlanjur tersimpan di database
+    try {
+      await supabaseAdmin.from("absensi_masuk").delete().eq("status", "tidak_hadir");
+    } catch (e) {
+      console.error("Gagal membersihkan data tidak hadir prematur:", e);
+    }
+    return [];
+  }
+
+  const activeGurus = guruRes.data ?? [];
+  const guruCreatedMap = new Map<string, string>();
+  for (const g of activeGurus) {
+    if ((g as any).created_at) {
+      guruCreatedMap.set(g.id, toDateStrWIB((g as any).created_at));
+    }
+  }
+
+  // Identifikasi dan bersihkan record 'tidak_hadir' prematur (tanggal < earliestActiveDate ATAU tanggal < guru.created_at)
+  const invalidTidakHadirIds: string[] = [];
+  const validAbsensiRows = (absensiRes.data ?? []).filter((row: any) => {
+    if (row.status === "tidak_hadir") {
+      const tStr = typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "";
+      const gCreated = row.guru_id ? guruCreatedMap.get(row.guru_id) : undefined;
+      if (tStr < earliestActiveDate || (gCreated && tStr < gCreated)) {
+        invalidTidakHadirIds.push(row.id);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (invalidTidakHadirIds.length > 0) {
+    try {
+      await supabaseAdmin.from("absensi_masuk").delete().in("id", invalidTidakHadirIds);
+    } catch (err) {
+      console.error("Gagal menghapus rekaman tidak hadir prematur:", err);
+    }
+  }
 
   const holidaySet = new Set<string>(
     (hariLiburRes.data ?? []).map((h: any) => (typeof h.tanggal === "string" ? h.tanggal.slice(0, 10) : ""))
@@ -59,7 +115,7 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     return dateStr >= lp.libur_panjang_mulai && dateStr <= lp.libur_panjang_selesai;
   };
 
-  const realRecords: LaporanKehadiran[] = (absensiRes.data ?? []).map((row: any) => {
+  const realRecords: LaporanKehadiran[] = validAbsensiRows.map((row: any) => {
     const isTidakHadir = row.status === "tidak_hadir";
     return {
       id: row.id,
@@ -89,11 +145,10 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     const todayWIB = getTodayWIB();
     const cutoffJam = (pengaturanRes.data as any)?.jam_cutoff ? String((pengaturanRes.data as any).jam_cutoff).slice(0, 5) : "16:00";
     const isPastCutoff = isPastCutoffTodayWIB(cutoffJam);
-    const activeGurus = guruRes.data ?? [];
 
     // Map pencocokan absensi: key = `${guru_id}_${tanggal}`
     const existingSet = new Set<string>();
-    for (const row of absensiRes.data ?? []) {
+    for (const row of validAbsensiRows) {
       if (row.guru_id && row.tanggal) {
         const tStr = typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "";
         existingSet.add(`${row.guru_id}_${tStr}`);
@@ -118,8 +173,11 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
     const missingRecords: { guru_id: string; tanggal: string; status: "tidak_hadir"; waktu_submit: string }[] = [];
 
     for (const dateStr of dates) {
-      // 1. Lewati tanggal sebelum fitur Tidak Hadir resmi berlaku (mulai Senin, 19 Okt 2026)
+      // 1. Lewati tanggal sebelum fitur Tidak Hadir resmi berlaku
       if (dateStr < TANGGAL_MULAI_TIDAK_HADIR) continue;
+
+      // 1b. Lewati tanggal sebelum aktivitas absensi perdana di sekolah
+      if (dateStr < earliestActiveDate) continue;
 
       // 2. Lewati akhir pekan (Sabtu & Minggu bukan hari sekolah)
       if (isWeekendWIB(dateStr)) continue;
@@ -135,6 +193,12 @@ export async function getLaporanKehadiran(startDate?: string, endDate?: string):
 
       // Periksa setiap guru aktif
       for (const guru of activeGurus) {
+        // Guard 1: Jangan tandai Tidak Hadir jika tanggal evaluasi sebelum guru didaftarkan
+        const guruCreatedDateStr = guruCreatedMap.get(guru.id);
+        if (guruCreatedDateStr && dateStr < guruCreatedDateStr) {
+          continue;
+        }
+
         const key = `${guru.id}_${dateStr}`;
         if (!existingSet.has(key)) {
           missingRecords.push({
@@ -225,7 +289,7 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
   if (startDate) query = query.gte("tanggal", startDate);
   if (endDate) query = query.lte("tanggal", endDate);
 
-  const [absensiRes, jadwalRes, hariLiburRes, pengaturanRes] = await Promise.all([
+  const [absensiRes, jadwalRes, hariLiburRes, pengaturanRes, earliestMengajarRes, guruRes] = await Promise.all([
     query,
     supabaseAdmin
       .from("jadwal")
@@ -233,21 +297,83 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
       .eq("status", "aktif"),
     supabaseAdmin.from("hari_libur").select("tanggal"),
     supabaseAdmin.from("pengaturan_sistem").select("jam_cutoff, libur_panjang_aktif, libur_panjang_mulai, libur_panjang_selesai").maybeSingle(),
+    supabaseAdmin
+      .from("absensi_mengajar")
+      .select("tanggal")
+      .neq("status", "tidak_mengajar")
+      .order("tanggal", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin.from("guru").select("id, created_at").eq("status", "aktif"),
   ]);
 
   if (absensiRes.error) throw new Error(absensiRes.error.message);
   if (jadwalRes.error) throw new Error(jadwalRes.error.message);
 
-  const realRecords: LaporanMengajar[] = (absensiRes.data ?? []).map((row: any) => {
+  // Guard 2: Cek apakah sudah pernah ada aktivitas mengajar riil di sekolah
+  const earliestMengajarDate = earliestMengajarRes.data?.tanggal
+    ? (typeof earliestMengajarRes.data.tanggal === "string" ? earliestMengajarRes.data.tanggal.slice(0, 10) : "")
+    : null;
+
+  if (!earliestMengajarDate) {
+    try {
+      await supabaseAdmin.from("absensi_mengajar").delete().eq("status", "tidak_mengajar");
+    } catch (e) {
+      console.error("Gagal membersihkan data tidak mengajar prematur:", e);
+    }
+    return [];
+  }
+
+  const guruCreatedMap = new Map<string, string>();
+  for (const g of (guruRes.data ?? [])) {
+    if ((g as any).created_at) {
+      guruCreatedMap.set(g.id, toDateStrWIB((g as any).created_at));
+    }
+  }
+
+  // Filter dan bersihkan rekaman tidak_mengajar prematur (tanggal < earliestMengajarDate ATAU tanggal < guru.created_at)
+  const invalidTidakMengajarIds: string[] = [];
+  const validAbsensiRows = ((absensiRes.data ?? []) as any[]).filter((row: any) => {
+    if (row.status === "tidak_mengajar") {
+      const tStr = typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "";
+      const jadwal = Array.isArray(row.jadwal) ? row.jadwal[0] : row.jadwal;
+      const guruId = jadwal?.guru_id;
+      const gCreated = guruId ? guruCreatedMap.get(guruId) : undefined;
+      if (tStr < earliestMengajarDate || (gCreated && tStr < gCreated)) {
+        invalidTidakMengajarIds.push(row.id);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (invalidTidakMengajarIds.length > 0) {
+    try {
+      await supabaseAdmin.from("absensi_mengajar").delete().in("id", invalidTidakMengajarIds);
+    } catch (err) {
+      console.error("Gagal menghapus rekaman tidak mengajar prematur:", err);
+    }
+  }
+
+  const realRecords: LaporanMengajar[] = validAbsensiRows.map((row: any) => {
     const jadwal = Array.isArray(row.jadwal) ? row.jadwal[0] : row.jadwal;
     const guru = Array.isArray(jadwal?.guru) ? jadwal?.guru[0] : jadwal?.guru;
     const kelas = Array.isArray(jadwal?.kelas) ? jadwal?.kelas[0] : jadwal?.kelas;
     const statusDb = row.status === "tidak_mengajar" ? "Tidak Mengajar" : "Mengajar";
+    const waktuAbsen = (row.status === "tidak_mengajar" || !row.waktu_submit)
+      ? "—"
+      : new Date(row.waktu_submit).toLocaleTimeString("id-ID", {
+          timeZone: "Asia/Jakarta",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).replace(".", ":");
 
     return {
       id: row.id,
       guru_id: jadwal?.guru_id ?? "",
       kelas_id: jadwal?.kelas_id ?? "",
+      jadwal_id: row.jadwal_id || jadwal?.id || "",
       tanggal: new Date(row.tanggal).toLocaleDateString("id-ID", {
         timeZone: "Asia/Jakarta",
         day: "2-digit",
@@ -259,6 +385,8 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
       kelas: kelas?.nama_kelas ?? "-",
       mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
       waktu: jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "-",
+      waktu_submit: row.waktu_submit || null,
+      waktu_absen: waktuAbsen,
       status: statusDb,
       foto_absensi: row.foto_absensi
     };
@@ -279,7 +407,7 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
 
     // Set presensi yang sudah tercatat: key = `${jadwal_id}_${tanggal}`
     const existingSet = new Set<string>();
-    for (const row of ((absensiRes.data ?? []) as any[])) {
+    for (const row of validAbsensiRows) {
       const tStr = typeof row.tanggal === "string" ? row.tanggal.slice(0, 10) : "";
       const jId = row.jadwal_id || (Array.isArray(row.jadwal) ? row.jadwal[0]?.id : row.jadwal?.id);
       if (jId && tStr) {
@@ -310,6 +438,9 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
       // 1. Lewati tanggal sebelum fitur Tidak Mengajar resmi berlaku
       if (dateStr < TANGGAL_MULAI_TIDAK_MENGAJAR) continue;
 
+      // 1b. Lewati tanggal sebelum aktivitas mengajar perdana di sekolah
+      if (dateStr < earliestMengajarDate) continue;
+
       // 2. Lewati akhir pekan
       if (isWeekendWIB(dateStr)) continue;
 
@@ -328,6 +459,12 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
       const jadwalHariIni = allJadwal.filter((j: any) => j.hari === dayOfWeek);
 
       for (const j of jadwalHariIni as any[]) {
+        // Guard 1: Lewati jika guru belum terdaftar pada tanggal ini
+        const guruCreatedDateStr = guruCreatedMap.get(j.guru_id);
+        if (guruCreatedDateStr && dateStr < guruCreatedDateStr) {
+          continue;
+        }
+
         // Jika tanggal adalah hari ini, lewati jika jam_selesai jadwal belum berlalu
         if (dateStr === todayWIB) {
           const jamSelesaiFormatted = String(j.jam_selesai || "16:00:00").slice(0, 8);
@@ -343,6 +480,7 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
             id: `unrecorded-mengajar-${j.id}-${dateStr}`,
             guru_id: j.guru_id,
             kelas_id: j.kelas_id,
+            jadwal_id: j.id,
             tanggal: dObj.toLocaleDateString("id-ID", {
               timeZone: "Asia/Jakarta",
               day: "2-digit",
@@ -354,6 +492,8 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
             kelas: kelas?.nama_kelas ?? "-",
             mata_pelajaran: j.mata_pelajaran ?? "-",
             waktu: `${String(j.jam_mulai).slice(0, 5)} - ${String(j.jam_selesai).slice(0, 5)}`,
+            waktu_submit: null,
+            waktu_absen: "—",
             status: "Tidak Mengajar",
             foto_absensi: null
           });
@@ -402,6 +542,7 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
               id: row.id,
               guru_id: jadwal?.guru_id ?? "",
               kelas_id: jadwal?.kelas_id ?? "",
+              jadwal_id: row.jadwal_id || jadwal?.id || "",
               tanggal: dObj.toLocaleDateString("id-ID", {
                 timeZone: "Asia/Jakarta",
                 day: "2-digit",
@@ -413,6 +554,8 @@ export async function getLaporanMengajar(startDate?: string, endDate?: string): 
               kelas: kelas?.nama_kelas ?? "-",
               mata_pelajaran: jadwal?.mata_pelajaran ?? "-",
               waktu: jadwal ? `${jadwal.jam_mulai.slice(0, 5)} - ${jadwal.jam_selesai.slice(0, 5)}` : "-",
+              waktu_submit: row.waktu_submit || null,
+              waktu_absen: "—",
               status: "Tidak Mengajar",
               foto_absensi: null
             };
