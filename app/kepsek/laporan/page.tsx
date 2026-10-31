@@ -1032,16 +1032,17 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto min-h-[300px]">
+            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-hidden min-h-[300px]">
               {(loading || filterLoading) && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
+                <div className="absolute inset-0 bg-white/75 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
                   <div className="w-9 h-9 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
                   <p className="mt-3 text-xs font-semibold text-slate-500 animate-pulse">
                     Memuat data absensi...
                   </p>
                 </div>
               )}
-              <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[900px]">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[760px] sm:min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[16%]">TANGGAL</th>
@@ -1105,6 +1106,7 @@ export default function LaporanAbsensiPage() {
                   )}
                 </tbody>
               </table>
+              </div>
               {filteredGuruMengajar.length > 0 && (
                 <Pagination
                   currentPage={currentPageMengajar}
@@ -1155,16 +1157,17 @@ export default function LaporanAbsensiPage() {
               </div>
             </div>
 
-            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-x-auto min-h-[300px]">
+            <div className="relative bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-hidden min-h-[300px]">
               {(loading || filterLoading) && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
+                <div className="absolute inset-0 bg-white/75 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center rounded-2xl animate-in fade-in duration-150">
                   <div className="w-9 h-9 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
                   <p className="mt-3 text-xs font-semibold text-slate-500 animate-pulse">
                     Memuat data absensi...
                   </p>
                 </div>
               )}
-              <table className="w-full text-left border-collapse min-w-[800px] sm:min-w-[950px]">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px] sm:min-w-[950px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                     <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">TANGGAL PERIODE</th>
@@ -1255,6 +1258,7 @@ export default function LaporanAbsensiPage() {
                   )}
                 </tbody>
               </table>
+              </div>
               {filteredGuruKehadiran.length > 0 && (
                 <Pagination
                   currentPage={currentPageKehadiran}

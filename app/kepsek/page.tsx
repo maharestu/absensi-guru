@@ -313,8 +313,9 @@ export default function KepsekDashboardPage() {
         </div>
 
         {/* Responsive Table for Kehadiran */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">NAMA GURU</th>
@@ -375,6 +376,7 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          </div>
           {!loading && filteredKehadiran.length > 0 && (
             <Pagination
               size="sm"
@@ -411,8 +413,9 @@ export default function KepsekDashboardPage() {
         </div>
 
         {/* Responsive Table for Mengajar */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[800px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
@@ -488,6 +491,7 @@ export default function KepsekDashboardPage() {
               )}
             </tbody>
           </table>
+          </div>
           {!loading && filteredMengajar.length > 0 && (
             <Pagination
               size="sm"
