@@ -297,20 +297,16 @@ export default function LaporanAbsensiPage() {
     const dayNames = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
 
     // Kumpulkan tanggal-tanggal hari sekolah aktif dalam periode
-    const schoolDates: string[] = [];
+    const schoolDays: { dateStr: string; dayName: string }[] = [];
     if (startDate && endDate) {
       try {
         const todayWIB = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
         const effectiveEndStr = endDate > todayWIB ? todayWIB : endDate;
 
         const activeMengajarDates = laporanMengajar
-          .map((r) => {
-            const t = r.tanggal;
-            if (!t) return "";
-            if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-            return "";
-          })
-          .filter(Boolean)
+          .filter((r) => r.status.toLowerCase() === "mengajar" || r.status.toLowerCase().includes("tidak"))
+          .map((r) => r.raw_tanggal)
+          .filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d)))
           .sort();
         const earliestMengajar = activeMengajarDates.length > 0 ? activeMengajarDates[0] : null;
         const effectiveStartStr = (earliestMengajar && earliestMengajar > startDate)
@@ -332,7 +328,7 @@ export default function LaporanAbsensiPage() {
 
             if (dayName !== "sabtu" && dayName !== "minggu") {
               if (!holidaySet.has(dateStr) && !isDateInLiburPanjang(dateStr)) {
-                schoolDates.push(dayName);
+                schoolDays.push({ dateStr, dayName });
               }
             }
             cur.setUTCDate(cur.getUTCDate() + 1);
@@ -356,19 +352,41 @@ export default function LaporanAbsensiPage() {
       );
 
       let totalJadwal = 0;
-      if (teacherJadwal.length > 0 && schoolDates.length > 0) {
-        const dayScheduleCount: Record<string, number> = {};
-        teacherJadwal.forEach((j) => {
-          const h = (j.hari || "").toLowerCase().trim();
-          dayScheduleCount[h] = (dayScheduleCount[h] || 0) + 1;
-        });
-        schoolDates.forEach((dayName) => {
-          totalJadwal += dayScheduleCount[dayName] || 0;
+      if (teacherJadwal.length > 0 && schoolDays.length > 0) {
+        const todayWIB = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+        const nowJamWIB = new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Asia/Jakarta",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).format(new Date());
+
+        schoolDays.forEach(({ dateStr, dayName }) => {
+          const schedulesOnDay = teacherJadwal.filter(
+            (j) => (j.hari || "").toLowerCase().trim() === dayName
+          );
+
+          if (dateStr < todayWIB) {
+            // Hari yang sudah lewat: seluruh jadwal pada hari tersebut telah jatuh tempo
+            totalJadwal += schedulesOnDay.length;
+          } else if (dateStr === todayWIB) {
+            // Hari ini: hanya hitung jadwal yang jam selesainya sudah berlalu atau sudah diabsen
+            schedulesOnDay.forEach((j) => {
+              const jamSelesai = String(j.jam_selesai || "16:00:00").slice(0, 8);
+              const sudahDiabsen = records.some((r) => r.raw_tanggal === todayWIB && r.waktu?.includes(j.jam_mulai?.slice(0, 5)));
+              if (nowJamWIB >= jamSelesai || sudahDiabsen) {
+                totalJadwal += 1;
+              }
+            });
+          }
         });
       } else {
         totalJadwal = records.length;
       }
 
+      // Pastikan totalJadwal minimal sama dengan total sesi yang tercatat
+      totalJadwal = Math.max(totalJadwal, records.length);
       const basisTotal = totalJadwal > 0 ? totalJadwal : (records.length > 0 ? records.length : 0);
       const persentaseMengajar = basisTotal > 0 ? Math.round((jumlahMengajar / basisTotal) * 100) : 0;
 
@@ -515,7 +533,17 @@ export default function LaporanAbsensiPage() {
 
   // Hitung jumlah statistik Mengajar secara dinamis
   const countMengajar = filteredMengajar.filter((r) => r.status.toLowerCase() === "mengajar").length;
+  const countTidakMengajar = filteredMengajar.filter((r) => r.status.toLowerCase().includes("tidak")).length;
   const countJadwal = filteredGuruMengajar.reduce((acc, curr) => acc + curr.totalJadwal, 0);
+
+  // Hitung rata-rata persentase mengajar eksekutif
+  const gurusWithJadwal = filteredGuruMengajar.filter((g) => g.totalJadwal > 0);
+  const avgMengajarNum = gurusWithJadwal.length > 0
+    ? gurusWithJadwal.reduce((sum, g) => sum + g.persentaseMengajar, 0) / gurusWithJadwal.length
+    : (countJadwal > 0 ? Math.round((countMengajar / countJadwal) * 100) : 0);
+  const avgMengajar = countJadwal === 0 && countMengajar === 0
+    ? "0%"
+    : (avgMengajarNum % 1 === 0 ? `${avgMengajarNum}%` : `${avgMengajarNum.toFixed(1)}%`);
 
   useEffect(() => {
     async function loadData() {
@@ -972,7 +1000,19 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Rata-rata Mengajar</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+                  {loading || filterLoading ? "..." : avgMengajar}
+                </h2>
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
               <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1001,6 +1041,22 @@ export default function LaporanAbsensiPage() {
                 <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Mengajar</p>
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
                   {loading || filterLoading ? "..." : countMengajar}
+                </h2>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
+              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Tidak Mengajar</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
+                  {loading || filterLoading ? "..." : countTidakMengajar}
                 </h2>
               </div>
             </div>
