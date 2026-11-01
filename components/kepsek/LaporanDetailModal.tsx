@@ -86,12 +86,12 @@ export function LaporanDetailModal({
           <div className="p-6 pb-4 flex items-start justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-900">{detailGuru?.nama || "-"}</h2>
-              <p className="text-sm text-slate-400 mt-1 font-medium">NIP {detailGuru?.nip || "-"}</p>
+              <p className="text-sm text-slate-500 mt-1">NIP/NUPTK {detailGuru?.nip || "-"}</p>
             </div>
             <button 
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -104,17 +104,17 @@ export function LaporanDetailModal({
           <div className="p-6 pt-0 space-y-6">
             
             {/* Stats Section Mengajar */}
-            <div className="border border-slate-200/80 rounded-2xl p-5">
+            <div className="border border-slate-200 rounded-2xl p-5">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-sm sm:text-[15px] font-bold text-slate-900">Absensi mengajar selama periode</h3>
-                <span className="text-xs sm:text-sm text-slate-400 font-medium">
-                  {formatShortDateRange(startDate, endDate, `${formatDateLabel(startDate)} hingga ${formatDateLabel(endDate)}`)}
+                <h3 className="text-[15px] font-bold text-slate-900">Absensi mengajar selama periode</h3>
+                <span className="text-sm text-slate-500">
+                  {formatDateLabel(startDate)} hingga {formatDateLabel(endDate)}
                 </span>
               </div>
               
-              <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+              <div className="flex items-center gap-6 md:gap-10">
                 {/* Circle Progress */}
-                <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                <div className="relative w-24 h-24 shrink-0">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <path
                       className="text-slate-100"
@@ -134,102 +134,100 @@ export function LaporanDetailModal({
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600 tracking-tight">{persentaseMengajar}%</span>
-                    <span className="text-xs font-medium text-slate-500">Mengajar</span>
+                    <span className="text-xl font-bold text-blue-600">{persentaseMengajar}%</span>
+                    <span className="text-[10px] font-medium text-slate-500">Mengajar</span>
                   </div>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-3.5">
-                  <div className="border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
-                    <p className="text-xs font-medium text-slate-500">Total jadwal</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 tracking-tight">
+                <div className="flex-1 flex gap-2 md:gap-4 overflow-x-auto pb-2">
+                  <div className="border border-slate-200/80 bg-slate-50/70 rounded-xl p-3 flex-1 min-w-[85px] text-center">
+                    <p className="text-[11px] font-semibold text-slate-600 mb-1">Total jadwal</p>
+                    <p className="text-xl font-bold text-slate-900">
                       {totalJadwalGuru !== undefined ? totalJadwalGuru : totalCatatanMengajar}
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-1 font-normal">sesi periode ini</p>
+                    <p className="text-[10px] text-slate-400 mt-1">sesi periode ini</p>
                   </div>
-                  <div className="border border-blue-100/90 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
-                    <p className="text-xs font-medium text-slate-500">Mengajar</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1 tracking-tight">{detailMengajar}</p>
-                    <p className="text-[11px] text-slate-400 mt-1 font-normal">tercatat</p>
+                  <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
+                    <p className="text-[11px] font-semibold text-slate-500 mb-1">Mengajar</p>
+                    <p className="text-xl font-bold text-blue-600">{detailMengajar}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                   </div>
-                  <div className="border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col justify-center">
-                    <p className="text-xs font-medium text-slate-500">Tidak mengajar</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-rose-600 mt-1 tracking-tight">{detailTidakMengajar}</p>
-                    <p className="text-[11px] text-slate-400 mt-1 font-normal">tercatat</p>
+                  <div className="border border-slate-100 bg-slate-50/50 rounded-xl p-3 flex-1 min-w-[80px] text-center">
+                    <p className="text-[11px] font-semibold text-slate-500 mb-1">Tidak mengajar</p>
+                    <p className="text-xl font-bold text-rose-600">{detailTidakMengajar}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">tercatat</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Table Detail Mengajar */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className="text-sm sm:text-[15px] font-bold text-slate-900">Detail catatan mengajar</h3>
-                <span className="text-xs sm:text-sm text-slate-400 font-medium">{totalCatatanMengajar} catatan</span>
+            <div className="border border-slate-200 rounded-2xl overflow-hidden">
+              <div className="flex justify-between items-center p-5 pb-3 border-b border-slate-100">
+                <h3 className="text-[15px] font-bold text-slate-900">Detail catatan mengajar</h3>
+                <span className="text-sm text-slate-500">{totalCatatanMengajar} catatan</span>
               </div>
-              <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs sm:text-sm">
-                    <thead className="border-b border-slate-100">
-                      <tr className="text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                        <th className="py-3 px-4 sm:px-6 w-[20%] font-bold">TANGGAL</th>
-                        <th className="py-3 px-4 sm:px-6 w-[10%] font-bold text-center">FOTO</th>
-                        <th className="py-3 px-4 sm:px-6 w-[34%] font-bold">KELAS / MATA PELAJARAN</th>
-                        <th className="py-3 px-4 sm:px-6 w-[20%] font-bold">WAKTU</th>
-                        <th className="py-3 px-4 sm:px-6 w-[16%] font-bold">STATUS</th>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-slate-50/50">
+                    <tr className="text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                      <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[20%]">TANGGAL</th>
+                      <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[10%] text-center">FOTO</th>
+                      <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[34%]">KELAS / MATA PELAJARAN</th>
+                      <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[20%]">WAKTU</th>
+                      <th className="py-2.5 sm:py-3 px-3 sm:px-5 w-[16%]">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {detailMengajarList.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-500">Belum ada catatan mengajar</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {detailMengajarList.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-8 text-center text-slate-500">Belum ada catatan mengajar</td>
-                        </tr>
-                      ) : (
-                        detailMengajarList.map((r) => {
-                          const isMengajar = r.status.toLowerCase() === "mengajar";
-                          const photoUrl = r.foto_absensi;
-                          return (
-                            <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                              <td className="py-3 sm:py-3.5 px-4 sm:px-6 font-semibold text-slate-900">{r.tanggal}</td>
-                              <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-center">
-                                {photoUrl ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (onPreviewPhoto) {
-                                        onPreviewPhoto(photoUrl);
-                                      } else {
-                                        setSelectedPhoto(photoUrl);
-                                      }
-                                    }}
-                                    className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
-                                    title="Lihat Foto Absensi"
-                                  >
-                                    <Camera className="w-4 h-4" />
-                                  </button>
-                                ) : (
-                                  <span className="text-slate-300 text-xs">—</span>
-                                )}
-                              </td>
-                              <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-slate-600 font-medium">
-                                {r.kelas} / {r.mata_pelajaran}
-                              </td>
-                              <td className="py-3 sm:py-3.5 px-4 sm:px-6 text-slate-600 font-medium" title={r.waktu}>
-                                {r.waktu || "—"}
-                              </td>
-                              <td className="py-3 sm:py-3.5 px-4 sm:px-6">
-                                <span className={`font-semibold ${isMengajar ? "text-blue-600" : getStatusColorText(r.status)}`}>
-                                  {r.status}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ) : (
+                      detailMengajarList.map((r) => {
+                        const isMengajar = r.status.toLowerCase() === "mengajar";
+                        const photoUrl = r.foto_absensi;
+                        return (
+                          <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-2 sm:py-3 px-3 sm:px-5 font-semibold text-slate-800">{r.tanggal}</td>
+                            <td className="py-2 sm:py-3 px-3 sm:px-5 text-center">
+                              {photoUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onPreviewPhoto) {
+                                      onPreviewPhoto(photoUrl);
+                                    } else {
+                                      setSelectedPhoto(photoUrl);
+                                    }
+                                  }}
+                                  className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                                  title="Lihat Foto Absensi"
+                                >
+                                  <Camera className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-slate-300 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-600 font-medium">
+                              {r.kelas} / {r.mata_pelajaran}
+                            </td>
+                            <td className="py-2 sm:py-3 px-3 sm:px-5 text-slate-600 font-medium" title={r.waktu}>
+                              {r.waktu || "—"}
+                            </td>
+                            <td className="py-2 sm:py-3 px-3 sm:px-5">
+                              <span className={`font-semibold ${isMengajar ? "text-blue-600" : getStatusColorText(r.status)}`}>
+                                {r.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
             

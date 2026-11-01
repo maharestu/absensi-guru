@@ -43,6 +43,7 @@ export default function LaporanAbsensiPage() {
   const [selectedGuru, setSelectedGuru] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [activeKehadiranCardId, setActiveKehadiranCardId] = useState<string>("avg-kehadiran");
+  const [activeMengajarCardId, setActiveMengajarCardId] = useState<string>("avg-mengajar");
   const [selectedKelas, setSelectedKelas] = useState<string>("all");
 
   const [periodeType, setPeriodeType] = useState<string>("this_month");
@@ -546,6 +547,89 @@ export default function LaporanAbsensiPage() {
     ? "0%"
     : (avgMengajarNum % 1 === 0 ? `${avgMengajarNum}%` : `${avgMengajarNum.toFixed(1)}%`);
 
+  const statCardsMengajar: StatCardItem[] = [
+    {
+      id: "avg-mengajar",
+      label: "Rata-rata Mengajar",
+      value: avgMengajar,
+      bgIcon: "bg-indigo-600",
+      shadowIcon: "shadow-indigo-500/20",
+      icon: <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => {
+        setActiveMengajarCardId("avg-mengajar");
+        handleStatusChange("all");
+      },
+      active: activeMengajarCardId === "avg-mengajar" && selectedStatus === "all",
+    },
+    {
+      id: "total-jadwal",
+      label: "Jadwal",
+      value: `${countJadwal} Jadwal`,
+      bgIcon: "bg-blue-600",
+      shadowIcon: "shadow-blue-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-6 sm:h-6">
+          <rect width="18" height="18" x="3" y="3" rx="4" />
+          <path d="M8 10h8" />
+          <path d="M8 14h8" />
+        </svg>
+      ),
+      onClick: () => {
+        setActiveMengajarCardId("total-jadwal");
+        handleStatusChange("all");
+      },
+      active: activeMengajarCardId === "total-jadwal" && selectedStatus === "all",
+    },
+    {
+      id: "mengajar-sesi",
+      label: "Mengajar",
+      value: `${countMengajar} Sesi`,
+      bgIcon: "bg-emerald-500",
+      shadowIcon: "shadow-emerald-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-6 sm:h-6">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" x2="22" y1="12" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      ),
+      onClick: () => {
+        if (selectedStatus === "mengajar") {
+          setActiveMengajarCardId("avg-mengajar");
+          handleStatusChange("all");
+        } else {
+          setActiveMengajarCardId("mengajar-sesi");
+          handleStatusChange("mengajar");
+        }
+      },
+      active: selectedStatus === "mengajar",
+    },
+    {
+      id: "tidak-mengajar-sesi",
+      label: "Tidak Mengajar",
+      value: `${countTidakMengajar} Sesi`,
+      bgIcon: "bg-rose-500",
+      shadowIcon: "shadow-rose-500/20",
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 sm:w-6 sm:h-6">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      ),
+      onClick: () => {
+        if (selectedStatus === "tidak_mengajar") {
+          setActiveMengajarCardId("avg-mengajar");
+          handleStatusChange("all");
+        } else {
+          setActiveMengajarCardId("tidak-mengajar-sesi");
+          handleStatusChange("tidak_mengajar");
+        }
+      },
+      active: selectedStatus === "tidak_mengajar",
+    },
+  ];
+
   useEffect(() => {
     async function loadData() {
       if (!startDate || !endDate) return;
@@ -616,20 +700,33 @@ export default function LaporanAbsensiPage() {
     setSearchQuery(""); // Reset search when switching tabs
     setSelectedStatus("all"); // Reset status when switching tabs
     setActiveKehadiranCardId("avg-kehadiran");
+    setActiveMengajarCardId("avg-mengajar");
     setTimeout(() => setFilterLoading(false), 200);
   };
 
   const handleStatusChange = (val: string) => {
     setFilterLoading(true);
     setSelectedStatus(val);
-    if (val === "sempurna") {
-      setActiveKehadiranCardId("kehadiran-sempurna");
-    } else if (val === "binaan") {
-      setActiveKehadiranCardId("perlu-pembinaan");
-    } else if (val === "all") {
-      setActiveKehadiranCardId((prev) => (prev === "total-guru" ? "total-guru" : "avg-kehadiran"));
+    if (activeTab === "kehadiran") {
+      if (val === "sempurna") {
+        setActiveKehadiranCardId("kehadiran-sempurna");
+      } else if (val === "binaan") {
+        setActiveKehadiranCardId("perlu-pembinaan");
+      } else if (val === "all") {
+        setActiveKehadiranCardId((prev) => (prev === "total-guru" ? "total-guru" : "avg-kehadiran"));
+      } else {
+        setActiveKehadiranCardId("");
+      }
     } else {
-      setActiveKehadiranCardId("");
+      if (val === "mengajar") {
+        setActiveMengajarCardId("mengajar-sesi");
+      } else if (val === "tidak_mengajar") {
+        setActiveMengajarCardId("tidak-mengajar-sesi");
+      } else if (val === "all") {
+        setActiveMengajarCardId((prev) => (prev === "total-jadwal" ? "total-jadwal" : "avg-mengajar"));
+      } else {
+        setActiveMengajarCardId("");
+      }
     }
     setTimeout(() => setFilterLoading(false), 200);
   };
@@ -1044,67 +1141,11 @@ export default function LaporanAbsensiPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-indigo-500/20">
-                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Rata-rata Mengajar</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-                  {loading || filterLoading ? "..." : avgMengajar}
-                </h2>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-blue-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="18" x="3" y="3" rx="4" />
-                  <path d="M8 10h8" />
-                  <path d="M8 14h8" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Jadwal</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-                  {loading || filterLoading ? "..." : countJadwal}
-                </h2>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-emerald-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" x2="22" y1="12" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Mengajar</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-                  {loading || filterLoading ? "..." : countMengajar}
-                </h2>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 w-full">
-              <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-rose-500 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-rose-500/20">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[10.5px] sm:text-[11px] font-semibold text-slate-400">Tidak Mengajar</p>
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-                  {loading || filterLoading ? "..." : countTidakMengajar}
-                </h2>
-              </div>
-            </div>
-          </div>
+          <ScrollingStatCards
+            items={statCardsMengajar}
+            loading={loading || filterLoading}
+            desktopGridCols="lg:grid-cols-4"
+          />
 
           {/* Table Section */}
           <div>
