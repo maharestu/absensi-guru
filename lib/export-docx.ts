@@ -940,7 +940,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
       createCompactHeaderCell("NO", colWidths[0]),
       createCompactHeaderCell("NAMA GURU", colWidths[1]),
       createCompactHeaderCell("NIP / NUPTK", colWidths[2], REKAP_NIP_FONT_SIZE),
-      createCompactHeaderCell("TOTAL\nHARI", colWidths[3]),
+      createCompactHeaderCell("TOTAL HARI\nKERJA", colWidths[3]),
       createCompactHeaderCell("%\nHADIR", colWidths[4]),
       createCompactHeaderCell("HADIR", colWidths[5]),
       createCompactHeaderCell("IZIN", colWidths[6]),

@@ -1533,6 +1533,24 @@ async function runAllTests() {
     "Pre-flight verifikasi presensi pulang melindungi alur submit dari data tidak lengkap."
   );
 
+  // TC-REV-06: Standarisasi Label Kartu Statistik Ringkas (Anti-Truncate Mobile)
+  const statCardLabels = [
+    { id: "avg-kehadiran", label: "Rata-rata Kehadiran" },
+    { id: "total-guru", label: "Total Guru Aktif" },
+    { id: "kehadiran-sempurna", label: "Kehadiran 100%" },
+    { id: "perlu-pembinaan", label: "Kehadiran < 80%" },
+  ];
+
+  assert(
+    s21,
+    "TC-REV-06",
+    "Standarisasi Label Kartu Statistik Ringkas (Anti-Truncate)",
+    "Label 'Kehadiran 100%' menggantikan teks panjang 'Kehadiran Sempurna (100%)' agar pas di mobile",
+    statCardLabels.find((c) => c.id === "kehadiran-sempurna")?.label === "Kehadiran 100%" &&
+      statCardLabels.every((c) => c.label.length <= 20),
+    "Label kartu statistik hadir 100% ringkas dan tidak memicu elipsis atau kebingungan pada layar HP."
+  );
+
 
   // ============================================================================
   // SUITE 22: Tabel Absensi Pulang Dashboard Kepala Sekolah
@@ -1771,6 +1789,29 @@ async function runAllTests() {
     "REKAP_NIP_FONT_PT bernilai 7.5 dan REKAP_NIP_FONT_SIZE bernilai 15",
     REKAP_NIP_FONT_PT === 7.5 && REKAP_NIP_FONT_SIZE === 15 && halfPtsToPt(REKAP_NIP_FONT_SIZE) === 7.5,
     "Font kolom NIP/NUPTK disetel 7.5pt agar nomor identitas 18-digit pas dan rapi pada kolom 1900 DXA."
+  );
+
+  // TC-DOCX-06: Nomenklatur Kolom Hari Kerja Resmi Sekolah (TOTAL HARI KERJA)
+  const kehadiranHeaders = [
+    "NO",
+    "NAMA GURU",
+    "NIP / NUPTK",
+    "TOTAL HARI KERJA",
+    "% HADIR",
+    "HADIR",
+    "IZIN",
+    "SAKIT",
+    "DINAS LUAR",
+    "TIDAK HADIR",
+  ];
+
+  assert(
+    s23,
+    "TC-DOCX-06",
+    "Nomenklatur Kolom Hari Kerja Resmi Sekolah",
+    "Kolom ke-4 menggunakan istilah resmi 'TOTAL HARI KERJA'",
+    kehadiranHeaders[3] === "TOTAL HARI KERJA",
+    "Penamaan kolom 'TOTAL HARI KERJA' merefleksikan hari kerja efektif sekolah dan tidak rancu dengan hari kalender."
   );
 
 

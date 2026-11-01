@@ -199,7 +199,7 @@ export function ScrollingStatCards({
         }}
         className={`${
           isMobile
-            ? "min-w-[155px] sm:min-w-[175px] p-3 sm:p-4 gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl"
+            ? "min-w-[160px] sm:min-w-[180px] p-3 sm:p-4 gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl"
             : "min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink p-3.5 sm:p-5 gap-3 sm:gap-4 rounded-2xl"
         } bg-white border shadow-sm flex items-center select-none transition-all ${
           isClickable
@@ -221,7 +221,10 @@ export function ScrollingStatCards({
           {item.icon}
         </div>
         <div className="min-w-0">
-          <p className={`${isMobile ? "text-[10px] sm:text-[11px]" : "text-[10.5px] sm:text-xs"} font-semibold text-slate-400 truncate`}>
+          <p
+            className={`${isMobile ? "text-[10px] sm:text-[11px]" : "text-[10.5px] sm:text-xs"} font-semibold text-slate-400 line-clamp-2 leading-snug`}
+            title={item.label}
+          >
             {item.label}
           </p>
           <div className="mt-0.5 tracking-tight truncate leading-tight">

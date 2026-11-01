@@ -497,7 +497,7 @@ export default function LaporanAbsensiPage() {
     },
     {
       id: "kehadiran-sempurna",
-      label: "Kehadiran Sempurna (100%)",
+      label: "Kehadiran 100%",
       value: `${countSempurna} Guru`,
       bgIcon: "bg-emerald-500",
       shadowIcon: "shadow-emerald-500/20",
