@@ -134,25 +134,23 @@ export default function PresensiPulangVerifikasiPage() {
         <PageHeader title="Verifikasi Absen Pulang" backHref="/guru/presensi-pulang/lokasi" />
       </div>
 
-      <div className="flex-1 max-w-md w-full mx-auto px-4 py-4 flex flex-col justify-between">
-        <div className="space-y-4">
-          {errorMsg && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-700 font-medium leading-relaxed">
-              {errorMsg}
-            </div>
-          )}
+      <div className="max-w-md w-full mx-auto px-4 py-4 space-y-4">
+        {errorMsg && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-700 font-medium leading-relaxed">
+            {errorMsg}
+          </div>
+        )}
 
-          {loading ? (
-            <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center">
-              <div className="w-6 h-6 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2" />
-              <p className="text-xs text-slate-400">Memuat rincian...</p>
-            </div>
-          ) : (
-            <VerificationCard rows={rows} />
-          )}
-        </div>
+        {loading ? (
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-6 h-6 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2" />
+            <p className="text-xs text-slate-400">Memuat rincian...</p>
+          </div>
+        ) : (
+          <VerificationCard rows={rows} />
+        )}
 
-        <div className="pt-6 pb-4">
+        <div className="pt-2 pb-6">
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting || loading}

@@ -71,6 +71,16 @@ export interface MengajarHariIni {
   foto_absensi?: string | null;
 }
 
+export interface PulangHariIni {
+  id: string;
+  tanggal: string;
+  nama_guru: string;
+  nip_guru?: string | null;
+  foto_pulang: string | null;
+  waktu_pulang: string;
+  waktu_pulang_raw?: string | null;
+}
+
 // ── Admin Stats ───────────────────────────────────────────────
 
 export async function getAdminStats(): Promise<AdminStats> {
@@ -432,6 +442,37 @@ export async function getMengajarHariIni(): Promise<MengajarHariIni[]> {
       menit_terlambat: isTidakMengajar ? 0 : (ketInfo?.menit ?? 0),
       keterangan_terlambat: isTidakMengajar ? "" : (ketInfo?.label ?? ""),
       foto_absensi: isTidakMengajar ? null : (row.foto_absensi ?? null),
+    };
+  });
+}
+
+// ── Kepsek: Tabel Absensi Pulang Hari Ini ─────────────────────
+
+export async function getPulangHariIni(): Promise<PulangHariIni[]> {
+  const today = getTodayWIB();
+
+  const { data, error } = await supabaseAdmin
+    .from("absensi_masuk")
+    .select("id, tanggal, waktu_pulang, foto_pulang, guru(id, nama, nip)")
+    .eq("tanggal", today)
+    .not("waktu_pulang", "is", null)
+    .order("waktu_pulang", { ascending: false });
+
+  if (error) {
+    console.error("Gagal mengambil data absensi pulang hari ini:", error);
+    return [];
+  }
+
+  return ((data as any[]) ?? []).map((row) => {
+    const guru = Array.isArray(row.guru) ? row.guru[0] : row.guru;
+    return {
+      id: row.id,
+      tanggal: row.tanggal,
+      nama_guru: guru?.nama ?? "-",
+      nip_guru: guru?.nip ?? null,
+      foto_pulang: row.foto_pulang ?? null,
+      waktu_pulang: row.waktu_pulang ? `${formatJamWIB(row.waktu_pulang)} WIB` : "—",
+      waktu_pulang_raw: row.waktu_pulang ?? null,
     };
   });
 }

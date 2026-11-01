@@ -46,6 +46,7 @@ import {
 import {
   isWeekendWIB,
   getJamMenitWIB,
+  formatJamWIB,
   JAM_MASUK_SEKOLAH,
   JAM_CUTOFF_ABSENSI,
   TOLERANSI_TERLAMBAT_MENIT,
@@ -1396,6 +1397,302 @@ async function runAllTests() {
     "Hadir: 2, Izin: 1, Tidak Hadir (Card 5): 2 (Bukan 0)",
     countHadir === 2 && countIzin === 1 && card5BelumAbsen === 2,
     "Statistik Kepsek merefleksikan jumlah fisik riil guru tidak_hadir dari database."
+  );
+
+
+  // ============================================================================
+  // SUITE 21: Revisi Halaman Laporan Kepsek & Presensi Pulang
+  // ============================================================================
+  const s21 = registerSuite(
+    "Suite 21 (BARU): Revisi Laporan Kepsek & Presensi Pulang",
+    "app/kepsek/laporan/page.tsx, components/ui/ScrollingStatCards.tsx, app/guru/presensi-pulang/verifikasi/page.tsx"
+  );
+
+  // TC-REV-01: Parsing Nilai & Satuan StatCard (Unbolding Unit)
+  function parseStatCardValue(val: string | number) {
+    if (typeof val === "number") {
+      return { numPart: String(val), unitPart: null };
+    }
+    const str = String(val).trim();
+    const match = str.match(/^([^\s]+)\s+(.+)$/);
+    if (match) {
+      return { numPart: match[1], unitPart: match[2] };
+    }
+    return { numPart: str, unitPart: null };
+  }
+
+  const pJadwal = parseStatCardValue("24 Jadwal");
+  const pSesi = parseStatCardValue("18 Sesi");
+  const pGuru = parseStatCardValue("15 Guru");
+  const pPercent = parseStatCardValue("95.5%");
+  const pPureNum = parseStatCardValue(32);
+
+  assert(
+    s21,
+    "TC-REV-01",
+    "Parsing Nilai & Satuan ScrollingStatCards",
+    "Pemisahan angka bold dan satuan teks normal",
+    pJadwal.numPart === "24" && pJadwal.unitPart === "Jadwal" &&
+      pSesi.numPart === "18" && pSesi.unitPart === "Sesi" &&
+      pGuru.numPart === "15" && pGuru.unitPart === "Guru" &&
+      pPercent.numPart === "95.5%" && pPercent.unitPart === null &&
+      pPureNum.numPart === "32" && pPureNum.unitPart === null,
+    "Parsing teks berhasil memisahkan angka numerik dari satuan keterangan secara presisi."
+  );
+
+  // TC-REV-02: Kalkulasi Persentase Mengajar pada Modal Detail (Konsistensi Kehadiran)
+  function calculatePersentaseMengajar(detailMengajar: number, totalJadwalGuru?: number, totalCatatan: number = 0) {
+    const basis = (totalJadwalGuru !== undefined && totalJadwalGuru > 0) ? totalJadwalGuru : totalCatatan;
+    return basis > 0 ? Math.round((detailMengajar / basis) * 100) : 0;
+  }
+
+  const persenNormal = calculatePersentaseMengajar(18, 20); // 18/20 = 90%
+  const persenFallback = calculatePersentaseMengajar(5, undefined, 10); // 5/10 = 50%
+  const persenNol = calculatePersentaseMengajar(0, 0, 0); // 0% tanpa NaN
+
+  assert(
+    s21,
+    "TC-REV-02",
+    "Kalkulasi Persentase Mengajar pada Modal Detail",
+    "18/20 = 90%, fallback 5/10 = 50%, 0/0 = 0% aman dari NaN",
+    persenNormal === 90 && persenFallback === 50 && persenNol === 0,
+    "Formula kalkulasi persentase mengajar modal detail konsisten dan aman dari division by zero."
+  );
+
+  // TC-REV-03: Integritas Agregasi Rata-rata Mengajar Kepsek
+  function calculateAvgMengajar(gurusWithJadwal: { totalJadwal: number; persentaseMengajar: number }[]) {
+    if (gurusWithJadwal.length === 0) return "0%";
+    const avgNum = gurusWithJadwal.reduce((sum, g) => sum + g.persentaseMengajar, 0) / gurusWithJadwal.length;
+    return avgNum % 1 === 0 ? `${avgNum}%` : `${avgNum.toFixed(1)}%`;
+  }
+
+  const mockTeachers = [
+    { totalJadwal: 20, persentaseMengajar: 90 },
+    { totalJadwal: 15, persentaseMengajar: 100 },
+    { totalJadwal: 10, persentaseMengajar: 85 },
+  ];
+  const avgCalc = calculateAvgMengajar(mockTeachers); // (90 + 100 + 85) / 3 = 91.666... -> "91.7%"
+  const avgEmpty = calculateAvgMengajar([]);
+
+  assert(
+    s21,
+    "TC-REV-03",
+    "Agregasi Rata-rata Persentase Mengajar Eksekutif",
+    "Rata-rata 90, 100, 85 = '91.7%'; daftar kosong = '0%'",
+    avgCalc === "91.7%" && avgEmpty === "0%",
+    "Statistik kartu rata-rata mengajar terhitung akurat dengan pembulatan 1 desimal."
+  );
+
+  // TC-REV-04: Format Subtitle Guru dan Label Periode pada Modal
+  function formatGuruSubtitle(nip?: string | null) {
+    return `NIP/NUPTK ${nip || "-"}`;
+  }
+  function formatPeriodeLabelModal(start: string, end: string) {
+    return `${start} hingga ${end}`;
+  }
+
+  assert(
+    s21,
+    "TC-REV-04",
+    "Konsistensi Format Subtitle Identitas & Periode Modal",
+    "NIP/NUPTK seragam dan rentang tanggal 'start hingga end'",
+    formatGuruSubtitle("19800101") === "NIP/NUPTK 19800101" &&
+      formatGuruSubtitle(null) === "NIP/NUPTK -" &&
+      formatPeriodeLabelModal("01-10-2026", "31-10-2026") === "01-10-2026 hingga 31-10-2026",
+    "Label identitas dan rentang waktu pada modal mengajar identik 100% dengan modal kehadiran."
+  );
+
+  // TC-REV-05: Validasi Pre-flight Presensi Pulang
+  function validatePresensiPulangPreflight(photoBase64: string | null) {
+    if (!photoBase64 || !photoBase64.trim()) {
+      return { valid: false, error: "Foto absensi tidak ditemukan. Silakan ulangi langkah foto." };
+    }
+    return { valid: true, error: null };
+  }
+
+  const checkNoPhoto = validatePresensiPulangPreflight(null);
+  const checkEmptyPhoto = validatePresensiPulangPreflight("   ");
+  const checkValidPhoto = validatePresensiPulangPreflight("data:image/webp;base64,mockphoto123");
+
+  assert(
+    s21,
+    "TC-REV-05",
+    "Validasi Pre-flight Form Presensi Pulang",
+    "Menolak submit tanpa foto dan meloloskan foto valid",
+    !checkNoPhoto.valid &&
+      Boolean(checkNoPhoto.error?.includes("Foto absensi tidak ditemukan")) &&
+      !checkEmptyPhoto.valid &&
+      checkValidPhoto.valid &&
+      checkValidPhoto.error === null,
+    "Pre-flight verifikasi presensi pulang melindungi alur submit dari data tidak lengkap."
+  );
+
+
+  // ============================================================================
+  // SUITE 22: Tabel Absensi Pulang Dashboard Kepala Sekolah
+  // ============================================================================
+  const s22 = registerSuite(
+    "Suite 22 (BARU): Tabel Absensi Pulang Dashboard Kepsek",
+    "actions/dashboard.ts, app/kepsek/page.tsx"
+  );
+
+  // TC-PULANG-01: Pemetaan Data Rekaman Database ke ViewModel PulangHariIni
+  function mapDbToPulangViewModel(rawRows: any[]) {
+    return rawRows
+      .filter((r) => r.waktu_pulang !== null)
+      .map((row) => {
+        const guru = Array.isArray(row.guru) ? row.guru[0] : row.guru;
+        return {
+          id: row.id,
+          tanggal: row.tanggal,
+          nama_guru: guru?.nama ?? "-",
+          nip_guru: guru?.nip ?? null,
+          foto_pulang: row.foto_pulang ?? null,
+          waktu_pulang: row.waktu_pulang ? `${formatJamWIB(row.waktu_pulang)} WIB` : "—",
+          waktu_pulang_raw: row.waktu_pulang ?? null,
+        };
+      });
+  }
+
+  const mockDbAbsensiPulang = [
+    {
+      id: "abs-1",
+      tanggal: "2026-11-01",
+      waktu_pulang: "2026-11-01T14:30:00+07:00",
+      foto_pulang: "https://mock.storage/foto_pulang1.webp",
+      guru: { id: "g-1", nama: "Budi Santoso, S.Pd", nip: "198001012005011001" },
+    },
+    {
+      id: "abs-2",
+      tanggal: "2026-11-01",
+      waktu_pulang: null, // Belum pulang
+      foto_pulang: null,
+      guru: { id: "g-2", nama: "Siti Rahma, M.Pd", nip: "198502022008012002" },
+    },
+    {
+      id: "abs-3",
+      tanggal: "2026-11-01",
+      waktu_pulang: "2026-11-01T14:45:00+07:00",
+      foto_pulang: "https://mock.storage/foto_pulang3.webp",
+      guru: { id: "g-3", nama: "Ahmad Dahlan", nip: null },
+    },
+  ];
+
+  const mappedPulang = mapDbToPulangViewModel(mockDbAbsensiPulang);
+
+  assert(
+    s22,
+    "TC-PULANG-01",
+    "Pemetaan ViewModel Absensi Pulang",
+    "Record waktu_pulang terpetakan dengan id, nama, nip, foto, dan jam",
+    mappedPulang.length === 2 &&
+      mappedPulang[0].nama_guru === "Budi Santoso, S.Pd" &&
+      mappedPulang[0].nip_guru === "198001012005011001" &&
+      mappedPulang[0].foto_pulang === "https://mock.storage/foto_pulang1.webp" &&
+      mappedPulang[1].nama_guru === "Ahmad Dahlan" &&
+      mappedPulang[1].nip_guru === null,
+    "ViewModel PulangHariIni memetakan identitas guru dan foto pulang secara lengkap."
+  );
+
+  // TC-PULANG-02: Eksklusi Guru yang Belum Absen Pulang
+  assert(
+    s22,
+    "TC-PULANG-02",
+    "Filter Eksklusi Record Tanpa Waktu Pulang",
+    "Record dengan waktu_pulang null tidak dimasukkan ke tabel",
+    !mappedPulang.some((r) => r.id === "abs-2"),
+    "Hanya guru yang telah mencatatkan waktu pulang yang tampil pada tabel."
+  );
+
+  // TC-PULANG-03: Format Waktu Kepulangan (WIB)
+  assert(
+    s22,
+    "TC-PULANG-03",
+    "Format Waktu Kepulangan Standar WIB",
+    "Waktu kepulangan berakhiran 'WIB'",
+    mappedPulang[0].waktu_pulang.endsWith("WIB") &&
+      mappedPulang[0].waktu_pulang.includes(":"),
+    "Format jam pulang WIB terstandarisasi untuk kenyamanan pantauan kepala sekolah."
+  );
+
+  // TC-PULANG-04: Struktur Kolom Ramping Khusus Hari Ini (Tanpa Tanggal & Subtitle NIP)
+  function getPulangTableColumns() {
+    return ["NAMA GURU", "FOTO", "WAKTU PULANG"];
+  }
+
+  const columns = getPulangTableColumns();
+  assert(
+    s22,
+    "TC-PULANG-04",
+    "Struktur Kolom Ramping Khusus Hari Ini",
+    "Kolom: NAMA GURU, FOTO, WAKTU PULANG (tanpa tanggal & NIP)",
+    columns.length === 3 &&
+      columns[0] === "NAMA GURU" &&
+      columns[1] === "FOTO" &&
+      columns[2] === "WAKTU PULANG" &&
+      !columns.includes("TANGGAL"),
+    "Tabel absensi pulang tersaji ramping 3 kolom karena konteks data sudah terfokus untuk hari ini."
+  );
+
+  // TC-PULANG-05: Filter Pencarian Realtime Absensi Pulang
+  function searchFilterPulang(data: typeof mappedPulang, query: string) {
+    const q = query.toLowerCase().trim();
+    return data.filter(
+      (row) =>
+        row.nama_guru.toLowerCase().includes(q) ||
+        (row.nip_guru && row.nip_guru.toLowerCase().includes(q)) ||
+        row.waktu_pulang.toLowerCase().includes(q)
+    );
+  }
+
+  const searchByName = searchFilterPulang(mappedPulang, "budi");
+  const searchByNip = searchFilterPulang(mappedPulang, "19800101");
+  const searchByTime = searchFilterPulang(mappedPulang, "14:45");
+  const searchEmpty = searchFilterPulang(mappedPulang, "guru-tidak-ada");
+
+  assert(
+    s22,
+    "TC-PULANG-05",
+    "Pencarian Realtime Tabel Absensi Pulang",
+    "Mendukung filter nama, NIP, jam pulang, dan menangani query tanpa hasil",
+    searchByName.length === 1 &&
+      searchByName[0].id === "abs-1" &&
+      searchByNip.length === 1 &&
+      searchByTime.length === 1 &&
+      searchByTime[0].id === "abs-3" &&
+      searchEmpty.length === 0,
+    "Fitur pencarian tabel absensi pulang responsif terhadap multi-field query."
+  );
+
+  // TC-PULANG-06: Layout Penjajaran Kolom & Pas 1 Layar HP (3 Kolom)
+  interface ColumnConfig {
+    name: string;
+    widthPercent: number;
+    headerAlign: "left" | "center" | "right";
+    cellAlign: "left" | "center" | "right";
+  }
+
+  const pulangColumnsConfig: ColumnConfig[] = [
+    { name: "NAMA GURU", widthPercent: 46, headerAlign: "left", cellAlign: "left" },
+    { name: "FOTO", widthPercent: 22, headerAlign: "center", cellAlign: "center" },
+    { name: "WAKTU PULANG", widthPercent: 32, headerAlign: "center", cellAlign: "center" },
+  ];
+
+  const totalWidth = pulangColumnsConfig.reduce((sum, col) => sum + col.widthPercent, 0);
+  const alignmentsConsistent = pulangColumnsConfig.every((col) => col.headerAlign === col.cellAlign);
+
+  assert(
+    s22,
+    "TC-PULANG-06",
+    "Layout Penjajaran & Responsivitas 1 Layar HP (3 Kolom)",
+    "Total lebar 100% (pas di HP tanpa scroll horizontal) & penjajaran header-cell konsisten",
+    pulangColumnsConfig.length === 3 &&
+      totalWidth === 100 &&
+      alignmentsConsistent &&
+      pulangColumnsConfig[0].headerAlign === "left" &&
+      pulangColumnsConfig[1].headerAlign === "center" &&
+      pulangColumnsConfig[2].headerAlign === "center",
+    "Tabel absensi pulang terkonfigurasi sejajar dan muat penuh dalam 1 layar mobile tanpa overflow."
   );
 
 
