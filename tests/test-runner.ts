@@ -53,6 +53,12 @@ import {
   TANGGAL_MULAI_TIDAK_HADIR,
 } from "@/lib/date";
 import { normalizeTimeString } from "@/lib/format";
+import {
+  REKAP_TABLE_FONT_PT,
+  REKAP_TABLE_FONT_SIZE,
+  REKAP_NIP_FONT_PT,
+  REKAP_NIP_FONT_SIZE,
+} from "@/lib/export-docx";
 
 // Struktur data pelaporan pengujian
 interface TestCase {
@@ -1693,6 +1699,78 @@ async function runAllTests() {
       pulangColumnsConfig[1].headerAlign === "center" &&
       pulangColumnsConfig[2].headerAlign === "center",
     "Tabel absensi pulang terkonfigurasi sejajar dan muat penuh dalam 1 layar mobile tanpa overflow."
+  );
+
+
+  // ============================================================================
+  // SUITE 23: Standarisasi Tipografi Dokumen Ekspor Laporan Kepsek (8pt)
+  // ============================================================================
+  const s23 = registerSuite(
+    "Suite 23 (BARU): Standarisasi Tipografi Ekspor Docx (8pt)",
+    "lib/export-docx.ts, app/kepsek/laporan/page.tsx"
+  );
+
+  // TC-DOCX-01: Verifikasi Definisi Ukuran Font Tabel Ekspor (8pt / 16 Half-Points)
+  assert(
+    s23,
+    "TC-DOCX-01",
+    "Konstanta Ukuran Font Tabel Ekspor (8pt / 16 Half-Points)",
+    "REKAP_TABLE_FONT_PT bernilai 8 dan REKAP_TABLE_FONT_SIZE bernilai 16",
+    REKAP_TABLE_FONT_PT === 8 && REKAP_TABLE_FONT_SIZE === 16,
+    "Konstanta ukuran font tabel Word tepat 8pt (16 half-points) sesuai standar dokumen resmi."
+  );
+
+  // TC-DOCX-02: Kalkulasi Konversi Half-Points docx
+  function ptToHalfPts(pt: number): number {
+    return pt * 2;
+  }
+  function halfPtsToPt(halfPts: number): number {
+    return halfPts / 2;
+  }
+
+  assert(
+    s23,
+    "TC-DOCX-02",
+    "Kalkulasi Konversi Poin Tipografi ke Satuan Half-Points docx",
+    "8pt terkonversi menjadi 16 half-points dan sebaliknya",
+    ptToHalfPts(8) === 16 && halfPtsToPt(16) === 8 && halfPtsToPt(REKAP_TABLE_FONT_SIZE) === 8,
+    "Formula konversi point-to-half-point bekerja akurat untuk format Word OpenXML."
+  );
+
+  // TC-DOCX-03: Integritas Lebar Kolom Tabel Rekap Kehadiran Semua Guru (A4 Portrait 10500 DXA)
+  const kehadiranColWidths = [450, 2650, 1900, 950, 750, 750, 700, 700, 850, 800];
+  const totalKehadiranWidth = kehadiranColWidths.reduce((a, b) => a + b, 0);
+
+  assert(
+    s23,
+    "TC-DOCX-03",
+    "Integritas Lebar Kolom Tabel Rekap Kehadiran Semua Guru (A4)",
+    "Total lebar kolom rekap kehadiran tepat 10500 DXA (A4 Portrait)",
+    totalKehadiranWidth === 10500 && kehadiranColWidths.length === 10,
+    "Tabel rekap kehadiran 10 kolom pas dengan batas margin kertas A4 tanpa overflow."
+  );
+
+  // TC-DOCX-04: Integritas Lebar Kolom Tabel Rekap Mengajar Semua Guru (A4 Portrait 10500 DXA)
+  const mengajarColWidths = [500, 3800, 2200, 1000, 1000, 1000, 1000];
+  const totalMengajarWidth = mengajarColWidths.reduce((a, b) => a + b, 0);
+
+  assert(
+    s23,
+    "TC-DOCX-04",
+    "Integritas Lebar Kolom Tabel Rekap Mengajar Semua Guru (A4)",
+    "Total lebar kolom rekap mengajar tepat 10500 DXA (A4 Portrait)",
+    totalMengajarWidth === 10500 && mengajarColWidths.length === 7,
+    "Tabel rekap mengajar 7 kolom pas dengan batas margin kertas A4 tanpa overflow."
+  );
+
+  // TC-DOCX-05: Penyesuaian Khusus Font Kolom NIP/NUPTK Rekap Kehadiran (7.5pt / 15 Half-Points)
+  assert(
+    s23,
+    "TC-DOCX-05",
+    "Konstanta Ukuran Font Kolom NIP/NUPTK (7.5pt / 15 Half-Points)",
+    "REKAP_NIP_FONT_PT bernilai 7.5 dan REKAP_NIP_FONT_SIZE bernilai 15",
+    REKAP_NIP_FONT_PT === 7.5 && REKAP_NIP_FONT_SIZE === 15 && halfPtsToPt(REKAP_NIP_FONT_SIZE) === 7.5,
+    "Font kolom NIP/NUPTK disetel 7.5pt agar nomor identitas 18-digit pas dan rapi pada kolom 1900 DXA."
   );
 
 

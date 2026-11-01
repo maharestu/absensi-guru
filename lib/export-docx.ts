@@ -675,7 +675,16 @@ export interface ExportSemuaGuruDocxOptions {
   };
 }
 
-function createCompactHeaderCell(text: string, widthDxa: number): TableCell {
+export const REKAP_TABLE_FONT_PT = 8;
+export const REKAP_TABLE_FONT_SIZE = 16; // 8pt in docx half-points
+export const REKAP_NIP_FONT_PT = 7.5;
+export const REKAP_NIP_FONT_SIZE = 15; // 7.5pt in docx half-points
+
+function createCompactHeaderCell(
+  text: string,
+  widthDxa: number,
+  fontSizeHalfPts: number = REKAP_TABLE_FONT_SIZE
+): TableCell {
   const lines = text.split("\n");
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
@@ -691,7 +700,7 @@ function createCompactHeaderCell(text: string, widthDxa: number): TableCell {
             text: line,
             font: "Arial",
             bold: true,
-            size: 14, // 7pt
+            size: fontSizeHalfPts,
             break: idx > 0 ? 1 : 0,
           })
         ),
@@ -703,7 +712,8 @@ function createCompactHeaderCell(text: string, widthDxa: number): TableCell {
 function createCompactDataCell(
   text: string,
   widthDxa: number,
-  alignment: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.CENTER
+  alignment: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.CENTER,
+  fontSizeHalfPts: number = REKAP_TABLE_FONT_SIZE
 ): TableCell {
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
@@ -717,7 +727,7 @@ function createCompactDataCell(
           new TextRun({
             text,
             font: "Arial",
-            size: 14, // 7pt
+            size: fontSizeHalfPts,
           }),
         ],
       }),
@@ -929,7 +939,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
     children: [
       createCompactHeaderCell("NO", colWidths[0]),
       createCompactHeaderCell("NAMA GURU", colWidths[1]),
-      createCompactHeaderCell("NIP / NUPTK", colWidths[2]),
+      createCompactHeaderCell("NIP / NUPTK", colWidths[2], REKAP_NIP_FONT_SIZE),
       createCompactHeaderCell("TOTAL\nHARI", colWidths[3]),
       createCompactHeaderCell("%\nHADIR", colWidths[4]),
       createCompactHeaderCell("HADIR", colWidths[5]),
@@ -946,7 +956,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
       children: [
         createCompactDataCell(String(index + 1), colWidths[0], AlignmentType.CENTER),
         createCompactDataCell(row.nama || "-", colWidths[1], AlignmentType.LEFT),
-        createCompactDataCell(row.nip ? row.nip : "—", colWidths[2], AlignmentType.CENTER),
+        createCompactDataCell(row.nip ? row.nip : "—", colWidths[2], AlignmentType.CENTER, REKAP_NIP_FONT_SIZE),
         createCompactDataCell(String(row.totalHariKerja ?? 0), colWidths[3], AlignmentType.CENTER),
         createCompactDataCell(`${row.persentaseHadir ?? 0}%`, colWidths[4], AlignmentType.CENTER),
         createCompactDataCell(String(row.jumlahHadir ?? 0), colWidths[5], AlignmentType.CENTER),
@@ -1191,7 +1201,7 @@ function createMengajarHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 35, bottom: 35, left: 40, right: 40 },
+    margins: { top: 30, bottom: 30, left: 35, right: 35 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -1201,7 +1211,7 @@ function createMengajarHeaderCell(text: string, widthDxa: number): TableCell {
             text: line,
             font: "Arial",
             bold: true,
-            size: 15, // 7.5pt
+            size: REKAP_TABLE_FONT_SIZE, // 8pt
             break: idx > 0 ? 1 : 0,
           })
         ),
@@ -1218,7 +1228,7 @@ function createMengajarDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 25, bottom: 25, left: 40, right: 40 },
+    margins: { top: 20, bottom: 20, left: 35, right: 35 },
     children: [
       new Paragraph({
         alignment,
@@ -1227,7 +1237,7 @@ function createMengajarDataCell(
           new TextRun({
             text,
             font: "Arial",
-            size: 15, // 7.5pt
+            size: REKAP_TABLE_FONT_SIZE, // 8pt
           }),
         ],
       }),
