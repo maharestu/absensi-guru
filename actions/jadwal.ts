@@ -34,7 +34,7 @@ export async function getJadwalById(id: string): Promise<JadwalWithDetail | null
     .select(`
       *,
       guru:guru_id ( id, nama, nip ),
-      kelas:kelas_id ( id, nama_kelas )
+      kelas:kelas_id ( id, nama_kelas, latitude, longitude, radius_meter )
     `)
     .eq("id", id)
     .single();

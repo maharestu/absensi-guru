@@ -77,6 +77,9 @@ export interface JadwalWithDetail extends Jadwal {
   kelas?: {
     id: string;
     nama_kelas: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    radius_meter?: number | null;
   } | null;
 }
 
