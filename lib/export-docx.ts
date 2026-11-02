@@ -151,8 +151,9 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   const kopRowCells: TableCell[] = [
     // Kolom Kiri: Logo Karawang
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1250, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 0, right: 100 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -161,12 +162,12 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.RIGHT,
           children: logoKarawangBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 50, height: 68 },
+                  transformation: { width: 55, height: 75 },
                   type: "png",
                 }),
               ]
@@ -177,8 +178,9 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
     // Kolom Tengah: Teks Identitas Sekolah
     new TableCell({
-      width: { size: 5500, type: WidthType.DXA },
+      width: { size: 5305, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 60, right: 60 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -249,8 +251,9 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
     // Kolom Kanan: Logo SMPN 8
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1250, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 100, right: 0 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -259,12 +262,12 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
           children: logoSekolahBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoSekolahBuffer),
-                  transformation: { width: 62, height: 62 },
+                  transformation: { width: 66, height: 66 },
                   type: "png",
                 }),
               ]
@@ -276,7 +279,8 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
   const kopTable = new Table({
     alignment: AlignmentType.CENTER,
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: 7805, type: WidthType.DXA },
+    columnWidths: [1250, 5305, 1250],
     borders: {
       top: { style: BorderStyle.NONE },
       bottom: { style: BorderStyle.NONE },
@@ -374,7 +378,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   };
 
   const tableHeaderRow = new TableRow({
-    height: { value: 300, rule: HeightRule.ATLEAST },
+    height: { value: 240, rule: HeightRule.ATLEAST },
     tableHeader: true,
     children: [
       createHeaderCell("TANGGAL", 1030),
@@ -468,7 +472,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
 
     dataRows.push(
       new TableRow({
-        height: { value: 235, rule: HeightRule.ATLEAST },
+        height: { value: 200, rule: HeightRule.ATLEAST },
         children: [
           createDataCell(String(dayNumber), 1030, AlignmentType.CENTER),
           createDataCell(hariName, 1561, AlignmentType.CENTER),
@@ -594,11 +598,11 @@ function createHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "FFFFFF" },
-    margins: { top: 40, bottom: 40, left: 60, right: 60 },
+    margins: { top: 18, bottom: 18, left: 35, right: 35 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 240 },
+        spacing: { before: 0, after: 0, line: 210 },
         children: [
           new TextRun({
             text,
@@ -620,11 +624,11 @@ function createDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 25, bottom: 25, left: 60, right: 60 },
+    margins: { top: 10, bottom: 10, left: 30, right: 30 },
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 230 },
+        spacing: { before: 0, after: 0, line: 200 },
         children: [
           new TextRun({
             text,
@@ -690,11 +694,11 @@ function createCompactHeaderCell(
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 25, bottom: 25, left: 30, right: 30 },
+    margins: { top: 14, bottom: 14, left: 16, right: 16 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 190 },
+        spacing: { before: 0, after: 0, line: 180 },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -718,11 +722,11 @@ function createCompactDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 20, bottom: 20, left: 30, right: 30 },
+    margins: { top: 8, bottom: 8, left: 16, right: 16 },
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 195 },
+        spacing: { before: 0, after: 0, line: 185 },
         children: [
           new TextRun({
             text,
@@ -754,8 +758,9 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
   const kopRowCells: TableCell[] = [
     // Kolom Kiri: Logo Karawang
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 0, right: 120 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -764,12 +769,12 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.RIGHT,
           children: logoKarawangBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 44, height: 60 },
+                  transformation: { width: 55, height: 75 },
                   type: "png",
                 }),
               ]
@@ -780,8 +785,9 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
 
     // Kolom Tengah: Teks Identitas Sekolah
     new TableCell({
-      width: { size: 8100, type: WidthType.DXA },
+      width: { size: 7300, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 60, right: 60 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -852,8 +858,9 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
 
     // Kolom Kanan: Logo SMPN 8
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 120, right: 0 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -862,12 +869,12 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
           children: logoSekolahBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoSekolahBuffer),
-                  transformation: { width: 54, height: 54 },
+                  transformation: { width: 66, height: 66 },
                   type: "png",
                 }),
               ]
@@ -879,7 +886,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
 
   const kopTable = new Table({
     alignment: AlignmentType.CENTER,
-    columnWidths: [1200, 8100, 1200],
+    columnWidths: [1600, 7300, 1600],
     width: { size: 10500, type: WidthType.DXA },
     borders: {
       top: { style: BorderStyle.NONE },
@@ -933,7 +940,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
   const colWidths = [450, 2650, 1900, 950, 750, 750, 700, 700, 850, 800]; // Total: 10500 DXA
 
   const tableHeaderRow = new TableRow({
-    height: { value: 300, rule: HeightRule.ATLEAST },
+    height: { value: 240, rule: HeightRule.ATLEAST },
     tableHeader: true,
     cantSplit: true,
     children: [
@@ -1201,11 +1208,11 @@ function createMengajarHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 30, bottom: 30, left: 35, right: 35 },
+    margins: { top: 15, bottom: 15, left: 20, right: 20 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 200 },
+        spacing: { before: 0, after: 0, line: 190 },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -1228,11 +1235,11 @@ function createMengajarDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 20, bottom: 20, left: 35, right: 35 },
+    margins: { top: 10, bottom: 10, left: 20, right: 20 },
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 200 },
+        spacing: { before: 0, after: 0, line: 185 },
         children: [
           new TextRun({
             text,
@@ -1264,8 +1271,9 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
   const kopRowCells: TableCell[] = [
     // Kolom Kiri: Logo Karawang
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 0, right: 120 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1274,12 +1282,12 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.RIGHT,
           children: logoKarawangBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 44, height: 60 },
+                  transformation: { width: 55, height: 75 },
                   type: "png",
                 }),
               ]
@@ -1290,8 +1298,9 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
 
     // Kolom Tengah: Teks Identitas Sekolah
     new TableCell({
-      width: { size: 8100, type: WidthType.DXA },
+      width: { size: 7300, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 60, right: 60 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1362,8 +1371,9 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
 
     // Kolom Kanan: Logo SMPN 8
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 120, right: 0 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1372,12 +1382,12 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
           children: logoSekolahBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoSekolahBuffer),
-                  transformation: { width: 54, height: 54 },
+                  transformation: { width: 66, height: 66 },
                   type: "png",
                 }),
               ]
@@ -1389,7 +1399,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
 
   const kopTable = new Table({
     alignment: AlignmentType.CENTER,
-    columnWidths: [1200, 8100, 1200],
+    columnWidths: [1600, 7300, 1600],
     width: { size: 10500, type: WidthType.DXA },
     borders: {
       top: { style: BorderStyle.NONE },
@@ -1443,7 +1453,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
   const colWidths = [500, 3800, 2200, 1000, 1000, 1000, 1000]; // Total: 10500 DXA
 
   const tableHeaderRow = new TableRow({
-    height: { value: 300, rule: HeightRule.ATLEAST },
+    height: { value: 240, rule: HeightRule.ATLEAST },
     tableHeader: true,
     cantSplit: true,
     children: [
@@ -1762,11 +1772,11 @@ function createSlimHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 25, bottom: 25, left: 15, right: 15 },
+    margins: { top: 14, bottom: 14, left: 10, right: 10 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 190 },
+        spacing: { before: 0, after: 0, line: 180 },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -1790,11 +1800,11 @@ function createSlimDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 18, bottom: 18, left: 15, right: 15 },
+    margins: { top: 8, bottom: 8, left: 10, right: 10 },
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 195 },
+        spacing: { before: 0, after: 0, line: 185 },
         children: [
           new TextRun({
             text,
@@ -1821,8 +1831,9 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
   const kopRowCells: TableCell[] = [
     // Kolom Kiri: Logo Karawang
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 0, right: 120 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1831,12 +1842,12 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.RIGHT,
           children: logoKarawangBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoKarawangBuffer),
-                  transformation: { width: 54, height: 54 },
+                  transformation: { width: 55, height: 75 },
                   type: "png",
                 }),
               ]
@@ -1847,8 +1858,9 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
 
     // Kolom Tengah: Teks Kop Surat
     new TableCell({
-      width: { size: 8100, type: WidthType.DXA },
+      width: { size: 7300, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 60, right: 60 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1919,8 +1931,9 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
 
     // Kolom Kanan: Logo SMPN 8
     new TableCell({
-      width: { size: 1200, type: WidthType.DXA },
+      width: { size: 1600, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 0, bottom: 0, left: 120, right: 0 },
       borders: {
         top: { style: BorderStyle.NONE },
         bottom: { style: BorderStyle.NONE },
@@ -1929,12 +1942,12 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
       },
       children: [
         new Paragraph({
-          alignment: AlignmentType.CENTER,
+          alignment: AlignmentType.LEFT,
           children: logoSekolahBuffer
             ? [
                 new ImageRun({
                   data: new Uint8Array(logoSekolahBuffer),
-                  transformation: { width: 54, height: 54 },
+                  transformation: { width: 66, height: 66 },
                   type: "png",
                 }),
               ]
@@ -1946,6 +1959,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
 
   const kopTable = new Table({
     alignment: AlignmentType.CENTER,
+    columnWidths: [1600, 7300, 1600],
     width: { size: 10500, type: WidthType.DXA },
     borders: {
       top: { style: BorderStyle.NONE },
@@ -2239,7 +2253,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
   const colWidths = [450, 2250, 1050, 2450, 1500, 1400, 1400]; // Total: 10500 DXA
 
   const tableHeaderRow = new TableRow({
-    height: { value: 300, rule: HeightRule.ATLEAST },
+    height: { value: 240, rule: HeightRule.ATLEAST },
     tableHeader: true,
     cantSplit: true,
     children: [
@@ -2263,7 +2277,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
             width: { size: 10500, type: WidthType.DXA },
             columnSpan: 7,
             verticalAlign: VerticalAlign.CENTER,
-            margins: { top: 120, bottom: 120, left: 30, right: 30 },
+            margins: { top: 50, bottom: 50, left: 20, right: 20 },
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
