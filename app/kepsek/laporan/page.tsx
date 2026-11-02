@@ -224,35 +224,48 @@ export default function LaporanAbsensiPage() {
     });
   }, [activeGuruList, laporanKehadiran, periodeLabel, startDate, endDate, hariLiburList, pengaturanSistem]);
 
-  // Filter Data Kehadiran per Guru untuk Tabel Utama
+  // Filter & Urutkan Data Kehadiran per Guru untuk Tabel Utama (Persentase Tertinggi -> Terendah)
   const filteredGuruKehadiran = useMemo(() => {
-    return rekapKehadiranList.filter((g) => {
-      const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
-      let matchStatus = true;
-      if (selectedStatus === "sempurna") {
-        matchStatus = g.persentaseHadir === 100;
-      } else if (selectedStatus === "rendah") {
-        matchStatus = g.persentaseHadir < 80;
-      } else if (selectedStatus === "alpha") {
-        matchStatus = g.tidakHadir > 0;
-      } else if (selectedStatus === "binaan") {
-        matchStatus = g.persentaseHadir < 80 || g.tidakHadir > 0;
-      } else if (selectedStatus !== "all") {
-        matchStatus =
-          (selectedStatus === "hadir" && g.jumlahHadir > 0) ||
-          (selectedStatus === "izin" && g.izin > 0) ||
-          (selectedStatus === "sakit" && g.sakit > 0) ||
-          (selectedStatus === "dinas" && g.dinasLuar > 0) ||
-          (selectedStatus.includes("tidak") && g.tidakHadir > 0);
-      }
-      const query = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        query === "" ||
-        g.nama.toLowerCase().includes(query) ||
-        g.nip.toLowerCase().includes(query);
+    return rekapKehadiranList
+      .filter((g) => {
+        const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
+        let matchStatus = true;
+        if (selectedStatus === "sempurna") {
+          matchStatus = g.persentaseHadir === 100;
+        } else if (selectedStatus === "rendah") {
+          matchStatus = g.persentaseHadir < 80;
+        } else if (selectedStatus === "alpha") {
+          matchStatus = g.tidakHadir > 0;
+        } else if (selectedStatus === "binaan") {
+          matchStatus = g.persentaseHadir < 80 || g.tidakHadir > 0;
+        } else if (selectedStatus !== "all") {
+          matchStatus =
+            (selectedStatus === "hadir" && g.jumlahHadir > 0) ||
+            (selectedStatus === "izin" && g.izin > 0) ||
+            (selectedStatus === "sakit" && g.sakit > 0) ||
+            (selectedStatus === "dinas" && g.dinasLuar > 0) ||
+            (selectedStatus.includes("tidak") && g.tidakHadir > 0);
+        }
+        const query = searchQuery.toLowerCase().trim();
+        const matchSearch =
+          query === "" ||
+          g.nama.toLowerCase().includes(query) ||
+          g.nip.toLowerCase().includes(query);
 
-      return matchGuru && matchStatus && matchSearch;
-    });
+        return matchGuru && matchStatus && matchSearch;
+      })
+      .sort((a, b) => {
+        // Prioritas 1: Persentase Kehadiran Tertinggi (Descending)
+        if (b.persentaseHadir !== a.persentaseHadir) {
+          return b.persentaseHadir - a.persentaseHadir;
+        }
+        // Tie-breaker 1: Jumlah Kehadiran Riil Terbanyak
+        if (b.jumlahHadir !== a.jumlahHadir) {
+          return b.jumlahHadir - a.jumlahHadir;
+        }
+        // Tie-breaker 2: Nama Alfabetis A-Z
+        return a.nama.localeCompare(b.nama, "id");
+      });
   }, [rekapKehadiranList, selectedGuru, selectedStatus, searchQuery]);
 
   // Filter Data Mengajar (TETAP — TIDAK DIUBAH)
@@ -414,23 +427,36 @@ export default function LaporanAbsensiPage() {
     });
   }, [activeGuruList, laporanMengajar, jadwalList, hariLiburList, pengaturanSistem, startDate, endDate, periodeLabel]);
 
-  // Filter Data Mengajar per Guru untuk Tabel Utama
+  // Filter & Urutkan Data Mengajar per Guru untuk Tabel Utama (Persentase Tertinggi -> Terendah)
   const filteredGuruMengajar = useMemo(() => {
-    return rekapMengajarList.filter((g) => {
-      const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
-      const matchKelas = selectedKelas === "all" || g.kelasIds.includes(selectedKelas);
-      const matchStatus =
-        selectedStatus === "all" ||
-        (selectedStatus === "mengajar" && g.jumlahMengajar > 0) ||
-        (selectedStatus === "tidak_mengajar" && g.tidakMengajar > 0);
-      const query = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        query === "" ||
-        g.nama.toLowerCase().includes(query) ||
-        g.nip.toLowerCase().includes(query);
+    return rekapMengajarList
+      .filter((g) => {
+        const matchGuru = selectedGuru === "all" || g.guruId === selectedGuru;
+        const matchKelas = selectedKelas === "all" || g.kelasIds.includes(selectedKelas);
+        const matchStatus =
+          selectedStatus === "all" ||
+          (selectedStatus === "mengajar" && g.jumlahMengajar > 0) ||
+          (selectedStatus === "tidak_mengajar" && g.tidakMengajar > 0);
+        const query = searchQuery.toLowerCase().trim();
+        const matchSearch =
+          query === "" ||
+          g.nama.toLowerCase().includes(query) ||
+          g.nip.toLowerCase().includes(query);
 
-      return matchGuru && matchKelas && matchStatus && matchSearch;
-    });
+        return matchGuru && matchKelas && matchStatus && matchSearch;
+      })
+      .sort((a, b) => {
+        // Prioritas 1: Persentase Mengajar Tertinggi (Descending)
+        if (b.persentaseMengajar !== a.persentaseMengajar) {
+          return b.persentaseMengajar - a.persentaseMengajar;
+        }
+        // Tie-breaker 1: Jumlah Sesi Mengajar Terbanyak
+        if (b.jumlahMengajar !== a.jumlahMengajar) {
+          return b.jumlahMengajar - a.jumlahMengajar;
+        }
+        // Tie-breaker 2: Nama Alfabetis A-Z
+        return a.nama.localeCompare(b.nama, "id");
+      });
   }, [rekapMengajarList, selectedGuru, selectedKelas, selectedStatus, searchQuery]);
 
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
