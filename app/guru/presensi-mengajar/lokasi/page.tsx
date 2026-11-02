@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 import { verifikasiLokasiMengajar } from "@/actions/presensi";
 import { getJadwalById } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
@@ -17,27 +18,42 @@ function LokasiMengajarContent() {
   const hari = searchParams.get("hari");
 
   const [jadwal, setJadwal] = useState<JadwalWithDetail | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [scanState, setScanState] = useState<ScanState>("IDLE");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [namaKelas, setNamaKelas] = useState<string>("");
   const [radiusToleransi, setRadiusToleransi] = useState<number>(5);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadJadwal() {
-      if (!jadwalId) return;
+      if (!jadwalId) {
+        if (isMounted) setIsInitialLoading(false);
+        return;
+      }
       try {
         const data = await getJadwalById(jadwalId);
-        if (data) {
+        if (data && isMounted) {
           setJadwal(data);
           if (data.kelas?.nama_kelas) {
             setNamaKelas(data.kelas.nama_kelas);
           }
+          if (data.kelas?.radius_meter) {
+            setRadiusToleransi(Number(data.kelas.radius_meter) || 5);
+          }
         }
       } catch (err) {
         console.error("Gagal memuat jadwal:", err);
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+        }
       }
     }
     loadJadwal();
+    return () => {
+      isMounted = false;
+    };
   }, [jadwalId]);
 
   const handleScan = () => {
@@ -117,6 +133,15 @@ function LokasiMengajarContent() {
   };
 
   const displayKelas = namaKelas || jadwal?.kelas?.nama_kelas || "Ruang Kelas";
+
+  if (isInitialLoading) {
+    return (
+      <FullScreenLoader
+        message="Menyiapkan data ruang kelas..."
+        bgClass="bg-[#EEF2F7]"
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
@@ -233,10 +258,10 @@ export default function LokasiMengajarPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col min-h-full items-center justify-center bg-[#EEF2F7] py-20">
-          <div className="w-9 h-9 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <p className="mt-3 text-xs font-semibold text-slate-500">Memuat data lokasi kelas...</p>
-        </div>
+        <FullScreenLoader
+          message="Menyiapkan data ruang kelas..."
+          bgClass="bg-[#EEF2F7]"
+        />
       }
     >
       <LokasiMengajarContent />

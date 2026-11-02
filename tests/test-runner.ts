@@ -1996,6 +1996,21 @@ async function runAllTests() {
     "Pemindaian QR eksternal diarahkan melewati verifikasi geolokasi kelas terlebih dahulu."
   );
 
+  // TC-DEC-07: Proteksi Anti-Flicker & Loading Screen Data Kelas
+  const lokasiLoadingPath = path.resolve(process.cwd(), "app/guru/presensi-mengajar/lokasi/loading.tsx");
+  const lokasiLoadingExists = fs.existsSync(lokasiLoadingPath);
+  const hasAntiFlickerLoader =
+    lokasiMengajarContent.includes("isInitialLoading") &&
+    lokasiMengajarContent.includes("FullScreenLoader");
+  assert(
+    s25,
+    "TC-DEC-07",
+    "Proteksi Anti-Flicker & Loading Screen Ruang Kelas",
+    "Menampilkan loading screen sampai data kelas selesai dimuat sebelum merender kartu lokasi",
+    lokasiLoadingExists && hasAntiFlickerLoader,
+    "Loading screen aktif menahan render awal sehingga nama kelas tidak berubah/berkedip mendadak."
+  );
+
   // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
