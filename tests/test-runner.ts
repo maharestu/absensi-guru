@@ -58,6 +58,7 @@ import {
   REKAP_TABLE_FONT_SIZE,
   REKAP_NIP_FONT_PT,
   REKAP_NIP_FONT_SIZE,
+  TABLE_LINE_SPACING_1_15,
 } from "@/lib/export-docx";
 
 // Struktur data pelaporan pengujian
@@ -112,7 +113,7 @@ async function runAllTests() {
   // SUITE 1: Autentikasi, Akun, & Kriptografi Sesi
   // ============================================================================
   const s1 = registerSuite("Suite 1: Autentikasi, Kriptografi Sesi, & Akun", "actions/auth.ts, lib/session.ts");
-  
+
   // TC-AUTH-01: Form Kosong
   function validateLoginInput(nip: string, pass: string): boolean {
     return Boolean(nip && nip.trim()) && Boolean(pass && pass.trim());
@@ -185,7 +186,7 @@ async function runAllTests() {
   // SUITE 2: Middleware & Route Protection Guard
   // ============================================================================
   const s2 = registerSuite("Suite 2: Middleware & Route Protection Guard", "middleware.ts");
-  
+
   function simulateMiddleware(pathname: string, session: { role: string } | null) {
     const isAuth = !!session;
     const role = session?.role;
@@ -256,11 +257,11 @@ async function runAllTests() {
 
   // TC-GEO-06: Pergeseran Lat 0.01 deg
   const d001 = calculateDistanceMeter(baseLat, baseLng, baseLat + 0.01, baseLng);
-  assert(s3, "TC-GEO-06", "Pergeseran Lat 0.01 deg", "Pergeseran 0.01 deg lat", d001 > 1000 && !isWithinGeofence(baseLat, baseLng, baseLat + 0.01, baseLng, 100), `Jarak = ${(d001/1000).toFixed(2)} km -> Ditolak keluar area.`);
+  assert(s3, "TC-GEO-06", "Pergeseran Lat 0.01 deg", "Pergeseran 0.01 deg lat", d001 > 1000 && !isWithinGeofence(baseLat, baseLng, baseLat + 0.01, baseLng, 100), `Jarak = ${(d001 / 1000).toFixed(2)} km -> Ditolak keluar area.`);
 
   // TC-GEO-07: Jarak Jauh (>5 km)
   const dFar = calculateDistanceMeter(baseLat, baseLng, baseLat + 0.05, baseLng);
-  assert(s3, "TC-GEO-07", "Jarak Jauh (>5 km)", "Pergeseran 0.05 deg lat", dFar > 5000, `Jarak = ${(dFar/1000).toFixed(2)} km -> Ditolak keluar area.`);
+  assert(s3, "TC-GEO-07", "Jarak Jauh (>5 km)", "Pergeseran 0.05 deg lat", dFar > 5000, `Jarak = ${(dFar / 1000).toFixed(2)} km -> Ditolak keluar area.`);
 
   // TC-GEO-08: Koordinat Negatif (Belahan bumi selatan)
   const dSouth = calculateDistanceMeter(-7.5, 110.3, -7.5005, 110.3005);
@@ -385,7 +386,7 @@ async function runAllTests() {
   const s9 = registerSuite("Suite 9: Smart Excel Import & Fuzzy Name Matcher", "actions/import.ts, lib/name-matcher.ts");
 
   // TC-IMP-01: NIP Sementara
-  const mockTempNip = `TEMP-${Math.random().toString().slice(2, 18)}`;
+  const mockTempNip = `TEMP-${Math.random().toString().slice(2, 18).padEnd(16, "0")}`;
   assert(s9, "TC-IMP-01", "NIP Sementara Otomatis", "Pegawai baru tanpa NIP", mockTempNip.startsWith("TEMP-") && mockTempNip.length >= 20, "Format TEMP-<16 digit acak> berhasil dibuat.");
 
   // TC-IMP-02: Fuzzy Matching Gelar Belakang
@@ -428,7 +429,7 @@ async function runAllTests() {
 
   assert(s10, "TC-SEC-01", "SQL Injection (Login)", "' OR 1=1 --", true, "Query parametris Supabase PostgreSQL kebal SQLi.");
   assert(s10, "TC-SEC-02", "SQLi Parameterized", "admin'; DROP TABLE akun;--", true, "Input diperlakukan sebagai literal string aman.");
-  
+
   // TC-SEC-03: Session Cookie Forgery
   const forgedToken = token.slice(0, -6) + "fake99";
   const forgedResult = await verifySessionToken(forgedToken);
@@ -972,9 +973,9 @@ async function runAllTests() {
     "Validasi Anomali Nilai Geolocation (NaN, Infinity, Range)",
     "Input: 'Infinity', 'NaN', '-999', '106.816'",
     safeParseCoord("Infinity") === null &&
-      safeParseCoord("NaN") === null &&
-      safeParseCoord("-999") === null &&
-      safeParseCoord("106.816") === 106.816,
+    safeParseCoord("NaN") === null &&
+    safeParseCoord("-999") === null &&
+    safeParseCoord("106.816") === 106.816,
     "Input koordinat abnormal ditolak, koordinat valid diterima."
   );
 
@@ -1005,8 +1006,8 @@ async function runAllTests() {
     "Isolasi MIME Type & Ekstensi File Upload",
     "Mencoba upload .exe / .php vs .webp",
     validateUploadType("application/x-msdownload", "virus.exe") === false &&
-      validateUploadType("text/x-php", "shell.php") === false &&
-      validateUploadType("image/webp", "foto_absen.webp") === true,
+    validateUploadType("text/x-php", "shell.php") === false &&
+    validateUploadType("image/webp", "foto_absen.webp") === true,
     "Eksekusi file berbahaya ditolak, hanya file foto WebP/PDF yang diizinkan."
   );
 
@@ -1029,7 +1030,7 @@ async function runAllTests() {
     "Boundary Geofencing Presisi Ekstrem (Tepat pada Radius R)",
     `Jarak dalam: ${distInsideBB.toFixed(1)}m, Jarak luar: ${distOutsideBB.toFixed(1)}m, R: 100m`,
     isWithinGeofence(insideLatBB, schoolLngBB, schoolLatBB, schoolLngBB, 100) === true &&
-      isWithinGeofence(outsideLatBB, schoolLngBB, schoolLatBB, schoolLngBB, 100) === false,
+    isWithinGeofence(outsideLatBB, schoolLngBB, schoolLatBB, schoolLngBB, 100) === false,
     "Perhitungan Haversine akurat membedakan posisi 99.x m (Diterima) vs 101.x m (Ditolak)."
   );
 
@@ -1050,8 +1051,8 @@ async function runAllTests() {
     "Boundary Waktu Masuk & Toleransi Detik (07:05:00 vs 07:05:01)",
     "07:00:00 (Tepat), 07:05:00 (Toleransi pas), 07:05:01 (Terlambat 1 detik)",
     evalKetepatanWaktuBB("07:00:00") === "Tepat Waktu" &&
-      evalKetepatanWaktuBB("07:05:00") === "Tepat Waktu" &&
-      evalKetepatanWaktuBB("07:05:01") === "Terlambat",
+    evalKetepatanWaktuBB("07:05:00") === "Tepat Waktu" &&
+    evalKetepatanWaktuBB("07:05:01") === "Terlambat",
     "Batas toleransi detik dievaluasi presisi tanpa pembulatan liar."
   );
 
@@ -1085,9 +1086,9 @@ async function runAllTests() {
     "Validitas Waktu Scan QR Mengajar (+/- 15 Menit Toleransi)",
     "07:44 (Terlalu Cepat), 07:46 (Boleh Masuk), 09:44 (Boleh Masuk), 09:46 (Kedaluwarsa)",
     validateQrWaktuMengajarBB(7 * 60 + 44, 8 * 60, 9 * 60 + 30) === false &&
-      validateQrWaktuMengajarBB(7 * 60 + 46, 8 * 60, 9 * 60 + 30) === true &&
-      validateQrWaktuMengajarBB(9 * 60 + 44, 8 * 60, 9 * 60 + 30) === true &&
-      validateQrWaktuMengajarBB(9 * 60 + 46, 8 * 60, 9 * 60 + 30) === false,
+    validateQrWaktuMengajarBB(7 * 60 + 46, 8 * 60, 9 * 60 + 30) === true &&
+    validateQrWaktuMengajarBB(9 * 60 + 44, 8 * 60, 9 * 60 + 30) === true &&
+    validateQrWaktuMengajarBB(9 * 60 + 46, 8 * 60, 9 * 60 + 30) === false,
     "Rentang toleransi scan QR mengajar berjalan sesuai aturan 15 menit sebelum & sesudah KBM."
   );
 
@@ -1109,7 +1110,7 @@ async function runAllTests() {
     "Penanganan QR Code Rusak / Malformed / Tampered",
     "Input: 'BOGUS_STRING_NOT_JSON' vs JSON lengkap",
     parseAndValidateQrPayloadBB("BOGUS_STRING_NOT_JSON").ok === false &&
-      parseAndValidateQrPayloadBB(JSON.stringify({ jadwal_id: "1", kelas_id: "2", kode_qr: "ABC" })).ok === true,
+    parseAndValidateQrPayloadBB(JSON.stringify({ jadwal_id: "1", kelas_id: "2", kode_qr: "ABC" })).ok === true,
     "QR code rusak atau tidak valid ditolak dengan pesan error yang aman tanpa crash."
   );
 
@@ -1378,9 +1379,9 @@ async function runAllTests() {
     "Integritas View Model Berbasis Database Asli",
     "ID adalah UUID asli, waktu_masuk null (strip), status 'Tidak Hadir'",
     mappedRow.id === "db-uuid-real-12345" &&
-      mappedRow.waktu_masuk === null &&
-      mappedRow.status === "Tidak Hadir" &&
-      mappedRow.waktu_submit === null,
+    mappedRow.waktu_masuk === null &&
+    mappedRow.status === "Tidak Hadir" &&
+    mappedRow.waktu_submit === null,
     "Data view model mengadopsi ID asli database tanpa menampilkan jam absensi semu."
   );
 
@@ -1439,10 +1440,10 @@ async function runAllTests() {
     "Parsing Nilai & Satuan ScrollingStatCards",
     "Pemisahan angka bold dan satuan teks normal",
     pJadwal.numPart === "24" && pJadwal.unitPart === "Jadwal" &&
-      pSesi.numPart === "18" && pSesi.unitPart === "Sesi" &&
-      pGuru.numPart === "15" && pGuru.unitPart === "Guru" &&
-      pPercent.numPart === "95.5%" && pPercent.unitPart === null &&
-      pPureNum.numPart === "32" && pPureNum.unitPart === null,
+    pSesi.numPart === "18" && pSesi.unitPart === "Sesi" &&
+    pGuru.numPart === "15" && pGuru.unitPart === "Guru" &&
+    pPercent.numPart === "95.5%" && pPercent.unitPart === null &&
+    pPureNum.numPart === "32" && pPureNum.unitPart === null,
     "Parsing teks berhasil memisahkan angka numerik dari satuan keterangan secara presisi."
   );
 
@@ -1503,8 +1504,8 @@ async function runAllTests() {
     "Konsistensi Format Subtitle Identitas & Periode Modal",
     "NIP/NUPTK seragam dan rentang tanggal 'start hingga end'",
     formatGuruSubtitle("19800101") === "NIP/NUPTK 19800101" &&
-      formatGuruSubtitle(null) === "NIP/NUPTK -" &&
-      formatPeriodeLabelModal("01-10-2026", "31-10-2026") === "01-10-2026 hingga 31-10-2026",
+    formatGuruSubtitle(null) === "NIP/NUPTK -" &&
+    formatPeriodeLabelModal("01-10-2026", "31-10-2026") === "01-10-2026 hingga 31-10-2026",
     "Label identitas dan rentang waktu pada modal mengajar identik 100% dengan modal kehadiran."
   );
 
@@ -1526,10 +1527,10 @@ async function runAllTests() {
     "Validasi Pre-flight Form Presensi Pulang",
     "Menolak submit tanpa foto dan meloloskan foto valid",
     !checkNoPhoto.valid &&
-      Boolean(checkNoPhoto.error?.includes("Foto absensi tidak ditemukan")) &&
-      !checkEmptyPhoto.valid &&
-      checkValidPhoto.valid &&
-      checkValidPhoto.error === null,
+    Boolean(checkNoPhoto.error?.includes("Foto absensi tidak ditemukan")) &&
+    !checkEmptyPhoto.valid &&
+    checkValidPhoto.valid &&
+    checkValidPhoto.error === null,
     "Pre-flight verifikasi presensi pulang melindungi alur submit dari data tidak lengkap."
   );
 
@@ -1547,7 +1548,7 @@ async function runAllTests() {
     "Standarisasi Label Kartu Statistik Ringkas (Anti-Truncate)",
     "Label 'Kehadiran 100%' menggantikan teks panjang 'Kehadiran Sempurna (100%)' agar pas di mobile",
     statCardLabels.find((c) => c.id === "kehadiran-sempurna")?.label === "Kehadiran 100%" &&
-      statCardLabels.every((c) => c.label.length <= 20),
+    statCardLabels.every((c) => c.label.length <= 20),
     "Label kartu statistik hadir 100% ringkas dan tidak memicu elipsis atau kebingungan pada layar HP."
   );
 
@@ -1610,11 +1611,11 @@ async function runAllTests() {
     "Pemetaan ViewModel Absensi Pulang",
     "Record waktu_pulang terpetakan dengan id, nama, nip, foto, dan jam",
     mappedPulang.length === 2 &&
-      mappedPulang[0].nama_guru === "Budi Santoso, S.Pd" &&
-      mappedPulang[0].nip_guru === "198001012005011001" &&
-      mappedPulang[0].foto_pulang === "https://mock.storage/foto_pulang1.webp" &&
-      mappedPulang[1].nama_guru === "Ahmad Dahlan" &&
-      mappedPulang[1].nip_guru === null,
+    mappedPulang[0].nama_guru === "Budi Santoso, S.Pd" &&
+    mappedPulang[0].nip_guru === "198001012005011001" &&
+    mappedPulang[0].foto_pulang === "https://mock.storage/foto_pulang1.webp" &&
+    mappedPulang[1].nama_guru === "Ahmad Dahlan" &&
+    mappedPulang[1].nip_guru === null,
     "ViewModel PulangHariIni memetakan identitas guru dan foto pulang secara lengkap."
   );
 
@@ -1635,7 +1636,7 @@ async function runAllTests() {
     "Format Waktu Kepulangan Standar WIB",
     "Waktu kepulangan berakhiran 'WIB'",
     mappedPulang[0].waktu_pulang.endsWith("WIB") &&
-      mappedPulang[0].waktu_pulang.includes(":"),
+    mappedPulang[0].waktu_pulang.includes(":"),
     "Format jam pulang WIB terstandarisasi untuk kenyamanan pantauan kepala sekolah."
   );
 
@@ -1651,10 +1652,10 @@ async function runAllTests() {
     "Struktur Kolom Ramping Khusus Hari Ini",
     "Kolom: NAMA GURU, FOTO, WAKTU PULANG (tanpa tanggal & NIP)",
     columns.length === 3 &&
-      columns[0] === "NAMA GURU" &&
-      columns[1] === "FOTO" &&
-      columns[2] === "WAKTU PULANG" &&
-      !columns.includes("TANGGAL"),
+    columns[0] === "NAMA GURU" &&
+    columns[1] === "FOTO" &&
+    columns[2] === "WAKTU PULANG" &&
+    !columns.includes("TANGGAL"),
     "Tabel absensi pulang tersaji ramping 3 kolom karena konteks data sudah terfokus untuk hari ini."
   );
 
@@ -1680,11 +1681,11 @@ async function runAllTests() {
     "Pencarian Realtime Tabel Absensi Pulang",
     "Mendukung filter nama, NIP, jam pulang, dan menangani query tanpa hasil",
     searchByName.length === 1 &&
-      searchByName[0].id === "abs-1" &&
-      searchByNip.length === 1 &&
-      searchByTime.length === 1 &&
-      searchByTime[0].id === "abs-3" &&
-      searchEmpty.length === 0,
+    searchByName[0].id === "abs-1" &&
+    searchByNip.length === 1 &&
+    searchByTime.length === 1 &&
+    searchByTime[0].id === "abs-3" &&
+    searchEmpty.length === 0,
     "Fitur pencarian tabel absensi pulang responsif terhadap multi-field query."
   );
 
@@ -1711,11 +1712,11 @@ async function runAllTests() {
     "Layout Penjajaran & Responsivitas 1 Layar HP (3 Kolom)",
     "Total lebar 100% (pas di HP tanpa scroll horizontal) & penjajaran header-cell konsisten",
     pulangColumnsConfig.length === 3 &&
-      totalWidth === 100 &&
-      alignmentsConsistent &&
-      pulangColumnsConfig[0].headerAlign === "left" &&
-      pulangColumnsConfig[1].headerAlign === "center" &&
-      pulangColumnsConfig[2].headerAlign === "center",
+    totalWidth === 100 &&
+    alignmentsConsistent &&
+    pulangColumnsConfig[0].headerAlign === "left" &&
+    pulangColumnsConfig[1].headerAlign === "center" &&
+    pulangColumnsConfig[2].headerAlign === "center",
     "Tabel absensi pulang terkonfigurasi sejajar dan muat penuh dalam 1 layar mobile tanpa overflow."
   );
 
@@ -1812,6 +1813,52 @@ async function runAllTests() {
     "Kolom ke-4 menggunakan istilah resmi 'TOTAL HARI KERJA'",
     kehadiranHeaders[3] === "TOTAL HARI KERJA",
     "Penamaan kolom 'TOTAL HARI KERJA' merefleksikan hari kerja efektif sekolah dan tidak rancu dengan hari kalender."
+  );
+
+  // TC-DOCX-07: Verifikasi Spasi Baris 1.15 pada Sel Tabel Rekap Kehadiran
+  const exportDocxPathForSuite23 = path.resolve(process.cwd(), "lib/export-docx.ts");
+  const exportDocxContentSuite23 = fs.existsSync(exportDocxPathForSuite23) ? fs.readFileSync(exportDocxPathForSuite23, "utf-8") : "";
+
+  const hasLineSpacing1_15 =
+    TABLE_LINE_SPACING_1_15 === 276 &&
+    exportDocxContentSuite23.includes("line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO") &&
+    exportDocxContentSuite23.includes("line: 276, lineRule: LineRuleType.AUTO");
+
+  assert(
+    s23,
+    "TC-DOCX-07",
+    "Spasi Baris 1.15 (line: 276 AUTO) pada Sel Tabel Rekap Kehadiran",
+    "TABLE_LINE_SPACING_1_15 bernilai 276 (240 * 1.15) dan terpasang pada paragraf sel tabel",
+    hasLineSpacing1_15,
+    "Jarak antar baris di dalam seluruh tabel ekspor disetel ke 1.15x secara standar OpenXML."
+  );
+
+  // TC-DOCX-08: Verifikasi Font Ringkasan Eksekutif & TTD Menjadi 8pt (size: 16)
+  const hasExecutiveSummary8pt =
+    exportDocxContentSuite23.includes('text: "Ringkasan Eksekutif Kehadiran:"') &&
+    exportDocxContentSuite23.includes('size: 16, // 8pt');
+
+  assert(
+    s23,
+    "TC-DOCX-08",
+    "Ukuran Font Ringkasan Eksekutif & TTD Standar 8pt",
+    "Teks ringkasan kehadiran dan blok tanda tangan menggunakan font 8pt (size: 16)",
+    hasExecutiveSummary8pt,
+    "Seluruh teks ringkasan eksekutif kehadiran dan tanda tangan kepala sekolah disetel ke 8pt (size: 16)."
+  );
+
+  // TC-DOCX-09: Verifikasi Jarak Pemisah (Enter) Antara Tabel dan TTD Rekap Per Guru
+  const normalizedDocxSuite23 = exportDocxContentSuite23.replace(/\r\n/g, "\n");
+  const hasAbsensiPerGuruSpacer =
+    normalizedDocxSuite23.includes("attendanceTable,\n          tableSpacer,\n          ttdTanggal,");
+
+  assert(
+    s23,
+    "TC-DOCX-09",
+    "Jarak Pemisah (Enter) Antara Tabel dan TTD Rekap Per Guru",
+    "tableSpacer terpasang antara attendanceTable dan ttdTanggal di generateRekapAbsensiDocx",
+    hasAbsensiPerGuruSpacer,
+    "Pemisah jarak 1 enter telah ditambahkan antara tabel dan tanda tangan pada rekap per guru."
   );
 
   // ============================================================================
@@ -2269,7 +2316,7 @@ async function runAllTests() {
     "Validasi Kesesuaian Konfirmasi Password",
     "passwordBaru: 'rahasia123', konfirmasi: 'rahasia999'",
     !validatePasswordConfirmation("rahasia123", "rahasia999") &&
-      validatePasswordConfirmation("rahasia123", "rahasia123"),
+    validatePasswordConfirmation("rahasia123", "rahasia123"),
     "Konfirmasi kata sandi yang tidak cocok ditolak seketika."
   );
 
@@ -2299,6 +2346,80 @@ async function runAllTests() {
     "actions/guru-pengaturan.ts mengunci ID dari server session (bukan parameter client)",
     hasSessionGuard,
     "Server Action kebal terhadap manipulasi identitas (IDOR immune)."
+  );
+
+  // TC-SETT-08: Query & Ringkasan Absensi Mengajar di Server Action
+  const hasMengajarQuery =
+    actionsContent.includes("from(\"absensi_mengajar\")") &&
+    actionsContent.includes("mengajarStatistik") &&
+    actionsContent.includes("riwayatMengajar") &&
+    actionsContent.includes("persentaseMengajar");
+  assert(
+    s28,
+    "TC-SETT-08",
+    "Data Rekapitulasi & Log Absensi Mengajar (KBM)",
+    "actions/guru-pengaturan.ts mengquery absensi_mengajar dan menghitung statistik KBM",
+    hasMengajarQuery,
+    "Server Action berhasil mengagregasi data mengajar, tidak mengajar, dan persentase."
+  );
+
+  // TC-SETT-09: Integrasi UI Ringkasan Mengajar, Sub-tab & PhotoOverlay
+  const hasMengajarUI =
+    pengaturanContent.includes("mengajarStat?.persentaseMengajar") &&
+    pengaturanContent.includes("subTabMengajar") &&
+    pengaturanContent.includes("PhotoOverlay") &&
+    pengaturanContent.includes("Riwayat KBM");
+  assert(
+    s28,
+    "TC-SETT-09",
+    "Integrasi UI Ringkasan Mengajar, Sub-tab & Modal Foto",
+    "app/guru/pengaturan/page.tsx merender ringkasan KBM, switcher riwayat/jadwal, dan modal foto",
+    hasMengajarUI,
+    "UI Pengaturan Guru lengkap dengan ringkasan mengajar, riwayat KBM, dan foto bukti."
+  );
+
+  // TC-SETT-10: Pembatasan Statistik Khusus Bulan Berjalan (Current Month Scope)
+  const hasMonthlyScope =
+    actionsContent.includes("currentMonthPrefix") &&
+    actionsContent.includes("periodeBulan") &&
+    pengaturanContent.includes("Bulan Ini");
+  assert(
+    s28,
+    "TC-SETT-10",
+    "Pembatasan Statistik Khusus Bulan Berjalan",
+    "actions/guru-pengaturan.ts menghitung statistik kehadiran & KBM khusus bulan aktif",
+    hasMonthlyScope,
+    "Statistik kehadiran dan mengajar terisolasi ke bulan berjalan dan mereset otomatis di awal bulan baru."
+  );
+
+  // TC-SETT-11: Standarisasi KOP Surat Expor & Cetak (Non-Bold Instansi)
+  const exportDocxPath = path.resolve(process.cwd(), "lib/export-docx.ts");
+  const exportDocxContent = fs.existsSync(exportDocxPath) ? fs.readFileSync(exportDocxPath, "utf-8") : "";
+  const a4PrintPath = path.resolve(process.cwd(), "components/admin/ClassA4PrintTemplate.tsx");
+  const a4PrintContent = fs.existsSync(a4PrintPath) ? fs.readFileSync(a4PrintPath, "utf-8") : "";
+
+  const normalizedDocx = exportDocxContent.replace(/\r\n/g, "\n");
+  const normalizedA4 = a4PrintContent.replace(/\r\n/g, "\n");
+
+  const docxMatches = [...normalizedDocx.matchAll(/text:\s*"PEMERINTAH KABUPATEN KARAWANG"[\s\S]*?text:\s*"DINAS PENDIDIKAN DAN KEBUDAYAAN"[\s\S]*?text:\s*"SMP NEGERI 8 KARAWANG BARAT"/g)];
+  const docxKopValid = docxMatches.length >= 4 && docxMatches.every((m) => {
+    const chunk = m[0];
+    const pemkabPart = chunk.slice(0, chunk.indexOf("DINAS PENDIDIKAN DAN KEBUDAYAAN"));
+    const dinasPart = chunk.slice(chunk.indexOf("DINAS PENDIDIKAN DAN KEBUDAYAAN"), chunk.indexOf("SMP NEGERI 8 KARAWANG BARAT"));
+    return !pemkabPart.includes("bold: true") && !dinasPart.includes("bold: true");
+  });
+
+  const a4KopValid =
+    !normalizedA4.includes('font-bold text-slate-800 tracking-wider leading-tight uppercase font-sans">\n                PEMERINTAH KABUPATEN KARAWANG') &&
+    normalizedA4.includes('font-normal text-slate-800 tracking-wider leading-tight uppercase font-sans">\n                PEMERINTAH KABUPATEN KARAWANG');
+
+  assert(
+    s28,
+    "TC-SETT-11",
+    "Standarisasi KOP Surat Expor & Cetak (Non-Bold Instansi)",
+    "PEMERINTAH KABUPATEN KARAWANG & DINAS PENDIDIKAN DAN KEBUDAYAAN tidak di-bold di seluruh KOP",
+    docxKopValid && a4KopValid,
+    "Seluruh KOP dokumen expor (DOCX & Print Template) telah disesuaikan agar teks dinas/pemkab tidak di-bold."
   );
 
   // ============================================================================

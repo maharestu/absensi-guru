@@ -62,10 +62,10 @@ export function ClassA4PrintTemplate({ classData, logoBase64, logoKarawangBase64
 
             {/* Teks Kop Surat */}
             <div className="text-center flex-1 px-4">
-              <h3 className="text-base font-bold text-slate-800 tracking-wider leading-tight uppercase font-sans">
+              <h3 className="text-base font-normal text-slate-800 tracking-wider leading-tight uppercase font-sans">
                 PEMERINTAH KABUPATEN KARAWANG
               </h3>
-              <h3 className="text-base font-bold text-slate-800 tracking-wider leading-tight uppercase font-sans mt-0.5">
+              <h3 className="text-base font-normal text-slate-800 tracking-wider leading-tight uppercase font-sans mt-0.5">
                 DINAS PENDIDIKAN DAN KEBUDAYAAN
               </h3>
               <h2 className="text-xl font-black text-slate-900 tracking-widest uppercase font-sans mt-1">

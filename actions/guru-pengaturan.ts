@@ -12,6 +12,7 @@
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getSession } from "@/lib/session";
+import { getTodayWIB } from "@/lib/date";
 
 export interface RiwayatKehadiranItem {
   id: string;
@@ -32,6 +33,27 @@ export interface JadwalMengajarItem {
   nama_kelas: string;
 }
 
+export interface RiwayatMengajarItem {
+  id: string;
+  tanggal: string;
+  waktu_submit: string;
+  status: string;
+  mata_pelajaran: string;
+  nama_kelas: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  foto_absensi?: string | null;
+}
+
+export interface MengajarStatistik {
+  totalMengajar: number;
+  totalTidakMengajar: number;
+  totalSesiTercatat: number;
+  persentaseMengajar: number;
+  totalJadwalMingguan: number;
+  periodeBulan?: string;
+}
+
 export interface PengaturanGuruData {
   profil: {
     id: string;
@@ -49,9 +71,12 @@ export interface PengaturanGuruData {
     totalTidakHadir: number;
     persentaseHadir: number;
     totalHariTercatat: number;
+    periodeBulan?: string;
   };
   riwayatKehadiran: RiwayatKehadiranItem[];
   jadwalMengajar: JadwalMengajarItem[];
+  mengajarStatistik: MengajarStatistik;
+  riwayatMengajar: RiwayatMengajarItem[];
 }
 
 export async function getPengaturanGuruData(): Promise<{
@@ -117,23 +142,36 @@ export async function getPengaturanGuruData(): Promise<{
       file_bukti_izin_sakit: row.file_bukti_izin_sakit,
     }));
 
-    // Hitung statistik
+    // Hitung statistik kehadiran harian khusus bulan berjalan (Current Month)
+    const todayStr = getTodayWIB();
+    const currentMonthPrefix = todayStr.slice(0, 7); // e.g. "2026-11"
+    const [curYear, curMonth] = currentMonthPrefix.split("-");
+    const NAMA_BULAN = [
+      "", "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    const namaBulanTahun = `${NAMA_BULAN[parseInt(curMonth, 10)] || curMonth} ${curYear}`;
+
     let totalHadir = 0;
     let totalIzin = 0;
     let totalSakit = 0;
     let totalDinas = 0;
     let totalTidakHadir = 0;
+    let totalHariTercatat = 0;
 
     riwayatKehadiran.forEach((item) => {
-      const s = (item.status || "").toLowerCase();
-      if (s === "hadir") totalHadir++;
-      else if (s === "izin") totalIzin++;
-      else if (s === "sakit") totalSakit++;
-      else if (s === "dinas") totalDinas++;
-      else if (s === "tidak_hadir") totalTidakHadir++;
+      const tStr = typeof item.tanggal === "string" ? item.tanggal.slice(0, 7) : "";
+      if (tStr === currentMonthPrefix) {
+        totalHariTercatat++;
+        const s = (item.status || "").toLowerCase();
+        if (s === "hadir") totalHadir++;
+        else if (s === "izin") totalIzin++;
+        else if (s === "sakit") totalSakit++;
+        else if (s === "dinas") totalDinas++;
+        else if (s === "tidak_hadir") totalTidakHadir++;
+      }
     });
 
-    const totalHariTercatat = riwayatKehadiran.length;
     const persentaseHadir = totalHariTercatat > 0
       ? Math.round((totalHadir / totalHariTercatat) * 100)
       : 0;
@@ -146,6 +184,7 @@ export async function getPengaturanGuruData(): Promise<{
       totalTidakHadir,
       persentaseHadir,
       totalHariTercatat,
+      periodeBulan: namaBulanTahun,
     };
 
     // 3. Ambil data jadwal mengajar aktif
@@ -180,6 +219,83 @@ export async function getPengaturanGuruData(): Promise<{
       }))
       .sort((a, b) => (HARI_ORDER[a.hari] || 99) - (HARI_ORDER[b.hari] || 99));
 
+    // 4. Ambil data riwayat & absensi mengajar (KBM)
+    const { data: rawMengajarList, error: mengajarError } = await supabaseAdmin
+      .from("absensi_mengajar")
+      .select(`
+        id,
+        tanggal,
+        waktu_submit,
+        status,
+        foto_absensi,
+        jadwal!inner(
+          id,
+          mata_pelajaran,
+          hari,
+          jam_mulai,
+          jam_selesai,
+          guru_id,
+          kelas:kelas_id(
+            nama_kelas
+          )
+        )
+      `)
+      .eq("jadwal.guru_id", guruId)
+      .order("tanggal", { ascending: false })
+      .order("waktu_submit", { ascending: false })
+      .limit(60);
+
+    if (mengajarError) {
+      console.error("Gagal mengambil riwayat absensi mengajar:", mengajarError);
+    }
+
+    let totalMengajar = 0;
+    let totalTidakMengajar = 0;
+    let totalSesiTercatat = 0;
+
+    const riwayatMengajar: RiwayatMengajarItem[] = (rawMengajarList || []).map((row: any) => {
+      const j = Array.isArray(row.jadwal) ? row.jadwal[0] : row.jadwal;
+      const k = j?.kelas ? (Array.isArray(j.kelas) ? j.kelas[0] : j.kelas) : null;
+      const s = (row.status || "").toLowerCase();
+      const tStr = typeof row.tanggal === "string" ? row.tanggal.slice(0, 7) : "";
+
+      // Hitung statistik khusus bulan berjalan
+      if (tStr === currentMonthPrefix) {
+        if (s === "mengajar") {
+          totalMengajar++;
+          totalSesiTercatat++;
+        } else if (s === "tidak_mengajar") {
+          totalTidakMengajar++;
+          totalSesiTercatat++;
+        }
+      }
+
+      return {
+        id: row.id,
+        tanggal: row.tanggal,
+        waktu_submit: row.waktu_submit ? String(row.waktu_submit) : "-",
+        status: row.status || "mengajar",
+        mata_pelajaran: j?.mata_pelajaran || "-",
+        nama_kelas: k?.nama_kelas || "-",
+        jam_mulai: j?.jam_mulai ? String(j.jam_mulai).slice(0, 5) : "-",
+        jam_selesai: j?.jam_selesai ? String(j.jam_selesai).slice(0, 5) : "-",
+        foto_absensi: row.foto_absensi || null,
+      };
+    });
+
+    const persentaseMengajar = totalSesiTercatat > 0
+      ? Math.round((totalMengajar / totalSesiTercatat) * 100)
+      : 0;
+
+    const mengajarStatistik: MengajarStatistik = {
+      totalMengajar,
+      totalTidakMengajar,
+      totalSesiTercatat,
+      persentaseMengajar,
+      totalJadwalMingguan: jadwalMengajar.length,
+      periodeBulan: namaBulanTahun,
+    };
+
     return {
       success: true,
       data: {
@@ -187,6 +303,8 @@ export async function getPengaturanGuruData(): Promise<{
         kehadiranStatistik,
         riwayatKehadiran,
         jadwalMengajar,
+        mengajarStatistik,
+        riwayatMengajar,
       },
     };
   } catch (err: any) {

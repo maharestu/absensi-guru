@@ -13,6 +13,7 @@ import {
   VerticalAlign,
   HeightRule,
   PageOrientation,
+  LineRuleType,
 } from "docx";
 import { isWeekendWIB } from "./date";
 
@@ -195,7 +196,6 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
             new TextRun({
               text: "PEMERINTAH KABUPATEN KARAWANG",
               font: "Arial",
-              bold: true,
               size: 22, // 11pt
             }),
           ],
@@ -207,7 +207,6 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
             new TextRun({
               text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
               font: "Arial",
-              bold: true,
               size: 22, // 11pt
             }),
           ],
@@ -505,6 +504,16 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
   const signMonth = BULAN_NAMES[endM - 1] || "";
   const signYear = endY;
 
+  // Paragraf pemisah (Enter) antara tabel absensi dan blok tanda tangan
+  const tableSpacer = new Paragraph({
+    spacing: { before: 140, after: 80 },
+    children: [
+      new TextRun({
+        text: "",
+      }),
+    ],
+  });
+
   const ttdTanggal = new Paragraph({
     spacing: { before: 140, after: 30 },
     indent: { left: 5200 },
@@ -580,6 +589,7 @@ export async function generateRekapAbsensiDocx(options: ExportDocxOptions): Prom
           identitasGuruNama,
           identitasGuruNip,
           attendanceTable,
+          tableSpacer,
           ttdTanggal,
           ttdJabatan,
           ttdNama,
@@ -598,11 +608,11 @@ function createHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "FFFFFF" },
-    margins: { top: 18, bottom: 18, left: 35, right: 35 },
+    margins: { top: 16, bottom: 16, left: 35, right: 35 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 210 },
+        spacing: { before: 0, after: 0, line: 276, lineRule: LineRuleType.AUTO },
         children: [
           new TextRun({
             text,
@@ -628,7 +638,7 @@ function createDataCell(
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 200 },
+        spacing: { before: 0, after: 0, line: 276, lineRule: LineRuleType.AUTO },
         children: [
           new TextRun({
             text,
@@ -683,6 +693,7 @@ export const REKAP_TABLE_FONT_PT = 8;
 export const REKAP_TABLE_FONT_SIZE = 16; // 8pt in docx half-points
 export const REKAP_NIP_FONT_PT = 7.5;
 export const REKAP_NIP_FONT_SIZE = 15; // 7.5pt in docx half-points
+export const TABLE_LINE_SPACING_1_15 = 276; // 1.15 line spacing in docx OpenXML (240 * 1.15)
 
 function createCompactHeaderCell(
   text: string,
@@ -698,7 +709,7 @@ function createCompactHeaderCell(
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 180 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -722,11 +733,11 @@ function createCompactDataCell(
   return new TableCell({
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 8, bottom: 8, left: 16, right: 16 },
+    margins: { top: 10, bottom: 10, left: 16, right: 16 },
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 185 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: [
           new TextRun({
             text,
@@ -802,7 +813,6 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
             new TextRun({
               text: "PEMERINTAH KABUPATEN KARAWANG",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -814,7 +824,6 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
             new TextRun({
               text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -1031,7 +1040,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                     text: "Ringkasan Eksekutif Kehadiran:",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1041,13 +1050,13 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                   new TextRun({
                     text: "• Total Guru Terdaftar      : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${totalGuruTercatat} Orang Guru`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1057,13 +1066,13 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                   new TextRun({
                     text: "• Rata-rata Kehadiran Guru : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${avgKehadiranText}`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1088,7 +1097,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                   new TextRun({
                     text: `Karawang,    ${signMonth} ${signYear}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1099,7 +1108,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                   new TextRun({
                     text: "Kepala Sekolah SMPN 8 Karawang Barat",
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1111,7 +1120,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                     text: kepalaSekolah?.nama || "H. Mamay Abdullah, S.Pd., M.Pd.",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                     underline: {},
                   }),
                 ],
@@ -1123,7 +1132,7 @@ export async function generateRekapSemuaGuruDocx(options: ExportSemuaGuruDocxOpt
                   new TextRun({
                     text: `NIP. ${kepalaSekolah?.nip || "197007241998021003"}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1208,11 +1217,11 @@ function createMengajarHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 15, bottom: 15, left: 20, right: 20 },
+    margins: { top: 14, bottom: 14, left: 20, right: 20 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 190 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -1239,7 +1248,7 @@ function createMengajarDataCell(
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 185 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: [
           new TextRun({
             text,
@@ -1315,7 +1324,6 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
             new TextRun({
               text: "PEMERINTAH KABUPATEN KARAWANG",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -1327,7 +1335,6 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
             new TextRun({
               text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -1540,7 +1547,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                     text: "Ringkasan Eksekutif Mengajar (KBM):",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1550,13 +1557,13 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: "• Total Guru Terjadwal : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${totalGuruTercatat} Orang Guru`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1566,13 +1573,13 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: "• Rata-rata Keterlaksanaan Mengajar : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${avgMengajarText}`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1582,13 +1589,13 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: "• Total Sesi KBM Terlaksana : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${countMengajarText}`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1598,13 +1605,13 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: "• Total Sesi KBM Tidak Mengajar : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${countTidakMengajarText}`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1629,7 +1636,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: `Karawang,    ${signMonth} ${signYear}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1640,7 +1647,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: "Kepala Sekolah SMPN 8 Karawang Barat",
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1652,7 +1659,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                     text: kepalaSekolah?.nama || "H. Mamay Abdullah, S.Pd., M.Pd.",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                     underline: {},
                   }),
                 ],
@@ -1664,7 +1671,7 @@ export async function generateRekapSemuaGuruMengajarDocx(options: ExportSemuaGur
                   new TextRun({
                     text: `NIP. ${kepalaSekolah?.nip || "197007241998021003"}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -1772,11 +1779,11 @@ function createSlimHeaderCell(text: string, widthDxa: number): TableCell {
     width: { size: widthDxa, type: WidthType.DXA },
     verticalAlign: VerticalAlign.CENTER,
     shading: { fill: "F8FAFC" },
-    margins: { top: 14, bottom: 14, left: 10, right: 10 },
+    margins: { top: 12, bottom: 12, left: 10, right: 10 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 0, line: 180 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: lines.map((line, idx) =>
           new TextRun({
             text: line,
@@ -1804,7 +1811,7 @@ function createSlimDataCell(
     children: [
       new Paragraph({
         alignment,
-        spacing: { before: 0, after: 0, line: 185 },
+        spacing: { before: 0, after: 0, line: TABLE_LINE_SPACING_1_15, lineRule: LineRuleType.AUTO },
         children: [
           new TextRun({
             text,
@@ -1875,7 +1882,6 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
             new TextRun({
               text: "PEMERINTAH KABUPATEN KARAWANG",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -1887,7 +1893,6 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
             new TextRun({
               text: "DINAS PENDIDIKAN DAN KEBUDAYAAN",
               font: "Arial",
-              bold: true,
               size: 20, // 10pt
             }),
           ],
@@ -2366,7 +2371,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                     text: "Ringkasan Rekapitulasi Mengajar Guru:",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2376,13 +2381,13 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: "• Total Jadwal Sesi       : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${statistik.totalJadwal} Sesi`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2392,13 +2397,13 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: "• Persentase Mengajar   : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${statistik.persentaseMengajar}%`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2408,13 +2413,13 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: "• Jumlah Mengajar          : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${statistik.jumlahMengajar} Sesi`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2424,13 +2429,13 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: "• Tidak Mengajar            : ",
                     font: "Arial",
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                   new TextRun({
                     text: `${statistik.tidakMengajar} Sesi`,
                     font: "Arial",
                     bold: true,
-                    size: 15,
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2455,7 +2460,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: `Karawang,    ${signMonth} ${signYear}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2466,7 +2471,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: "Kepala Sekolah SMPN 8 Karawang Barat",
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
@@ -2478,7 +2483,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                     text: kepalaSekolah?.nama || "H. Mamay Abdullah, S.Pd., M.Pd.",
                     font: "Arial",
                     bold: true,
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                     underline: {},
                   }),
                 ],
@@ -2490,7 +2495,7 @@ export async function generateRekapMengajarGuruDocx(options: ExportDocxMengajarO
                   new TextRun({
                     text: `NIP. ${kepalaSekolah?.nip || "197007241998021003"}`,
                     font: "Arial",
-                    size: 15, // 7.5pt
+                    size: 16, // 8pt
                   }),
                 ],
               }),
