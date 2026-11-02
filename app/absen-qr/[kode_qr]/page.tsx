@@ -37,9 +37,10 @@ export default function AbsenQrPage() {
       return;
     }
 
-    // Eksekusi validasi server
+    // Eksekusi validasi server (murni validasi QR & jadwal kelas)
     async function cekQr() {
-      const handleValidationResponse = (res: any) => {
+      try {
+        const res = await validasiQrMengajar(kode);
         if (!res.ok) {
           setErrorType(res.error || "SYSTEM_ERROR");
           setErrorMessage(res.message || "Terjadi kesalahan.");
@@ -48,54 +49,19 @@ export default function AbsenQrPage() {
         }
 
         if (res.jadwal!.length === 1) {
-          // Langsung redirect ke foto
-          router.push(`/guru/presensi-mengajar/foto?jadwal_id=${res.jadwal![0].id}`);
+          // Arahkan ke halaman verifikasi lokasi kelas tersendiri
+          router.push(`/guru/presensi-mengajar/lokasi?jadwal_id=${res.jadwal![0].id}`);
         } else {
-          // Lebih dari 1 jadwal (misal 2 mapel beda di kelas & hari & waktu yg tumpang tindih)
+          // Lebih dari 1 jadwal (misal 2 mapel berbeda di kelas yang sama)
           setNamaKelas(res.kelas!);
           setJadwalOptions(res.jadwal!);
           setFlowState("PILIH_JADWAL");
         }
-      };
-
-      const testConfig = getDevTestingConfigClient();
-      if (testConfig.isActive && testConfig.bypassGps) {
-        try {
-          const res = await validasiQrMengajar(kode);
-          handleValidationResponse(res);
-        } catch (err) {
-          console.error(err);
-          setFlowState("ERROR");
-          setErrorMessage("Terjadi kesalahan sistem saat memvalidasi QR.");
-        }
-        return;
-      }
-
-      if (!navigator.geolocation) {
+      } catch (err) {
+        console.error("Gagal validasi QR:", err);
         setFlowState("ERROR");
-        setErrorMessage("GPS tidak didukung oleh browser Anda.");
-        return;
+        setErrorMessage("Terjadi kesalahan sistem saat memvalidasi QR.");
       }
-
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            const res = await validasiQrMengajar(kode, lat, lng);
-            handleValidationResponse(res);
-          } catch (err) {
-            console.error(err);
-            setFlowState("ERROR");
-            setErrorMessage("Terjadi kesalahan sistem saat memvalidasi QR.");
-          }
-        },
-        (err) => {
-          setFlowState("ERROR");
-          setErrorMessage("Gagal mendapatkan lokasi GPS. Pastikan izin lokasi aktif.");
-        },
-        { enableHighAccuracy: true, timeout: 15000 }
-      );
     }
 
     cekQr();
@@ -105,8 +71,8 @@ export default function AbsenQrPage() {
     return (
       <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-12 pb-10 justify-center items-center text-center">
         <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
-        <h2 className="text-lg font-bold text-slate-900">Mengecek Lokasi & QR...</h2>
-        <p className="text-sm text-slate-500">Memeriksa posisi Anda dan jadwal ruangan.</p>
+        <h2 className="text-lg font-bold text-slate-900">Memvalidasi QR Kelas...</h2>
+        <p className="text-sm text-slate-500">Memeriksa jadwal mengajar Anda di ruangan ini.</p>
       </div>
     );
   }
@@ -151,7 +117,7 @@ export default function AbsenQrPage() {
           {jadwalOptions.map(j => (
             <div 
               key={j.id}
-              onClick={() => router.push(`/guru/presensi-mengajar/foto?jadwal_id=${j.id}`)}
+              onClick={() => router.push(`/guru/presensi-mengajar/lokasi?jadwal_id=${j.id}`)}
               className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100 active:scale-[0.98] transition-transform cursor-pointer"
             >
               <h3 className="text-lg font-bold text-slate-900">{j.mata_pelajaran}</h3>

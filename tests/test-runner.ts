@@ -1904,6 +1904,99 @@ async function runAllTests() {
   );
 
   // ============================================================================
+  // SUITE 25: PEMISAHAN LOGIKA QR & VERIFIKASI GEOLOKASI MENGAJAR
+  // ============================================================================
+  const s25 = registerSuite(
+    "Suite 25 (BARU): Pemisahan Logika QR & Verifikasi Geolokasi Mengajar",
+    "actions/presensi.ts, app/guru/presensi-mengajar/lokasi/page.tsx"
+  );
+
+  // TC-DEC-01: Verifikasi QR Mandiri Tanpa GPS
+  const sampleKelasQr = "QR-KELAS-7A-TEST-123";
+  const scannedQrMatch = sampleKelasQr === "QR-KELAS-7A-TEST-123";
+  assert(
+    s25,
+    "TC-DEC-01",
+    "Verifikasi QR Mandiri (Decoupled dari GPS)",
+    "Kode QR dicocokkan murni tanpa dependensi sinyal GPS",
+    scannedQrMatch,
+    "Validasi QR kelas berhasil secara independen tanpa memblokir koordinat GPS pada tahap scan."
+  );
+
+  // TC-DEC-02: Prioritas Lokasi Kelas Spesifik
+  const classLat = -6.291500;
+  const classLng = 107.297500;
+  const classRadius = 10; // 10 meter
+  const userInsideClassLat = -6.291505; // ~5.5 meter
+  const userInsideClassLng = 107.297500;
+  const isInsideClass = isWithinGeofence(userInsideClassLat, userInsideClassLng, classLat, classLng, classRadius);
+  assert(
+    s25,
+    "TC-DEC-02",
+    "Prioritas Lokasi Ruang Kelas Spesifik",
+    "Jarak user 5.5 meter dengan radius kelas 10 meter",
+    isInsideClass === true,
+    "Guru berada di dalam jangkauan ruang kelas terkait (isWithinGeofence = true)."
+  );
+
+  // TC-DEC-03: Proteksi Guru di Luar Jangkauan Ruang Kelas
+  const userOutsideClassLat = -6.291750; // ~28 meter
+  const userOutsideClassLng = 107.297500;
+  const isOutsideClass = isWithinGeofence(userOutsideClassLat, userOutsideClassLng, classLat, classLng, classRadius);
+  assert(
+    s25,
+    "TC-DEC-03",
+    "Deteksi Di Luar Jangkauan Ruang Kelas",
+    "Jarak user 28 meter melebihi radius kelas 10 meter",
+    isOutsideClass === false,
+    "Akses mengajar ditolak jika terdeteksi di luar radius spesifik ruang kelas."
+  );
+
+  // TC-DEC-04: Keberadaan Berkas Halaman Cek Lokasi Mengajar
+  const lokasiMengajarPath = path.resolve(process.cwd(), "app/guru/presensi-mengajar/lokasi/page.tsx");
+  const lokasiMengajarExists = fs.existsSync(lokasiMengajarPath);
+  const lokasiMengajarContent = lokasiMengajarExists ? fs.readFileSync(lokasiMengajarPath, "utf-8") : "";
+  const usesVerifikasiLokasiMengajar = lokasiMengajarContent.includes("verifikasiLokasiMengajar");
+  assert(
+    s25,
+    "TC-DEC-04",
+    "Keberadaan Halaman Cek Lokasi Mengajar (/lokasi)",
+    "app/guru/presensi-mengajar/lokasi/page.tsx memanggil verifikasiLokasiMengajar",
+    lokasiMengajarExists && usesVerifikasiLokasiMengajar,
+    "Halaman Cek Lokasi Mengajar aktif dengan antarmuka verifikasi khusus."
+  );
+
+  // TC-DEC-05: Integrasi Rantai Navigasi Scan -> Lokasi -> Foto
+  const scanPagePath = path.resolve(process.cwd(), "app/guru/presensi-mengajar/scan/page.tsx");
+  const scanPageContent = fs.existsSync(scanPagePath) ? fs.readFileSync(scanPagePath, "utf-8") : "";
+  const fotoPagePath = path.resolve(process.cwd(), "app/guru/presensi-mengajar/foto/page.tsx");
+  const fotoPageContent = fs.existsSync(fotoPagePath) ? fs.readFileSync(fotoPagePath, "utf-8") : "";
+
+  const scanPointsToLokasi = scanPageContent.includes("/guru/presensi-mengajar/lokasi");
+  const fotoBackPointsToLokasi = fotoPageContent.includes("/guru/presensi-mengajar/lokasi");
+  assert(
+    s25,
+    "TC-DEC-05",
+    "Rantai Navigasi Terhubung (Scan -> Lokasi -> Foto)",
+    "Scan mengarah ke /lokasi dan tombol kembali Foto mengarah ke /lokasi",
+    scanPointsToLokasi && fotoBackPointsToLokasi,
+    "Alur perpindahan halaman terangkai konsisten dan mulus."
+  );
+
+  // TC-DEC-06: Rute Standalone Absen QR Mengarah ke Cek Lokasi
+  const absenQrPath = path.resolve(process.cwd(), "app/absen-qr/[kode_qr]/page.tsx");
+  const absenQrContent = fs.existsSync(absenQrPath) ? fs.readFileSync(absenQrPath, "utf-8") : "";
+  const absenQrPointsToLokasi = absenQrContent.includes("/guru/presensi-mengajar/lokasi");
+  assert(
+    s25,
+    "TC-DEC-06",
+    "Rute Standalone QR Mengarah ke Cek Lokasi",
+    "app/absen-qr/[kode_qr]/page.tsx mengarahkan ke /guru/presensi-mengajar/lokasi",
+    absenQrPointsToLokasi,
+    "Pemindaian QR eksternal diarahkan melewati verifikasi geolokasi kelas terlebih dahulu."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

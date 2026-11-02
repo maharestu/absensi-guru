@@ -85,29 +85,19 @@ function ScanQrKelasContent() {
       return;
     }
 
-    if (!navigator.geolocation) {
-      setScanState("FAIL");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const isSuccess = await verifyQrKelas(jadwalId, kodeQr, lat, lng);
-          setScanState(isSuccess ? "SUCCESS" : "FAIL");
-        } catch (err) {
-          console.error(err);
-          setScanState("FAIL");
-        }
-      },
-      (err) => {
-        console.error("GPS error", err);
+    try {
+      // Verifikasi keabsahan QR code kelas (murni validasi QR tanpa memblokir GPS)
+      const isSuccess = await verifyQrKelas(jadwalId, kodeQr);
+      if (isSuccess) {
+        sessionStorage.setItem("absensi_mengajar_qr_valid", "true");
+        setScanState("SUCCESS");
+      } else {
         setScanState("FAIL");
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+      }
+    } catch (err) {
+      console.error("verifyQrKelas error:", err);
+      setScanState("FAIL");
+    }
   };
 
   const stopStream = useCallback(() => {
@@ -185,7 +175,7 @@ function ScanQrKelasContent() {
 
   const handleContinue = () => {
     const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
-    router.push(`/guru/presensi-mengajar/foto?jadwal_id=${jadwalId}${hariQuery}`);
+    router.push(`/guru/presensi-mengajar/lokasi?jadwal_id=${jadwalId}${hariQuery}`);
   };
 
   const backHref = hari

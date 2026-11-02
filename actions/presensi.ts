@@ -327,6 +327,108 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
   }
 }
 
+/**
+ * Verifikasi Geolokasi Mengajar Khusus:
+ * Memvalidasi apakah guru berada dalam jangkauan ruang kelas (jika ditentukan koordinatnya)
+ * atau fallback ke jangkauan sekolah.
+ */
+export async function verifikasiLokasiMengajar(
+  jadwalId: string,
+  userLat: number,
+  userLng: number
+): Promise<{
+  success: boolean;
+  isValid: boolean;
+  namaKelas?: string;
+  radiusMeter?: number;
+  isSpecificClassLocation?: boolean;
+  error?: string;
+}> {
+  try {
+    const testConfig = await getDevTestingConfigServer();
+    if (testConfig.isActive && testConfig.bypassGps) {
+      return {
+        success: true,
+        isValid: true,
+        namaKelas: "Ruang Kelas (Mode Testing)",
+        radiusMeter: 500,
+        isSpecificClassLocation: false,
+      };
+    }
+
+    const { data: jadwal, error: errJadwal } = await supabaseAdmin
+      .from("jadwal")
+      .select("kelas_id")
+      .eq("id", jadwalId)
+      .single();
+
+    if (errJadwal || !jadwal) {
+      return { success: false, isValid: false, error: "Jadwal mengajar tidak ditemukan." };
+    }
+
+    const { data: kelas, error: errKelas } = await supabaseAdmin
+      .from("kelas")
+      .select("id, nama_kelas, latitude, longitude, radius_meter")
+      .eq("id", jadwal.kelas_id)
+      .single();
+
+    if (errKelas || !kelas) {
+      return { success: false, isValid: false, error: "Data kelas tidak ditemukan." };
+    }
+
+    // Prioritas 1: Jika kelas memiliki koordinat spesifik
+    if (kelas.latitude != null && kelas.longitude != null) {
+      const radius = Number(kelas.radius_meter) || 5;
+      const isValid = isWithinGeofence(
+        userLat,
+        userLng,
+        Number(kelas.latitude),
+        Number(kelas.longitude),
+        radius
+      );
+
+      return {
+        success: true,
+        isValid,
+        namaKelas: kelas.nama_kelas,
+        radiusMeter: radius,
+        isSpecificClassLocation: true,
+        error: isValid
+          ? undefined
+          : `Anda terdeteksi berada di luar jangkauan ruang ${kelas.nama_kelas} (radius maksimal ${radius} meter).`,
+      };
+    }
+
+    // Prioritas 2 (Fallback): Gunakan koordinat sekolah
+    const config = await getLokasiSekolah();
+    const isValid = isWithinGeofence(
+      userLat,
+      userLng,
+      config.latitude,
+      config.longitude,
+      config.radius_meter
+    );
+
+    return {
+      success: true,
+      isValid,
+      namaKelas: kelas.nama_kelas,
+      radiusMeter: config.radius_meter,
+      isSpecificClassLocation: false,
+      error: isValid
+        ? undefined
+        : `Anda terdeteksi berada di luar area sekolah (radius maksimal ${config.radius_meter} meter).`,
+    };
+  } catch (err: any) {
+    console.error("verifikasiLokasiMengajar Error:", err);
+    return {
+      success: false,
+      isValid: false,
+      error: err.message || "Gagal memverifikasi lokasi mengajar.",
+    };
+  }
+}
+
 export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: number) {
   try {
     const session = await getSession();
