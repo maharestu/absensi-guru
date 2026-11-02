@@ -2012,6 +2012,91 @@ async function runAllTests() {
   );
 
   // ============================================================================
+  // SUITE 26: INTEGRITAS UI & STATUS VERIFIKASI ABSENSI MENGAJAR
+  // ============================================================================
+  const s26 = registerSuite(
+    "Suite 26 (BARU): Integritas UI & Validasi Status Absensi Mengajar",
+    "actions/presensi.ts, app/guru/presensi-mengajar/verifikasi/page.tsx, foto/page.tsx"
+  );
+
+  // TC-VERIF-01: Keselarasan Background Mobile Container (bg-[#EEF2F7])
+  const verifPagePath = path.resolve(process.cwd(), "app/guru/presensi-mengajar/verifikasi/page.tsx");
+  const verifPageContent = fs.existsSync(verifPagePath) ? fs.readFileSync(verifPagePath, "utf-8") : "";
+  const fotoHasUniformBg = fotoPageContent.includes("bg-[#EEF2F7]") && !fotoPageContent.includes("bg-[#F8FAFC]");
+  const verifHasUniformBg = verifPageContent.includes("bg-[#EEF2F7]") && !verifPageContent.includes("bg-[#F8FAFC]");
+  assert(
+    s26,
+    "TC-VERIF-01",
+    "Keseragaman Background Container (bg-[#EEF2F7])",
+    "Halaman Foto dan Verifikasi menggunakan bg-[#EEF2F7] tanpa sisa bg-[#F8FAFC]",
+    fotoHasUniformBg && verifHasUniformBg,
+    "Background konsisten di seluruh alur mengajar, mengeliminasi efek terpotong saat discroll pada layar HP."
+  );
+
+  // TC-VERIF-02: Eliminasi Total Foto Hardcode Mockup (Unsplash)
+  const hasNoUnsplashHardcode = !verifPageContent.includes("images.unsplash.com");
+  assert(
+    s26,
+    "TC-VERIF-02",
+    "Pembersihan Total Foto Hardcode Dummy (Unsplash)",
+    "Tidak ada referensi URL images.unsplash.com pada halaman verifikasi",
+    hasNoUnsplashHardcode,
+    "Foto hardcode mockup dibersihkan sepenuhnya sehingga tidak muncul saat navigasi back."
+  );
+
+  // TC-VERIF-03: Ketersediaan Server Action cekStatusAbsensiMengajarJadwal
+  const presensiActionPath = path.resolve(process.cwd(), "actions/presensi.ts");
+  const presensiActionContent = fs.existsSync(presensiActionPath) ? fs.readFileSync(presensiActionPath, "utf-8") : "";
+  const exportsCekStatusMengajar = presensiActionContent.includes("export async function cekStatusAbsensiMengajarJadwal");
+  assert(
+    s26,
+    "TC-VERIF-03",
+    "Ketersediaan Server Action cekStatusAbsensiMengajarJadwal",
+    "actions/presensi.ts mengekspor cekStatusAbsensiMengajarJadwal",
+    exportsCekStatusMengajar,
+    "Server Action tersedia untuk pengecekan status absensi mengajar jadwal secara real-time."
+  );
+
+  // TC-VERIF-04: Tampilan Status Absensi Selesai (Dedicated In-Page UI Card)
+  const hasCompletedUiCard =
+    verifPageContent.includes("statusMengajar?.completed") &&
+    verifPageContent.includes("Absensi Mengajar Selesai") &&
+    verifPageContent.includes("Kembali ke Jadwal Mengajar");
+  assert(
+    s26,
+    "TC-VERIF-04",
+    "Tampilan Status Absensi Selesai (Dedicated In-Page UI Card)",
+    "Halaman verifikasi merender kartu status selesai dan tombol kembali saat jadwal sudah diabsen",
+    hasCompletedUiCard,
+    "User disajikan antarmuka informatif berstatus selesai tanpa formulir submit ganda."
+  );
+
+  // TC-VERIF-05: Eliminasi Peringatan Alert JS Primitif (alert())
+  const hasNoJsAlerts = !verifPageContent.includes("alert(");
+  const usesInPageAlert = verifPageContent.includes("submitError");
+  assert(
+    s26,
+    "TC-VERIF-05",
+    "Peniadaan Alert JS Primitif & Penerapan In-Page UI Alert",
+    "alert() dihapus dan digantikan banner notifikasi in-page berbasis submitError",
+    hasNoJsAlerts && usesInPageAlert,
+    "Pengalaman pengguna profesional dan bersih tanpa popup dialog bawaan browser yang mengganggu."
+  );
+
+  // TC-VERIF-06: Antarmuka Panduan Foto Belum Diambil
+  const hasPhotoMissingGuidance =
+    verifPageContent.includes("Foto Belum Diambil") &&
+    verifPageContent.includes("Ambil Foto Sekarang");
+  assert(
+    s26,
+    "TC-VERIF-06",
+    "Antarmuka Panduan Bila Foto Belum Diambil",
+    "Menampilkan kartu peringatan amber dan tombol Ambil Foto Sekarang jika foto kosong",
+    hasPhotoMissingGuidance,
+    "Mencegah pengiriman data kosong dan mengarahkan pengguna secara intuitif untuk mengambil foto."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

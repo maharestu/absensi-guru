@@ -74,6 +74,45 @@ export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string)
   }
 }
 
+/**
+ * Memeriksa apakah absensi mengajar untuk jadwal tertentu pada tanggal hari ini sudah tercatat.
+ */
+export async function cekStatusAbsensiMengajarJadwal(jadwalId: string, tanggal?: string) {
+  try {
+    const today = tanggal || getTodayWIB();
+    const { data, error } = await supabaseAdmin
+      .from("absensi_mengajar")
+      .select("id, jadwal_id, tanggal, status, foto_absensi, waktu_submit")
+      .eq("jadwal_id", jadwalId)
+      .eq("tanggal", today)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error cekStatusAbsensiMengajarJadwal:", error);
+      return { completed: false, data: null };
+    }
+
+    if (data) {
+      return {
+        completed: true,
+        data: {
+          id: data.id,
+          jadwalId: data.jadwal_id,
+          tanggal: data.tanggal,
+          status: data.status,
+          fotoAbsensi: data.foto_absensi,
+          waktuSubmit: data.waktu_submit,
+        },
+      };
+    }
+
+    return { completed: false, data: null };
+  } catch (error) {
+    console.error("Error cekStatusAbsensiMengajarJadwal:", error);
+    return { completed: false, data: null };
+  }
+}
+
 export async function submitPresensiMasukAction(formData: FormData) {
   try {
     // Ambil identitas guru langsung dari sesi server (mencegah manipulasi IDOR)
