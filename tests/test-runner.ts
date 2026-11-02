@@ -1814,6 +1814,94 @@ async function runAllTests() {
     "Penamaan kolom 'TOTAL HARI KERJA' merefleksikan hari kerja efektif sekolah dan tidak rancu dengan hari kalender."
   );
 
+  // ============================================================================
+  // SUITE 24: RESPON NAVIGASI & INSTANT LOADING UI ADMIN SETTINGS
+  // ============================================================================
+  const s24 = registerSuite(
+    "Suite 24 (BARU): Respon Navigasi & Instant Loading UI Admin",
+    "app/admin/pengaturan/loading.tsx, app/admin/loading.tsx"
+  );
+
+  const pengaturanLoadingPath = path.resolve(process.cwd(), "app/admin/pengaturan/loading.tsx");
+  const adminLoadingPath = path.resolve(process.cwd(), "app/admin/loading.tsx");
+  const pengaturanLoadingExists = fs.existsSync(pengaturanLoadingPath);
+  const adminLoadingExists = fs.existsSync(adminLoadingPath);
+  const pengaturanLoadingContent = pengaturanLoadingExists ? fs.readFileSync(pengaturanLoadingPath, "utf-8") : "";
+  const adminLoadingContent = adminLoadingExists ? fs.readFileSync(adminLoadingPath, "utf-8") : "";
+
+  // TC-LOAD-01: Keberadaan boundary loading.tsx rute pengaturan
+  assert(
+    s24,
+    "TC-LOAD-01",
+    "Boundary loading.tsx Rute /admin/pengaturan",
+    "File app/admin/pengaturan/loading.tsx harus terdaftar",
+    pengaturanLoadingExists,
+    "File loading.tsx aktif di /admin/pengaturan, mengaktifkan instant Suspense fallback 0ms."
+  );
+
+  // TC-LOAD-02: Penggunaan FullScreenLoader komponen resmi
+  const usesFullScreenLoader =
+    pengaturanLoadingContent.includes('import FullScreenLoader from "@/components/ui/full-screen-loader"') &&
+    pengaturanLoadingContent.includes("<FullScreenLoader");
+  assert(
+    s24,
+    "TC-LOAD-02",
+    "Penggunaan Komponen FullScreenLoader",
+    "loading.tsx harus mengimpor dan merender <FullScreenLoader />",
+    usesFullScreenLoader,
+    "FullScreenLoader resmi digunakan sebagai loading indicator standar sistem."
+  );
+
+  // TC-LOAD-03: Kustomisasi Pesan & Canvas Dashboard Admin
+  const hasProperMessageAndBg =
+    pengaturanLoadingContent.includes('message="Memuat pengaturan sistem..."') &&
+    pengaturanLoadingContent.includes('bgClass="bg-[#f8fafc]"');
+  assert(
+    s24,
+    "TC-LOAD-03",
+    "Pesan Status & Canvas Background Selaras",
+    "Pesan 'Memuat pengaturan sistem...' dan background bg-[#f8fafc]",
+    hasProperMessageAndBg,
+    "Pesan status informatif dan warna canvas konsisten dengan tema layout admin."
+  );
+
+  // TC-LOAD-04: Global Fallback loading.tsx untuk Segmen /admin
+  assert(
+    s24,
+    "TC-LOAD-04",
+    "Global Fallback loading.tsx Segmen Admin",
+    "File app/admin/loading.tsx harus terdaftar sebagai safety net",
+    adminLoadingExists && adminLoadingContent.includes("FullScreenLoader"),
+    "Global loading boundary tersedia untuk mencegah unhandled navigation delay di seluruh rute admin."
+  );
+
+  // TC-LOAD-05: Pendaftaran Tautan Menu Pengaturan di Sidebar
+  const sidebarPath = path.resolve(process.cwd(), "components/admin/AdminSidebar.tsx");
+  const sidebarContent = fs.existsSync(sidebarPath) ? fs.readFileSync(sidebarPath, "utf-8") : "";
+  const hasPengaturanLink = sidebarContent.includes('href: "/admin/pengaturan"');
+  assert(
+    s24,
+    "TC-LOAD-05",
+    "Pendaftaran Tautan Navigasi Pengaturan di Sidebar",
+    "AdminSidebar harus mengarahkan ke href '/admin/pengaturan'",
+    hasPengaturanLink,
+    "Tautan sidebar valid dan langsung memicu instant loading state saat diklik."
+  );
+
+  // TC-LOAD-06: Konfigurasi Streaming pada Server Component Pengaturan
+  const pagePath = path.resolve(process.cwd(), "app/admin/pengaturan/page.tsx");
+  const pageContent = fs.existsSync(pagePath) ? fs.readFileSync(pagePath, "utf-8") : "";
+  const isServerComponentAsync =
+    pageContent.includes('export const dynamic = "force-dynamic"') &&
+    pageContent.includes("export default async function PengaturanPage");
+  assert(
+    s24,
+    "TC-LOAD-06",
+    "Konfigurasi Dynamic Streaming RSC Pengaturan",
+    "page.tsx harus berupa async RSC dengan force-dynamic",
+    isServerComponentAsync,
+    "Query data server terisolasi dalam streaming RSC dan dibungkus Suspense oleh loading.tsx."
+  );
 
   // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
