@@ -75,7 +75,7 @@ export default function GuruLayout({
 
   const testConfig = getDevTestingConfigClient();
   const isHolidayPause = !testConfig.isActive && Boolean(statusOperasional && !statusOperasional.isOperasional);
-  const isDirectUrlSubpage = pathname !== "/guru";
+  const isDirectUrlSubpage = pathname !== "/guru" && !pathname.startsWith("/guru/pengaturan");
 
   // Tahan tampilan dengan FullScreenLoader jika status autentikasi ATAU status operasional belum ter-resolve.
   // Ini mencegah flash tampilan dashboard normal sesaat sebelum status libur selesai dimuat saat user baru login (cold visit).

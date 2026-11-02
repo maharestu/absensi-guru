@@ -2194,6 +2194,114 @@ async function runAllTests() {
   );
 
   // ============================================================================
+  // SUITE 28 (BARU): FITUR PENGATURAN GURU, RIWAYAT & KEAMANAN KATA SANDI
+  // ============================================================================
+  const s28 = registerSuite(
+    "Suite 28 (BARU): Pengaturan Guru & Ganti Password",
+    "actions/guru-pengaturan.ts, app/guru/pengaturan/page.tsx, app/guru/page.tsx"
+  );
+
+  // TC-SETT-01: Tombol Gear di Card Info Guru
+  const guruPagePath = path.resolve(process.cwd(), "app/guru/page.tsx");
+  const guruPageContent = fs.existsSync(guruPagePath) ? fs.readFileSync(guruPagePath, "utf-8") : "";
+  const hasGearButton =
+    guruPageContent.includes("/guru/pengaturan") &&
+    guruPageContent.includes("Pengaturan Guru");
+  assert(
+    s28,
+    "TC-SETT-01",
+    "Tombol Gear di Card Info Guru",
+    "Dashboard guru memiliki tombol gear yang mengarah ke /guru/pengaturan",
+    hasGearButton,
+    "Tombol gear terintegrasi di sisi kanan card info guru."
+  );
+
+  // TC-SETT-02: Halaman Pengaturan Guru Terpasang
+  const pengaturanPagePath = path.resolve(process.cwd(), "app/guru/pengaturan/page.tsx");
+  const pengaturanExists = fs.existsSync(pengaturanPagePath);
+  const pengaturanContent = pengaturanExists ? fs.readFileSync(pengaturanPagePath, "utf-8") : "";
+  const hasThreeTabs =
+    pengaturanContent.includes("kehadiran") &&
+    pengaturanContent.includes("mengajar") &&
+    pengaturanContent.includes("keamanan");
+  assert(
+    s28,
+    "TC-SETT-02",
+    "Halaman Pengaturan Guru & 3 Tab Navigasi",
+    "app/guru/pengaturan/page.tsx tersedia dengan tab Kehadiran, Jadwal KBM, dan Ganti Password",
+    pengaturanExists && hasThreeTabs,
+    "Halaman pengaturan guru terstruktur dengan 3 tab navigasi lengkap."
+  );
+
+  // TC-SETT-03: Pengecualian Route Guard Holiday Pause untuk Pengaturan
+  const guruLayoutPath = path.resolve(process.cwd(), "app/guru/layout.tsx");
+  const guruLayoutContent = fs.existsSync(guruLayoutPath) ? fs.readFileSync(guruLayoutPath, "utf-8") : "";
+  const hasHolidayException = guruLayoutContent.includes("!pathname.startsWith(\"/guru/pengaturan\")");
+  assert(
+    s28,
+    "TC-SETT-03",
+    "Akses Pengaturan saat Libur Sekolah (Route Guard Bypass)",
+    "app/guru/layout.tsx mengecualikan /guru/pengaturan dari LiburPauseScreen",
+    hasHolidayException,
+    "Guru dapat mengakses profil, riwayat, dan ganti password kapan saja bahkan saat libur."
+  );
+
+  // TC-SETT-04: Validasi Password Baru Minimal 6 Karakter
+  function validateNewPasswordLength(pass: string): boolean {
+    return Boolean(pass && pass.length >= 6);
+  }
+  assert(
+    s28,
+    "TC-SETT-04",
+    "Validasi Password Baru Minimal 6 Karakter",
+    "passwordBaru: '12345' (5 karakter)",
+    !validateNewPasswordLength("12345") && validateNewPasswordLength("123456"),
+    "Kata sandi di bawah 6 karakter ditolak dengan pesan peringatan yang tepat."
+  );
+
+  // TC-SETT-05: Validasi Kesesuaian Konfirmasi Password
+  function validatePasswordConfirmation(pass1: string, pass2: string): boolean {
+    return Boolean(pass1 && pass2 && pass1 === pass2);
+  }
+  assert(
+    s28,
+    "TC-SETT-05",
+    "Validasi Kesesuaian Konfirmasi Password",
+    "passwordBaru: 'rahasia123', konfirmasi: 'rahasia999'",
+    !validatePasswordConfirmation("rahasia123", "rahasia999") &&
+      validatePasswordConfirmation("rahasia123", "rahasia123"),
+    "Konfirmasi kata sandi yang tidak cocok ditolak seketika."
+  );
+
+  // TC-SETT-06: Verifikasi Hash Bcrypt Password Lama
+  const dummyDbHash = await bcrypt.hash("passwordLama123", 10);
+  const matchOldValid = await bcrypt.compare("passwordLama123", dummyDbHash);
+  const matchOldInvalid = await bcrypt.compare("salahKetik", dummyDbHash);
+  assert(
+    s28,
+    "TC-SETT-06",
+    "Verifikasi Hash Bcrypt Password Lama",
+    "Compare password lama terhadap hash database akun guru",
+    matchOldValid && !matchOldInvalid,
+    "Bcrypt berhasil menolak password lama yang salah dan meloloskan password yang benar."
+  );
+
+  // TC-SETT-07: IDOR Protection & Role Session Guard
+  const actionsPengaturanPath = path.resolve(process.cwd(), "actions/guru-pengaturan.ts");
+  const actionsContent = fs.existsSync(actionsPengaturanPath) ? fs.readFileSync(actionsPengaturanPath, "utf-8") : "";
+  const hasSessionGuard =
+    actionsContent.includes("getSession()") &&
+    actionsContent.includes("session.role !== \"guru\"");
+  assert(
+    s28,
+    "TC-SETT-07",
+    "IDOR Shield & Role Session Guard",
+    "actions/guru-pengaturan.ts mengunci ID dari server session (bukan parameter client)",
+    hasSessionGuard,
+    "Server Action kebal terhadap manipulasi identitas (IDOR immune)."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

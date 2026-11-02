@@ -92,10 +92,11 @@ export default function DashboardGuruPage() {
 
   useEffect(() => {
     setIsTestActive(getDevTestingConfigClient().isActive);
-    // Pre-warm halaman absensi agar navigasi guru instan & mulus tanpa jeda
+    // Pre-warm halaman absensi & pengaturan agar navigasi guru instan & mulus tanpa jeda
     router.prefetch("/guru/pilih-status");
     router.prefetch("/guru/presensi-mengajar");
     router.prefetch("/guru/presensi-pulang");
+    router.prefetch("/guru/pengaturan");
 
     getStatusOperasionalHariIni()
       .then((res) => {
@@ -135,23 +136,49 @@ export default function DashboardGuruPage() {
 
       {/* ── Kartu Info Guru ── */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-4 mb-8">
-        <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-          {/* Avatar — lingkaran penuh (rounded-full) */}
-          <div className="w-12 h-12 rounded-full bg-[#e0e7ff] flex items-center justify-center flex-shrink-0">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="8" r="4" fill="#2563eb" />
-              <path
-                d="M4 20c0-4 3.582-7 8-7s8 3 8 7"
-                fill="#2563eb"
-              />
-            </svg>
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          {/* Avatar, Nama & NIP */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Avatar — lingkaran penuh (rounded-full) */}
+            <div className="w-12 h-12 rounded-full bg-[#e0e7ff] flex items-center justify-center flex-shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="8" r="4" fill="#2563eb" />
+                <path
+                  d="M4 20c0-4 3.582-7 8-7s8 3 8 7"
+                  fill="#2563eb"
+                />
+              </svg>
+            </div>
+
+            {/* Nama & NIP */}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900 leading-tight truncate">{namaGuru}</p>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">NIP/NUPTK {nipGuru}</p>
+            </div>
           </div>
 
-          {/* Nama & NIP */}
-          <div>
-            <p className="text-sm font-bold text-slate-900 leading-tight">{namaGuru}</p>
-            <p className="text-xs text-slate-400 mt-0.5">NIP/NUPTK {nipGuru}</p>
-          </div>
+          {/* Tombol Pengaturan (Ikon Gear) */}
+          <button
+            type="button"
+            onClick={() => router.push("/guru/pengaturan")}
+            className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50/70 hover:border-blue-200 active:scale-95 transition-all shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            title="Pengaturan Guru & Riwayat"
+            aria-label="Pengaturan Guru"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
 
         {/* Tanggal */}
