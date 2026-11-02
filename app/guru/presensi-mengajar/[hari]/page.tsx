@@ -56,18 +56,15 @@ export default function DaftarJadwalHarianPage() {
       
       try {
         setLoading(true);
-        const data = await getJadwalByGuruAndHari(
-          user.guru_id,
-          undefined,
-          hari
-        );
+        router.prefetch("/guru/presensi-mengajar/scan");
+        const today = getTodayWIB();
+        const [data, absenIds] = await Promise.all([
+          getJadwalByGuruAndHari(user.guru_id, undefined, hari),
+          getAbsensiMengajarHariIni(user.guru_id, today),
+        ]);
         
         const sortedData = data.sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai));
         setJadwalList(sortedData);
-
-        // Ambil daftar jadwal yang sudah diabsen hari ini
-        const today = getTodayWIB();
-        const absenIds = await getAbsensiMengajarHariIni(user.guru_id, today);
         setSudahAbsenIds(absenIds);
       } catch (err) {
         console.error("Gagal memuat jadwal:", err);

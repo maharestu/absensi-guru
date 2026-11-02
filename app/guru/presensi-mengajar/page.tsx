@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
@@ -237,9 +238,10 @@ export default function PresensiMengajarPage() {
           </div>
         ) : (
           hariList.map((hariId) => (
-            <button
+            <Link
               key={hariId}
-              onClick={() => handleSelectHari(hariId)}
+              href={`/guru/presensi-mengajar/${encodeURIComponent(hariId)}`}
+              prefetch={true}
               className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left touch-manipulation cursor-pointer"
             >
               <div>
@@ -261,7 +263,7 @@ export default function PresensiMengajarPage() {
                   />
                 </svg>
               </div>
-            </button>
+            </Link>
           ))
         )}
       </div>
