@@ -113,8 +113,10 @@ function VerifikasiContent() {
         if (status === "hadir") {
           const lat = sessionStorage.getItem("absensi_lat");
           const lng = sessionStorage.getItem("absensi_lng");
+          const acc = sessionStorage.getItem("absensi_accuracy");
           if (lat) formData.append("latitude", lat);
           if (lng) formData.append("longitude", lng);
+          if (acc) formData.append("accuracy", acc);
         }
 
         const { submitPresensiMasukAction } = await import("@/actions/presensi");
@@ -127,6 +129,7 @@ function VerifikasiContent() {
       sessionStorage.removeItem("absensi_photo_status");
       sessionStorage.removeItem("absensi_lat");
       sessionStorage.removeItem("absensi_lng");
+      sessionStorage.removeItem("absensi_accuracy");
       sessionStorage.removeItem("absensi_jadwal_id");
 
       router.push(`/guru/presensi/berhasil?status=${status}`);

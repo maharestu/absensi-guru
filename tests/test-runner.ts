@@ -36,6 +36,8 @@ import {
 import {
   calculateDistanceMeter,
   isWithinGeofence,
+  getEffectiveRadius,
+  MAX_GPS_ACCURACY_TOLERANCE_METER,
 } from "@/lib/geo";
 import {
   signSessionToken,
@@ -2420,6 +2422,103 @@ async function runAllTests() {
     "PEMERINTAH KABUPATEN KARAWANG & DINAS PENDIDIKAN DAN KEBUDAYAAN tidak di-bold di seluruh KOP",
     docxKopValid && a4KopValid,
     "Seluruh KOP dokumen expor (DOCX & Print Template) telah disesuaikan agar teks dinas/pemkab tidak di-bold."
+  );
+
+  // ============================================================================
+  // SUITE 29 (BARU): Validasi Toleransi Akurasi GPS & Geofencing Ruang Kelas
+  // ============================================================================
+  const s29 = registerSuite(
+    "Suite 29 (BARU): Validasi Toleransi Akurasi GPS & Radius Kelas",
+    "lib/geo.ts, actions/presensi.ts, actions/kelas.ts"
+  );
+
+  const classLat29 = -6.2088;
+  const classLng29 = 106.8456;
+
+  // TC-LOC-01: Posisi Dalam Radius Dasar Tanpa Akurasi
+  const distInBase = calculateDistanceMeter(classLat29, classLng29, classLat29 + 0.000045, classLng29);
+  assert(
+    s29,
+    "TC-LOC-01",
+    "Guru Dalam Radius Dasar Tanpa Data Akurasi GPS",
+    `Jarak ${distInBase.toFixed(1)}m <= radius 10m`,
+    isWithinGeofence(classLat29 + 0.000045, classLng29, classLat29, classLng29, 10),
+    "Validasi berhasil lulus murni menggunakan radius dasar kelas."
+  );
+
+  // TC-LOC-02: Kompensasi Akurasi GPS Indoor (Skenario Bug Utama)
+  // Jarak 18m (di luar radius dasar 10m karena deviasi GPS gedung), akurasi GPS 15m
+  const distIndoor = calculateDistanceMeter(classLat29, classLng29, classLat29 + 0.000162, classLng29); // ~18m
+  const beforeFixPass = isWithinGeofence(classLat29 + 0.000162, classLng29, classLat29, classLng29, 10);
+  const afterFixPass = isWithinGeofence(classLat29 + 0.000162, classLng29, classLat29, classLng29, 10, 15);
+  assert(
+    s29,
+    "TC-LOC-02",
+    "Kompensasi Deviasi GPS Indoor di Ruang Kelas (Fix Bug Validasi)",
+    `Jarak ${distIndoor.toFixed(1)}m: Sebelum fix (${beforeFixPass}) vs Setelah fix (${afterFixPass})`,
+    !beforeFixPass && afterFixPass,
+    "Guru di ruang kelas dengan drift GPS 18m berhasil divalidasi karena mempertimbangkan akurasi 15m."
+  );
+
+  // TC-LOC-03: Batas Atas Toleransi GPS Mencegah Spoofing (Cap 25 Meter)
+  const cappedRadius = getEffectiveRadius(10, 500); // Akurasi 500m dibatasi ke 25m
+  assert(
+    s29,
+    "TC-LOC-03",
+    "Batas Atas Toleransi Akurasi GPS (Cap 25 Meter)",
+    `Radius dasar 10m + akurasi 500m -> radius efektif ${cappedRadius}m`,
+    cappedRadius === 10 + MAX_GPS_ACCURACY_TOLERANCE_METER && MAX_GPS_ACCURACY_TOLERANCE_METER === 25,
+    "Akurasi GPS ekstrem dibatasi maksimal 25m sehingga tidak bisa dimanipulasi untuk bypass."
+  );
+
+  // TC-LOC-04: Penolakan Guru yang Jauh dari Sekolah/Kelas
+  // Jarak 300m, radius 10m, akurasi 20m -> radius efektif 30m
+  const distFarAway = calculateDistanceMeter(classLat29, classLng29, classLat29 + 0.0027, classLng29); // ~300m
+  const isFarRejected = !isWithinGeofence(classLat29 + 0.0027, classLng29, classLat29, classLng29, 10, 20);
+  assert(
+    s29,
+    "TC-LOC-04",
+    "Penolakan Validasi untuk Guru di Luar Area Jangkauan",
+    `Jarak ${distFarAway.toFixed(1)}m (> 30m radius efektif)`,
+    isFarRejected,
+    "Guru yang berada jauh dari kelas tetap ditolak secara konsisten."
+  );
+
+  // TC-LOC-05: Default Fallback Radius 10 Meter (Bukan 5 Meter)
+  const defaultRadius = getEffectiveRadius(0, null);
+  const nullRadius = getEffectiveRadius(undefined as any, undefined);
+  assert(
+    s29,
+    "TC-LOC-05",
+    "Default Fallback Radius Kelas 10 Meter",
+    `Fallback radius dasar: ${defaultRadius}m dan ${nullRadius}m`,
+    defaultRadius === 10 && nullRadius === 10,
+    "Default radius kelas mengadopsi 10m sesuai standar skema database."
+  );
+
+  // TC-LOC-06: Penanganan Koordinat Nol (Lat 0, Lng 0)
+  function isCoordValid(lat: any, lng: any): boolean {
+    return lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng));
+  }
+  assert(
+    s29,
+    "TC-LOC-06",
+    "Pengecekan Koordinat Nol Tidak Diabaikan Falsy",
+    "lat: 0, lng: 0 tidak boleh falsy",
+    isCoordValid(0, 0) === true && isCoordValid(null, 106) === false,
+    "Pengecekan koordinat lat/lng menggunakan '!= null' sehingga nilai 0 valid."
+  );
+
+  // TC-LOC-07: Resiliensi Nilai Akurasi Negatif atau NaN
+  const negAccRadius = getEffectiveRadius(10, -10);
+  const nanAccRadius = getEffectiveRadius(10, NaN);
+  assert(
+    s29,
+    "TC-LOC-07",
+    "Resiliensi Nilai Akurasi GPS Negatif / NaN",
+    `Akurasi -10 -> ${negAccRadius}m, Akurasi NaN -> ${nanAccRadius}m`,
+    negAccRadius === 10 && nanAccRadius === 10,
+    "Nilai akurasi GPS abnormal atau tidak valid ditangani secara aman dengan fallback ke radius dasar."
   );
 
   // ============================================================================

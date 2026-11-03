@@ -82,8 +82,10 @@ export default function PresensiPulangVerifikasiPage() {
 
       const lat = sessionStorage.getItem("pulang_lat");
       const lng = sessionStorage.getItem("pulang_lng");
+      const acc = sessionStorage.getItem("pulang_accuracy");
       if (lat) formData.append("latitude", lat);
       if (lng) formData.append("longitude", lng);
+      if (acc) formData.append("accuracy", acc);
 
       const result = await submitPresensiPulangAction(formData);
       if (!result.success) {
@@ -95,6 +97,7 @@ export default function PresensiPulangVerifikasiPage() {
       sessionStorage.removeItem("pulang_photo_status");
       sessionStorage.removeItem("pulang_lat");
       sessionStorage.removeItem("pulang_lng");
+      sessionStorage.removeItem("pulang_accuracy");
 
       router.push("/guru/presensi-pulang/berhasil");
     } catch (err: any) {

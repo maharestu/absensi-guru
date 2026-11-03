@@ -5,7 +5,7 @@
  */
 
 import { supabaseAdmin } from "@/lib/supabase";
-import { isWithinGeofence } from "@/lib/geo";
+import { isWithinGeofence, getEffectiveRadius } from "@/lib/geo";
 import {
   getLokasiSekolah,
   isHariLibur,
@@ -125,8 +125,9 @@ export async function submitPresensiMasukAction(formData: FormData) {
     const tanggal = getTodayWIB();
     const status = formData.get("status") as string;
     const file = formData.get("file") as File;
-    const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
-    const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
+    const latitude = formData.get("latitude") !== null && formData.get("latitude") !== "" ? parseFloat(formData.get("latitude") as string) : null;
+    const longitude = formData.get("longitude") !== null && formData.get("longitude") !== "" ? parseFloat(formData.get("longitude") as string) : null;
+    const accuracy = formData.get("accuracy") !== null && formData.get("accuracy") !== "" ? parseFloat(formData.get("accuracy") as string) : null;
 
     const testConfig = await getDevTestingConfigServer();
 
@@ -161,7 +162,7 @@ export async function submitPresensiMasukAction(formData: FormData) {
       if (testConfig.isActive && testConfig.bypassGps) {
         // Bypass GPS untuk keperluan pengetesan
       } else {
-        if (!latitude || !longitude) {
+        if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
           throw new Error("Lokasi (GPS) wajib diisi untuk absensi hadir.");
         }
         
@@ -171,7 +172,8 @@ export async function submitPresensiMasukAction(formData: FormData) {
           longitude, 
           config.latitude, 
           config.longitude, 
-          config.radius_meter
+          config.radius_meter,
+          accuracy
         );
 
         if (!isValidLocation) {
@@ -327,7 +329,7 @@ export async function submitPresensiMengajarAction(formData: FormData) {
   }
 }
 
-export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: number, lng?: number): Promise<boolean> {
+export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: number, lng?: number, accuracy?: number): Promise<boolean> {
   try {
     const { data: jadwal } = await supabaseAdmin
       .from("jadwal")
@@ -347,14 +349,14 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
 
     // Validasi lokasi jika dikirim (dilewati jika mode testing aktif)
     const testConfig = await getDevTestingConfigServer();
-    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
+    if (lat != null && lng != null && (!testConfig.isActive || !testConfig.bypassGps)) {
       if (kelas.latitude != null && kelas.longitude != null) {
-        const radius = Number(kelas.radius_meter) || 5;
-        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
+        const radius = Number(kelas.radius_meter) || 10;
+        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius, accuracy);
         if (!isValid) return false;
       } else {
         const config = await getLokasiSekolah();
-        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
+        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter, accuracy);
         if (!isValid) return false;
       }
     }
@@ -374,12 +376,14 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
 export async function verifikasiLokasiMengajar(
   jadwalId: string,
   userLat: number,
-  userLng: number
+  userLng: number,
+  accuracy?: number | null
 ): Promise<{
   success: boolean;
   isValid: boolean;
   namaKelas?: string;
   radiusMeter?: number;
+  effectiveRadiusMeter?: number;
   isSpecificClassLocation?: boolean;
   error?: string;
 }> {
@@ -417,13 +421,14 @@ export async function verifikasiLokasiMengajar(
 
     // Prioritas 1: Jika kelas memiliki koordinat spesifik
     if (kelas.latitude != null && kelas.longitude != null) {
-      const radius = Number(kelas.radius_meter) || 5;
+      const radius = Number(kelas.radius_meter) || 10;
       const isValid = isWithinGeofence(
         userLat,
         userLng,
         Number(kelas.latitude),
         Number(kelas.longitude),
-        radius
+        radius,
+        accuracy
       );
 
       return {
@@ -431,6 +436,7 @@ export async function verifikasiLokasiMengajar(
         isValid,
         namaKelas: kelas.nama_kelas,
         radiusMeter: radius,
+        effectiveRadiusMeter: getEffectiveRadius(radius, accuracy),
         isSpecificClassLocation: true,
         error: isValid
           ? undefined
@@ -445,7 +451,8 @@ export async function verifikasiLokasiMengajar(
       userLng,
       config.latitude,
       config.longitude,
-      config.radius_meter
+      config.radius_meter,
+      accuracy
     );
 
     return {
@@ -453,6 +460,7 @@ export async function verifikasiLokasiMengajar(
       isValid,
       namaKelas: kelas.nama_kelas,
       radiusMeter: config.radius_meter,
+      effectiveRadiusMeter: getEffectiveRadius(config.radius_meter, accuracy),
       isSpecificClassLocation: false,
       error: isValid
         ? undefined
@@ -468,7 +476,7 @@ export async function verifikasiLokasiMengajar(
   }
 }
 
-export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: number) {
+export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: number, accuracy?: number) {
   try {
     const session = await getSession();
     if (!session?.guru_id) {
@@ -489,10 +497,10 @@ export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: num
     }
 
     // 0. Validasi Lokasi jika dikirim (dilewati jika mode testing aktif)
-    if (lat && lng && (!testConfig.isActive || !testConfig.bypassGps)) {
+    if (lat != null && lng != null && (!testConfig.isActive || !testConfig.bypassGps)) {
       if (kelas.latitude != null && kelas.longitude != null) {
-        const radius = Number(kelas.radius_meter) || 5;
-        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius);
+        const radius = Number(kelas.radius_meter) || 10;
+        const isValid = isWithinGeofence(lat, lng, Number(kelas.latitude), Number(kelas.longitude), radius, accuracy);
         if (!isValid) {
           return {
             ok: false,
@@ -502,7 +510,7 @@ export async function validasiQrMengajar(kodeQr: string, lat?: number, lng?: num
         }
       } else {
         const config = await getLokasiSekolah();
-        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter);
+        const isValid = isWithinGeofence(lat, lng, config.latitude, config.longitude, config.radius_meter, accuracy);
         if (!isValid) {
           return { ok: false, error: "DILUAR_AREA", message: "Absensi ditolak: Anda terdeteksi berada di luar area sekolah." };
         }
@@ -650,8 +658,9 @@ export async function submitPresensiPulangAction(formData: FormData) {
     const tanggal = getTodayWIB();
 
     const file = formData.get("file") as File;
-    const latitude = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
-    const longitude = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
+    const latitude = formData.get("latitude") !== null && formData.get("latitude") !== "" ? parseFloat(formData.get("latitude") as string) : null;
+    const longitude = formData.get("longitude") !== null && formData.get("longitude") !== "" ? parseFloat(formData.get("longitude") as string) : null;
+    const accuracy = formData.get("accuracy") !== null && formData.get("accuracy") !== "" ? parseFloat(formData.get("accuracy") as string) : null;
 
     if (!file) {
       throw new Error("Foto selfie wajib diambil untuk absensi pulang.");
@@ -695,7 +704,7 @@ export async function submitPresensiPulangAction(formData: FormData) {
     if (testConfig.isActive && testConfig.bypassGps) {
       // Bypass GPS untuk keperluan pengetesan dev
     } else {
-      if (!latitude || !longitude) {
+      if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
         throw new Error("Lokasi (GPS) wajib diisi untuk absensi pulang.");
       }
 
@@ -705,7 +714,8 @@ export async function submitPresensiPulangAction(formData: FormData) {
         longitude,
         config.latitude,
         config.longitude,
-        config.radius_meter
+        config.radius_meter,
+        accuracy
       );
 
       if (!isValidLocation) {

@@ -44,7 +44,7 @@ export async function getLokasiSekolah() {
   return data;
 }
 
-export async function verifikasiLokasiSekolah(userLat: number, userLng: number) {
+export async function verifikasiLokasiSekolah(userLat: number, userLng: number, accuracy?: number | null) {
   try {
     const config = await getLokasiSekolah();
     const isValid = isWithinGeofence(
@@ -52,7 +52,8 @@ export async function verifikasiLokasiSekolah(userLat: number, userLng: number) 
       userLng,
       config.latitude,
       config.longitude,
-      config.radius_meter
+      config.radius_meter,
+      accuracy
     );
 
     return {

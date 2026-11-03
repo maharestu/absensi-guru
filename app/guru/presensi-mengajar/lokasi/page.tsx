@@ -22,7 +22,7 @@ function LokasiMengajarContent() {
   const [scanState, setScanState] = useState<ScanState>("IDLE");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [namaKelas, setNamaKelas] = useState<string>("");
-  const [radiusToleransi, setRadiusToleransi] = useState<number>(5);
+  const [radiusToleransi, setRadiusToleransi] = useState<number>(10);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,7 +39,7 @@ function LokasiMengajarContent() {
             setNamaKelas(data.kelas.nama_kelas);
           }
           if (data.kelas?.radius_meter) {
-            setRadiusToleransi(Number(data.kelas.radius_meter) || 5);
+            setRadiusToleransi(Number(data.kelas.radius_meter) || 10);
           }
         }
       } catch (err) {
@@ -77,9 +77,10 @@ function LokasiMengajarContent() {
         try {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
 
           // Verifikasi lokasi mengajar (prioritas: lokasi kelas spesifik, fallback: lokasi sekolah)
-          const result = await verifikasiLokasiMengajar(jadwalId, userLat, userLng);
+          const result = await verifikasiLokasiMengajar(jadwalId, userLat, userLng, accuracy);
 
           if (!result.success) {
             setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
@@ -91,6 +92,9 @@ function LokasiMengajarContent() {
             // Simpan koordinat dan status validasi lokasi untuk sesi mengajar
             sessionStorage.setItem("absensi_mengajar_lat", userLat.toString());
             sessionStorage.setItem("absensi_mengajar_lng", userLng.toString());
+            if (accuracy != null) {
+              sessionStorage.setItem("absensi_mengajar_accuracy", accuracy.toString());
+            }
             sessionStorage.setItem("absensi_mengajar_location_valid", "true");
             if (result.namaKelas) setNamaKelas(result.namaKelas);
             if (result.radiusMeter) setRadiusToleransi(result.radiusMeter);

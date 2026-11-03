@@ -46,9 +46,10 @@ export default function PresensiPulangLokasiPage() {
         try {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
 
           // Verifikasi lokasi sekolah dari database
-          const result = await verifikasiLokasiSekolah(userLat, userLng);
+          const result = await verifikasiLokasiSekolah(userLat, userLng, accuracy);
 
           if (!result.success) {
             setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
@@ -59,6 +60,9 @@ export default function PresensiPulangLokasiPage() {
           if (result.isValid) {
             sessionStorage.setItem("pulang_lat", userLat.toString());
             sessionStorage.setItem("pulang_lng", userLng.toString());
+            if (accuracy != null) {
+              sessionStorage.setItem("pulang_accuracy", accuracy.toString());
+            }
             setScanState("SUCCESS");
           } else {
             setErrorMsg("Pastikan Anda berada di area sekitar sekolah.");
