@@ -2265,21 +2265,21 @@ async function runAllTests() {
     "Tombol gear terintegrasi di sisi kanan card info guru."
   );
 
-  // TC-SETT-02: Halaman Pengaturan Guru Terpasang
+  // TC-SETT-02: Halaman Pengaturan Guru Terfokus Ganti Password
   const pengaturanPagePath = path.resolve(process.cwd(), "app/guru/pengaturan/page.tsx");
   const pengaturanExists = fs.existsSync(pengaturanPagePath);
   const pengaturanContent = pengaturanExists ? fs.readFileSync(pengaturanPagePath, "utf-8") : "";
-  const hasThreeTabs =
-    pengaturanContent.includes("kehadiran") &&
-    pengaturanContent.includes("mengajar") &&
-    pengaturanContent.includes("keamanan");
+  const isDirectPasswordPage =
+    pengaturanContent.includes("gantiPasswordGuruAction") &&
+    pengaturanContent.includes("Ubah Kata Sandi") &&
+    !pengaturanContent.includes("activeTab");
   assert(
     s28,
     "TC-SETT-02",
-    "Halaman Pengaturan Guru & 3 Tab Navigasi",
-    "app/guru/pengaturan/page.tsx tersedia dengan tab Kehadiran, Jadwal KBM, dan Ganti Password",
-    pengaturanExists && hasThreeTabs,
-    "Halaman pengaturan guru terstruktur dengan 3 tab navigasi lengkap."
+    "Halaman Pengaturan Guru Terfokus Ganti Password",
+    "app/guru/pengaturan/page.tsx menyajikan formulir ganti password langsung tanpa tab switcher",
+    pengaturanExists && isDirectPasswordPage,
+    "Halaman pengaturan guru disederhanakan khusus untuk pengelolaan kata sandi."
   );
 
   // TC-SETT-03: Pengecualian Route Guard Holiday Pause untuk Pengaturan
@@ -2350,48 +2350,49 @@ async function runAllTests() {
     "Server Action kebal terhadap manipulasi identitas (IDOR immune)."
   );
 
-  // TC-SETT-08: Query & Ringkasan Absensi Mengajar di Server Action
-  const hasMengajarQuery =
-    actionsContent.includes("from(\"absensi_mengajar\")") &&
-    actionsContent.includes("mengajarStatistik") &&
-    actionsContent.includes("riwayatMengajar") &&
-    actionsContent.includes("persentaseMengajar");
+  // TC-SETT-08: Eliminasi Query Ringkasan Absensi & KBM (Zero Dead Query)
+  const isCleanOfSummaryQueries =
+    !actionsContent.includes("from(\"absensi_mengajar\")") &&
+    !actionsContent.includes("from(\"absensi_masuk\")") &&
+    !actionsContent.includes("from(\"jadwal\")") &&
+    !actionsContent.includes("mengajarStatistik") &&
+    !actionsContent.includes("kehadiranStatistik");
   assert(
     s28,
     "TC-SETT-08",
-    "Data Rekapitulasi & Log Absensi Mengajar (KBM)",
-    "actions/guru-pengaturan.ts mengquery absensi_mengajar dan menghitung statistik KBM",
-    hasMengajarQuery,
-    "Server Action berhasil mengagregasi data mengajar, tidak mengajar, dan persentase."
+    "Eliminasi Query Ringkasan Absensi & KBM (Zero Dead Query)",
+    "actions/guru-pengaturan.ts bersih dari query absensi_mengajar, absensi_masuk, dan jadwal",
+    isCleanOfSummaryQueries,
+    "Server action bebas dari dead code query dan komputasi agregasi yang dihapus."
   );
 
-  // TC-SETT-09: Integrasi UI Ringkasan Mengajar, Sub-tab & PhotoOverlay
-  const hasMengajarUI =
-    pengaturanContent.includes("mengajarStat?.persentaseMengajar") &&
-    pengaturanContent.includes("subTabMengajar") &&
-    pengaturanContent.includes("PhotoOverlay") &&
-    pengaturanContent.includes("Riwayat KBM");
+  // TC-SETT-09: Eliminasi Komponen UI Ringkasan & Modal Foto (Zero Dead UI)
+  const isCleanOfSummaryUI =
+    !pengaturanContent.includes("subTabMengajar") &&
+    !pengaturanContent.includes("PhotoOverlay") &&
+    !pengaturanContent.includes("Riwayat KBM") &&
+    !pengaturanContent.includes("Ringkasan Kehadiran");
   assert(
     s28,
     "TC-SETT-09",
-    "Integrasi UI Ringkasan Mengajar, Sub-tab & Modal Foto",
-    "app/guru/pengaturan/page.tsx merender ringkasan KBM, switcher riwayat/jadwal, dan modal foto",
-    hasMengajarUI,
-    "UI Pengaturan Guru lengkap dengan ringkasan mengajar, riwayat KBM, dan foto bukti."
+    "Eliminasi Komponen UI Ringkasan & Modal Foto (Zero Dead UI)",
+    "app/guru/pengaturan/page.tsx bebas dari PhotoOverlay, switcher riwayat, dan kartu ringkasan",
+    isCleanOfSummaryUI,
+    "UI Pengaturan Guru telah dibersihkan secara tuntas dari komponen tampilan yang dihapus."
   );
 
-  // TC-SETT-10: Pembatasan Statistik Khusus Bulan Berjalan (Current Month Scope)
-  const hasMonthlyScope =
-    actionsContent.includes("currentMonthPrefix") &&
-    actionsContent.includes("periodeBulan") &&
-    pengaturanContent.includes("Bulan Ini");
+  // TC-SETT-10: Integritas Profil Akun & Fungsionalitas Ganti Password
+  const hasProfilAndChangePassword =
+    actionsContent.includes("gantiPasswordGuruAction") &&
+    actionsContent.includes("getPengaturanGuruData") &&
+    pengaturanContent.includes("handleGantiPassword");
   assert(
     s28,
     "TC-SETT-10",
-    "Pembatasan Statistik Khusus Bulan Berjalan",
-    "actions/guru-pengaturan.ts menghitung statistik kehadiran & KBM khusus bulan aktif",
-    hasMonthlyScope,
-    "Statistik kehadiran dan mengajar terisolasi ke bulan berjalan dan mereset otomatis di awal bulan baru."
+    "Integritas Profil Akun & Fungsionalitas Ganti Password",
+    "Integrasi data profil guru dan eksekusi gantiPasswordGuruAction terjaga penuh",
+    hasProfilAndChangePassword,
+    "Alur pengelolaan kata sandi dan identitas akun guru terhubung dan berfungsi normal."
   );
 
   // TC-SETT-11: Standarisasi KOP Surat Expor & Cetak (Non-Bold Instansi)

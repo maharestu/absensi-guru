@@ -162,7 +162,7 @@ export default function DashboardGuruPage() {
             type="button"
             onClick={() => router.push("/guru/pengaturan")}
             className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center flex-shrink-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50/70 hover:border-blue-200 active:scale-95 transition-all shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            title="Pengaturan Guru & Riwayat"
+            title="Pengaturan Akun & Kata Sandi"
             aria-label="Pengaturan Guru"
           >
             <svg
