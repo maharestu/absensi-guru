@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { RoleAkun } from "@/types/schema";
 
 export const SESSION_COOKIE_NAME = "auth_session";
-export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 jam (jam kerja)
+export const SESSION_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
 export interface SessionPayload {
   id: string; // ID akun
@@ -105,7 +105,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     const decoder = new TextDecoder();
     const payload: SessionPayload = JSON.parse(decoder.decode(decodedPayloadBytes));
 
-    // Cek kadaluarsa (8 jam)
+    // Cek kadaluarsa (1 jam)
     if (Date.now() > payload.expiresAt) {
       return null;
     }
