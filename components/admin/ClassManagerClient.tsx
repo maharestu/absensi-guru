@@ -41,6 +41,7 @@ export default function ClassManagerClient() {
   const [editError, setEditError] = useState("");
   const [deletingClass, setDeletingClass] = useState<Kelas | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -396,16 +397,18 @@ export default function ClassManagerClient() {
 
   const handleConfirmDeleteAll = async (forceCascade: boolean) => {
     try {
+      setDeleteAllError(null);
       setIsDeletingAll(true);
       const res = await deleteAllKelas(forceCascade);
       if (res.success) {
         setIsDeleteAllOpen(false);
+        setDeleteAllError(null);
         loadData();
       } else {
-        alert("Gagal menghapus seluruh kelas: " + (res.error || ""));
+        setDeleteAllError("Gagal menghapus seluruh kelas: " + (res.error || ""));
       }
     } catch (e: any) {
-      alert("Error: " + e.message);
+      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus kelas."));
     } finally {
       setIsDeletingAll(false);
     }
@@ -1001,7 +1004,10 @@ export default function ClassManagerClient() {
       {/* Modal Hapus Semua Kelas */}
       <DeleteAllModal
         isOpen={isDeleteAllOpen}
-        onClose={() => setIsDeleteAllOpen(false)}
+        onClose={() => {
+          setIsDeleteAllOpen(false);
+          setDeleteAllError(null);
+        }}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Ruang Kelas"
         entityName="ruang kelas"
@@ -1009,6 +1015,8 @@ export default function ClassManagerClient() {
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}
+        errorMessage={deleteAllError}
+        onClearError={() => setDeleteAllError(null)}
       />
     </div>
 

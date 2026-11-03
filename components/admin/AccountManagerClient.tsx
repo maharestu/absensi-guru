@@ -7,7 +7,7 @@ import { getGuruList } from "@/actions/guru";
 import { Guru } from "@/types/schema";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
-import { ChevronDown, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
+import { ChevronDown, Edit2, Trash2, Eye, EyeOff, AlertCircle } from "lucide-react";
 import Pagination from "@/components/ui/pagination";
 import { useAuth } from "@/context/AuthContext";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
@@ -42,6 +42,9 @@ export default function AccountManagerClient() {
   const [editingAccount, setEditingAccount] = useState<AdminAkunItem | null>(null);
   const [deletingAccount, setDeletingAccount] = useState<AdminAkunItem | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -152,22 +155,25 @@ export default function AccountManagerClient() {
 
   const handleConfirmDeleteAll = async (forceCascade: boolean) => {
     try {
+      setDeleteAllError(null);
       setIsDeletingAll(true);
       const res = await deleteAllAkun(user?.id);
       if (res.success) {
         setIsDeleteAllOpen(false);
+        setDeleteAllError(null);
         await loadData();
       } else {
-        alert(res.error || "Gagal menghapus seluruh akun.");
+        setDeleteAllError(res.error || "Gagal menghapus seluruh akun.");
       }
     } catch (e: any) {
-      alert("Error: " + e.message);
+      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus akun."));
     } finally {
       setIsDeletingAll(false);
     }
   };
 
   const handleOpenEdit = (akun: AdminAkunItem) => {
+    setEditError("");
     setEditingAccount(akun);
     setEditForm({
       nama: akun.nama,
@@ -183,9 +189,10 @@ export default function AccountManagerClient() {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
+    setEditError("");
 
     if (editForm.passwordBaru && editForm.passwordBaru !== editForm.konfirmasiPassword) {
-      alert("Password baru dan konfirmasi password tidak cocok!");
+      setEditError("Password baru dan konfirmasi password tidak cocok!");
       return;
     }
 
@@ -212,11 +219,12 @@ export default function AccountManagerClient() {
       if (res.success) {
         await loadData();
         setEditingAccount(null);
+        setEditError("");
       } else {
-        alert("Gagal mengupdate akun: " + (res.error || ""));
+        setEditError("Gagal mengupdate akun: " + (res.error || ""));
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setEditError("Error: " + (err.message || "Terjadi kesalahan saat mengupdate akun."));
     } finally {
       setSubmitting(false);
     }
@@ -266,13 +274,14 @@ export default function AccountManagerClient() {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError("");
     if (!createForm.nama || !createForm.username || !createForm.password || !createForm.role) {
-      alert("Mohon lengkapi semua field yang wajib diisi!");
+      setCreateError("Mohon lengkapi semua field yang wajib diisi!");
       return;
     }
 
     if (createForm.role === "guru" && !createForm.guru_id) {
-      alert("Validasi Gagal: Untuk Role Guru, nama pemilik akun harus terdaftar di sistem. Silakan pilih dari daftar pencarian.");
+      setCreateError("Validasi Gagal: Untuk Role Guru, nama pemilik akun harus terdaftar di sistem. Silakan pilih dari daftar pencarian.");
       return;
     }
 
@@ -298,12 +307,13 @@ export default function AccountManagerClient() {
           guru_id: null,
         });
         setShowCreatePassword(false);
+        setCreateError("");
         setViewMode("list");
       } else {
-        alert("Gagal membuat akun: " + (res.error || ""));
+        setCreateError("Gagal membuat akun: " + (res.error || ""));
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setCreateError("Error: " + (err.message || "Terjadi kesalahan saat membuat akun."));
     } finally {
       setSubmitting(false);
     }
@@ -348,7 +358,7 @@ export default function AccountManagerClient() {
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
-            onClick={() => setViewMode("create")}
+            onClick={() => { setViewMode("create"); setCreateError(""); }}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+</span>
@@ -445,7 +455,10 @@ export default function AccountManagerClient() {
       {/* Modal Hapus Semua Akun */}
       <DeleteAllModal
         isOpen={isDeleteAllOpen}
-        onClose={() => setIsDeleteAllOpen(false)}
+        onClose={() => {
+          setIsDeleteAllOpen(false);
+          setDeleteAllError(null);
+        }}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Akun"
         entityName="akun pengguna"
@@ -453,14 +466,22 @@ export default function AccountManagerClient() {
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}
+        errorMessage={deleteAllError}
+        onClearError={() => setDeleteAllError(null)}
       />
 
-      <Modal isOpen={!!editingAccount} onClose={() => setEditingAccount(null)} maxWidth="max-w-2xl">
+      <Modal isOpen={!!editingAccount} onClose={() => { setEditingAccount(null); setEditError(""); }} maxWidth="max-w-2xl">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Update Data Akun</h3>
           <p className="text-xs text-slate-400 mt-0.5">Perbarui akses dan status pengguna.</p>
         </div>
-        <form onSubmit={handleSaveEdit} className="space-y-5">
+        {editError && (
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-medium leading-relaxed">{editError}</span>
+          </div>
+        )}
+        <form onSubmit={handleSaveEdit} className="space-y-5 mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5 flex flex-col">
               <label className="block text-xs font-semibold text-slate-800">Nama pemilik akun</label>
@@ -575,11 +596,17 @@ export default function AccountManagerClient() {
       </Modal>
 
       {/* MODAL: TAMBAH AKUN */}
-      <Modal isOpen={viewMode === "create"} onClose={() => setViewMode("list")} maxWidth="max-w-3xl">
+      <Modal isOpen={viewMode === "create"} onClose={() => { setViewMode("list"); setCreateError(""); }} maxWidth="max-w-3xl">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Tambah Akun</h3>
           <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
         </div>
+        {createError && (
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-medium leading-relaxed">{createError}</span>
+          </div>
+        )}
         <form onSubmit={handleCreateSubmit} className="space-y-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 

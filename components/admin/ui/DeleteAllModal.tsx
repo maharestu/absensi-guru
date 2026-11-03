@@ -20,6 +20,8 @@ interface DeleteAllModalProps {
   isChecking?: boolean;
   relationInfo?: RelationAuditResult | null;
   isDeleting?: boolean;
+  errorMessage?: string | null;
+  onClearError?: () => void;
 }
 
 export function DeleteAllModal({
@@ -32,6 +34,8 @@ export function DeleteAllModal({
   isChecking = false,
   relationInfo = null,
   isDeleting = false,
+  errorMessage = null,
+  onClearError,
 }: DeleteAllModalProps) {
   const [showForceSection, setShowForceSection] = useState(false);
   const [confirmInput, setConfirmInput] = useState("");
@@ -41,8 +45,14 @@ export function DeleteAllModal({
     if (!isOpen) {
       setShowForceSection(false);
       setConfirmInput("");
+      if (onClearError) onClearError();
     }
-  }, [isOpen]);
+  }, [isOpen, onClearError]);
+
+  const handleClose = () => {
+    if (onClearError) onClearError();
+    onClose();
+  };
 
   const handleExecute = (force: boolean) => {
     onConfirm(force);
@@ -51,7 +61,7 @@ export function DeleteAllModal({
   const isForceConfirmed = confirmInput.trim().toUpperCase() === "HAPUS";
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+    <Modal isOpen={isOpen} onClose={handleClose} maxWidth="max-w-lg">
       {isChecking ? (
         // State 1: Memeriksa Relasi Database
         <div className="flex flex-col items-center text-center space-y-4 py-6">
@@ -88,6 +98,14 @@ export function DeleteAllModal({
             </p>
           )}
 
+          {/* Banner Error jika operasi gagal */}
+          {errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5 text-left">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span className="font-medium leading-relaxed">{errorMessage}</span>
+            </div>
+          )}
+
           {/* Kotak Rincian Keterikatan */}
           <div className="bg-amber-50/60 border border-amber-200/70 rounded-2xl p-4 text-xs space-y-2.5">
             <p className="font-semibold text-amber-900">
@@ -112,7 +130,7 @@ export function DeleteAllModal({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-sm font-semibold transition-all shadow-xs"
                 >
                   Batal & Pertahankan Data
@@ -204,11 +222,19 @@ export function DeleteAllModal({
             )}
           </div>
 
+          {/* Banner Error jika operasi gagal */}
+          {errorMessage && (
+            <div className="w-full p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5 text-left">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span className="font-medium leading-relaxed">{errorMessage}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-3 w-full pt-3">
             <button
               type="button"
               disabled={isDeleting}
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold transition-all disabled:opacity-50"
             >
               Batal

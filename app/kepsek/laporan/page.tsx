@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Clock, Calendar, Camera, Search, FileText, TrendingUp, Users, Award, AlertTriangle } from "lucide-react";
+import { Clock, Calendar, Camera, Search, FileText, TrendingUp, Users, Award, AlertTriangle, AlertCircle, X } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getLaporanKehadiran, getLaporanMengajar, LaporanKehadiran, LaporanMengajar } from "@/actions/laporan";
@@ -36,6 +36,16 @@ export default function LaporanAbsensiPage() {
   const [exportingGuruId, setExportingGuruId] = useState<string | null>(null);
   const [exportingMengajarGuruId, setExportingMengajarGuruId] = useState<string | null>(null);
   const [isExportingAllDocx, setIsExportingAllDocx] = useState(false);
+  const [exportNotification, setExportNotification] = useState<{ message: string; type: "error" | "warning" } | null>(null);
+
+  useEffect(() => {
+    if (exportNotification) {
+      const timer = setTimeout(() => {
+        setExportNotification(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [exportNotification]);
 
   const [detailModalGuruId, setDetailModalGuruId] = useState<string | null>(null);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
@@ -820,7 +830,10 @@ export default function LaporanAbsensiPage() {
       triggerDownload(blob, filename);
     } catch (err) {
       console.error("Gagal export docx guru:", err);
-      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+      setExportNotification({
+        type: "error",
+        message: "Terjadi kesalahan saat mengekspor dokumen Word.",
+      });
     } finally {
       setExportingGuruId(null);
     }
@@ -888,7 +901,10 @@ export default function LaporanAbsensiPage() {
       triggerDownload(blob, filename);
     } catch (err) {
       console.error("Gagal export docx mengajar guru:", err);
-      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+      setExportNotification({
+        type: "error",
+        message: "Terjadi kesalahan saat mengekspor dokumen Word.",
+      });
     } finally {
       setExportingMengajarGuruId(null);
     }
@@ -899,7 +915,10 @@ export default function LaporanAbsensiPage() {
 
     if (isKehadiran) {
       if (filteredGuruKehadiran.length === 0) {
-        alert("Tidak ada data untuk diekspor.");
+        setExportNotification({
+          type: "warning",
+          message: "Tidak ada data kehadiran untuk diekspor pada rentang tanggal ini.",
+        });
         return;
       }
       try {
@@ -932,7 +951,10 @@ export default function LaporanAbsensiPage() {
         triggerDownload(blob, fileName);
       } catch (err) {
         console.error("Gagal export docx keseluruhan guru:", err);
-        alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+        setExportNotification({
+          type: "error",
+          message: "Terjadi kesalahan saat mengekspor dokumen Word.",
+        });
       } finally {
         setIsExportingAllDocx(false);
       }
@@ -940,7 +962,10 @@ export default function LaporanAbsensiPage() {
     }
 
     if (filteredGuruMengajar.length === 0) {
-      alert("Tidak ada data untuk diekspor.");
+      setExportNotification({
+        type: "warning",
+        message: "Tidak ada data mengajar untuk diekspor pada rentang tanggal ini.",
+      });
       return;
     }
     try {
@@ -972,7 +997,10 @@ export default function LaporanAbsensiPage() {
       triggerDownload(blob, fileName);
     } catch (err) {
       console.error("Gagal export docx keseluruhan guru mengajar:", err);
-      alert("Terjadi kesalahan saat mengekspor dokumen Word.");
+      setExportNotification({
+        type: "error",
+        message: "Terjadi kesalahan saat mengekspor dokumen Word.",
+      });
     } finally {
       setIsExportingAllDocx(false);
     }
@@ -1479,6 +1507,32 @@ export default function LaporanAbsensiPage() {
         photoUrl={photoOverlayUrl}
         onClose={() => setPhotoOverlayUrl(null)}
       />
+
+      {/* ── TOAST NOTIFIKASI EKSPOR ── */}
+      {exportNotification && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 shadow-xl rounded-2xl text-xs font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
+          {exportNotification.type === "error" ? (
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+          )}
+          <span className={exportNotification.type === "error" ? "text-red-700" : "text-amber-800"}>
+            {exportNotification.message}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExportNotification(null)}
+            className="ml-2 text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
+            aria-label="Tutup notifikasi"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
     </div>
   );
