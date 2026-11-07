@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Kelas } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function getKelasList(): Promise<Kelas[]> {
   const { data, error } = await supabaseAdmin
@@ -52,7 +53,7 @@ export async function createKelas(payload: { nama_kelas: string }): Promise<{ su
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "createKelas") };
   }
 }
 
@@ -68,7 +69,7 @@ export async function updateKelas(id: string, payload: { nama_kelas: string }): 
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateKelas") };
   }
 }
 
@@ -108,7 +109,7 @@ export async function updateLokasiKelas(
     if (error) throw error;
     return { success: true, data: data as Kelas };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateLokasiKelas") };
   }
 }
 
@@ -172,7 +173,7 @@ export async function deleteKelas(
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteKelas") };
   }
 }
 
@@ -212,8 +213,7 @@ export async function deleteAllKelas(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllKelas Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllKelas") };
   }
 }
 

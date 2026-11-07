@@ -166,7 +166,7 @@ export default function AccountManagerClient() {
         setDeleteAllError(res.error || "Gagal menghapus seluruh akun.");
       }
     } catch (e: any) {
-      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus akun."));
+      setDeleteAllError(e.message || "Terjadi kesalahan saat menghapus akun.");
     } finally {
       setIsDeletingAll(false);
     }
@@ -221,10 +221,10 @@ export default function AccountManagerClient() {
         setEditingAccount(null);
         setEditError("");
       } else {
-        setEditError("Gagal mengupdate akun: " + (res.error || ""));
+        setEditError(res.error || "Gagal memperbarui data akun.");
       }
     } catch (err: any) {
-      setEditError("Error: " + (err.message || "Terjadi kesalahan saat mengupdate akun."));
+      setEditError(err.message || "Terjadi kesalahan saat memperbarui akun.");
     } finally {
       setSubmitting(false);
     }
@@ -310,10 +310,10 @@ export default function AccountManagerClient() {
         setCreateError("");
         setViewMode("list");
       } else {
-        setCreateError("Gagal membuat akun: " + (res.error || ""));
+        setCreateError(res.error || "Gagal membuat akun.");
       }
     } catch (err: any) {
-      setCreateError("Error: " + (err.message || "Terjadi kesalahan saat membuat akun."));
+      setCreateError(err.message || "Terjadi kesalahan saat membuat akun.");
     } finally {
       setSubmitting(false);
     }

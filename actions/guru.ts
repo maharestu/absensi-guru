@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Guru } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function getGuruList(): Promise<Guru[]> {
   const { data, error } = await supabaseAdmin
@@ -49,10 +50,10 @@ export async function createGuru(
     await requireAdmin();
     const { linked_role, ...dataToInsert } = input as any;
     const { error } = await supabaseAdmin.from("guru").insert(dataToInsert);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "createGuru") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "createGuru") };
   }
 }
 
@@ -67,10 +68,10 @@ export async function updateGuru(
       .from("guru")
       .update(dataToUpdate)
       .eq("id", id);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "updateGuru") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateGuru") };
   }
 }
 
@@ -174,7 +175,7 @@ export async function deleteGuru(
             error: "Guru ini masih memiliki data terkait (akun/jadwal/absensi).",
           };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: handleActionError(error, "deleteGuru") };
       }
       return { success: true };
     }
@@ -218,8 +219,7 @@ export async function deleteGuru(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteGuru Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteGuru") };
   }
 }
 
@@ -315,8 +315,7 @@ export async function deleteAllGuru(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllGuru Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllGuru") };
   }
 }
 

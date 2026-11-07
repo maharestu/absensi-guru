@@ -4,6 +4,15 @@ import { RoleAkun } from "@/types/schema";
 export const SESSION_COOKIE_NAME = "auth_session";
 export const SESSION_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
+/**
+ * Mendapatkan rute dashboard resmi berdasarkan role pengguna
+ */
+export function getDashboardPath(role?: RoleAkun | string | null): string {
+  if (role === "guru") return "/guru";
+  if (role === "kepala_sekolah") return "/kepsek";
+  return "/admin";
+}
+
 export interface SessionPayload {
   id: string; // ID akun
   username: string;

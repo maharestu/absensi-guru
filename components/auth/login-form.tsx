@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginAction } from "@/actions/auth";
 import { Akun } from "@/types/schema";
+import { getDashboardPath } from "@/lib/error-handler";
 
 export default function LoginForm() {
   const [nip, setNip] = useState("");
@@ -15,7 +16,6 @@ export default function LoginForm() {
 
   const { login } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // Pre-warm dashboard routes agar transisi pasca-login instan & mulus
   useEffect(() => {
@@ -35,21 +35,11 @@ export default function LoginForm() {
 
       if (result.success) {
         login(result.user as Akun);
-        
-        const nextParam = searchParams.get("next");
-        if (nextParam && nextParam.startsWith("/")) {
-          router.replace(nextParam);
-          return;
-        }
 
-        // Arahkan sesuai role menggunakan replace agar halaman login tidak muncul kembali
-        if (result.user.role === "guru") {
-          router.replace("/guru");
-        } else if (result.user.role === "kepala_sekolah") {
-          router.replace("/kepsek");
-        } else {
-          router.replace("/admin");
-        }
+        // Selalu arahkan pengguna ke dashboard sesuai dengan role masing-masing setelah login.
+        // Jangan mengarahkan pengguna kembali ke halaman terakhir yang diakses sebelum sesi berakhir.
+        const targetDashboard = getDashboardPath(result.user.role);
+        router.replace(targetDashboard);
         // Catatan: sengaja tidak memanggil setIsLoading(false) di sini agar state
         // tombol tetap "Memproses..." sampai dashboard tujuan siap menggantikan halaman login.
       } else {

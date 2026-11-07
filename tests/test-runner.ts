@@ -44,7 +44,12 @@ import {
   verifySessionToken,
   SESSION_COOKIE_NAME,
   SessionPayload,
+  getDashboardPath,
 } from "@/lib/session";
+import {
+  sanitizeErrorMessage,
+  handleActionError,
+} from "@/lib/error-handler";
 import {
   isWeekendWIB,
   getJamMenitWIB,
@@ -2521,6 +2526,224 @@ async function runAllTests() {
     negAccRadius === 10 && nanAccRadius === 10,
     "Nilai akurasi GPS abnormal atau tidak valid ditangani secara aman dengan fallback ke radius dasar."
   );
+
+  // ============================================================================
+  // SUITE 30 (BARU): Navigasi Pasca Sesi Berakhir & RBAC Dashboard
+  // ============================================================================
+  const s30 = registerSuite(
+    "Suite 30 (BARU): Navigasi Pasca Sesi Berakhir",
+    "lib/session.ts, components/auth/login-form.tsx"
+  );
+
+  // TC-NAV-01: Role Guru selalu diarahkan ke /guru
+  const guruDashboard = getDashboardPath("guru");
+  assert(
+    s30,
+    "TC-NAV-01",
+    "Pemetaan Dashboard Peran Guru",
+    `Role 'guru' dipetakan ke: ${guruDashboard}`,
+    guruDashboard === "/guru",
+    "Pengguna dengan peran guru selalu diarahkan ke /guru."
+  );
+
+  // TC-NAV-02: Role Kepala Sekolah selalu diarahkan ke /kepsek
+  const kepsekDashboard = getDashboardPath("kepala_sekolah");
+  assert(
+    s30,
+    "TC-NAV-02",
+    "Pemetaan Dashboard Peran Kepala Sekolah",
+    `Role 'kepala_sekolah' dipetakan ke: ${kepsekDashboard}`,
+    kepsekDashboard === "/kepsek",
+    "Pengguna dengan peran kepala_sekolah selalu diarahkan ke /kepsek."
+  );
+
+  // TC-NAV-03: Role Admin selalu diarahkan ke /admin
+  const adminDashboard = getDashboardPath("admin");
+  assert(
+    s30,
+    "TC-NAV-03",
+    "Pemetaan Dashboard Peran Admin",
+    `Role 'admin' dipetakan ke: ${adminDashboard}`,
+    adminDashboard === "/admin",
+    "Pengguna dengan peran admin selalu diarahkan ke /admin."
+  );
+
+  // TC-NAV-04: Simulasi Login Pasca Sesi Berakhir Mengabaikan Sub-Halaman Lama
+  function resolvePostLoginRedirect(role: string, _previousUrlParam?: string | null): string {
+    // Alur revisi: Selalu mengarahkan ke dashboard role masing-masing, mengabaikan halaman lama
+    return getDashboardPath(role);
+  }
+
+  const expiredGuruRedirect = resolvePostLoginRedirect("guru", "/guru/presensi-mengajar/senin");
+  const expiredAdminRedirect = resolvePostLoginRedirect("admin", "/admin/guru");
+  const expiredKepsekRedirect = resolvePostLoginRedirect("kepala_sekolah", "/kepsek/laporan");
+
+  assert(
+    s30,
+    "TC-NAV-04",
+    "Pengalihan Mengabaikan Sub-Halaman Lama Setelah Sesi Berakhir",
+    `Hasil redirect: Guru -> ${expiredGuruRedirect}, Admin -> ${expiredAdminRedirect}, Kepsek -> ${expiredKepsekRedirect}`,
+    expiredGuruRedirect === "/guru" &&
+      expiredAdminRedirect === "/admin" &&
+      expiredKepsekRedirect === "/kepsek",
+    "Pengguna yang login kembali pasca sesi berakhir tidak diarahkan ke halaman terakhir, melainkan selalu ke dashboard perannya."
+  );
+
+  // TC-NAV-05: Sesi Expired Validasi Kriptografi Menghasilkan Null & Mewajibkan Login Baru
+  const pastExpiredPayload: SessionPayload = {
+    id: "user-exp-1",
+    username: "guru_exp",
+    nama: "Guru Expired",
+    role: "guru",
+    expiresAt: Date.now() - 5000,
+  };
+  const expiredSignedTokenS30 = await signSessionToken(pastExpiredPayload);
+  const verifyExpiredS30 = await verifySessionToken(expiredSignedTokenS30);
+
+  assert(
+    s30,
+    "TC-NAV-05",
+    "Verifikasi Token Sesi Kadaluarsa Mengembalikan Null",
+    `Token expired verifikasi: ${verifyExpiredS30 === null ? "null (sesi ditolak)" : "valid"}`,
+    verifyExpiredS30 === null,
+    "Token dengan waktu expiresAt di masa lalu ditolak oleh verifySessionToken."
+  );
+
+  // TC-NAV-06: Fallback Aman untuk Role Tidak Dikenal
+  const unknownRoleDashboard = getDashboardPath("unknown_role" as any);
+  assert(
+    s30,
+    "TC-NAV-06",
+    "Fallback Aman Rute Dashboard untuk Role Tidak Dikenal",
+    `Role unknown dipetakan ke: ${unknownRoleDashboard}`,
+    unknownRoleDashboard === "/admin",
+    "Role yang tidak dikenali dialihkan ke default dashboard /admin demi keamanan."
+  );
+
+  // ============================================================================
+  // SUITE 31 (BARU): Sanitasi Error & Penerjemahan Bahasa Indonesia
+  // ============================================================================
+  const s31 = registerSuite(
+    "Suite 31 (BARU): Sanitasi Error & Penerjemahan Bahasa Indonesia",
+    "lib/error-handler.ts"
+  );
+
+  // TC-ERR-01: Duplikasi NIP Guru (23505 / guru_nip_key)
+  const nipErrorRaw = {
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "guru_nip_key"',
+    details: 'Key (nip)=(198501012010011001) already exists.',
+  };
+  const sanitizedNipError = sanitizeErrorMessage(nipErrorRaw);
+  assert(
+    s31,
+    "TC-ERR-01",
+    "Sanitasi Duplikasi NIP Guru (23505)",
+    `Hasil: "${sanitizedNipError}"`,
+    sanitizedNipError.includes("NIP/NUPTK tersebut sudah terdaftar") &&
+      !sanitizedNipError.includes("23505") &&
+      !sanitizedNipError.includes("constraint") &&
+      !sanitizedNipError.includes("duplicate"),
+    "Pesan duplikasi NIP disanitasi ke bahasa Indonesia natural tanpa kode 23505 atau istilah database."
+  );
+
+  // TC-ERR-02: Duplikasi Username Akun (23505 / akun_username_key)
+  const usernameErrorRaw = {
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "akun_username_key"',
+    details: 'Key (username)=(admin_utama) already exists.',
+  };
+  const sanitizedUsernameError = sanitizeErrorMessage(usernameErrorRaw);
+  assert(
+    s31,
+    "TC-ERR-02",
+    "Sanitasi Duplikasi Username Akun (23505)",
+    `Hasil: "${sanitizedUsernameError}"`,
+    sanitizedUsernameError.includes("Username tersebut sudah digunakan") &&
+      !sanitizedUsernameError.includes("23505"),
+    "Pesan duplikasi username diubah menjadi instruksi yang ramah pengguna."
+  );
+
+  // TC-ERR-03: Duplikasi Nama Kelas / Istilah Teknis 'duplicate_name'
+  const duplicateNameRaw = "duplicate_name: kelas sudah ada pada tabel kelas";
+  const sanitizedClassNameError = sanitizeErrorMessage(duplicateNameRaw);
+  assert(
+    s31,
+    "TC-ERR-03",
+    "Sanitasi Istilah Teknis 'duplicate_name' / Duplikasi Nama Kelas",
+    `Hasil: "${sanitizedClassNameError}"`,
+    sanitizedClassNameError.includes("Nama kelas tersebut sudah terdaftar") &&
+      !sanitizedClassNameError.includes("duplicate_name"),
+    "Istilah teknis internal 'duplicate_name' berhasil dihilangkan dan diganti dengan pesan informatif."
+  );
+
+  // TC-ERR-04: Pelanggaran Relasi Data / Foreign Key (23503)
+  const fkErrorRaw = {
+    code: "23503",
+    message: 'update or delete on table "guru" violates foreign key constraint "fk_jadwal_guru" on table "jadwal"',
+    details: 'Key (id)=(uuid-123) is still referenced from table "jadwal".',
+  };
+  const sanitizedFkError = sanitizeErrorMessage(fkErrorRaw);
+  assert(
+    s31,
+    "TC-ERR-04",
+    "Sanitasi Error Relasi Data Foreign Key (23503)",
+    `Hasil: "${sanitizedFkError}"`,
+    sanitizedFkError.includes("tidak dapat dihapus karena masih terhubung dengan") &&
+      !sanitizedFkError.includes("23503") &&
+      !sanitizedFkError.includes("foreign key"),
+    "Error foreign key 23503 diterjemahkan ke penjelasan relasi data tanpa detail SQL/tabel."
+  );
+
+  // TC-ERR-05: Duplikasi Presensi Mengajar
+  const duplicateTeachingRaw = {
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "unique_absensi_mengajar_sesi"',
+  };
+  const sanitizedTeachingError = sanitizeErrorMessage(duplicateTeachingRaw);
+  assert(
+    s31,
+    "TC-ERR-05",
+    "Sanitasi Duplikasi Presensi Mengajar",
+    `Hasil: "${sanitizedTeachingError}"`,
+    sanitizedTeachingError.includes("Absensi mengajar untuk jadwal ini pada hari ini sudah pernah dilakukan") &&
+      !sanitizedTeachingError.includes("unique_absensi_mengajar_sesi"),
+    "Duplikasi presensi mengajar disanitasi menjadi pesan status yang jelas."
+  );
+
+  // TC-ERR-06: Error Koneksi Jaringan / Backend Terputus
+  const networkErrorRaw = new Error("Failed to fetch: NetworkError when attempting to fetch resource.");
+  const sanitizedNetworkError = sanitizeErrorMessage(networkErrorRaw);
+  assert(
+    s31,
+    "TC-ERR-06",
+    "Sanitasi Error Gangguan Koneksi Database / Jaringan",
+    `Hasil: "${sanitizedNetworkError}"`,
+    sanitizedNetworkError.includes("Gagal terhubung ke server database") &&
+      !sanitizedNetworkError.includes("Failed to fetch"),
+    "Error jaringan dan backend dikonversi ke instruksi periksa koneksi."
+  );
+
+  // TC-ERR-07: Error Handler Mencatat Log Teknis untuk Developer
+  let loggedOutput = "";
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    loggedOutput = args.map((a) => String(a?.message || a)).join(" ");
+  };
+  try {
+    const handledMsg = handleActionError(nipErrorRaw, "testContext");
+    assert(
+      s31,
+      "TC-ERR-07",
+      "Pemisahan Log Teknis Developer & Pesan UI Pengguna",
+      `UI: "${handledMsg}", Server Log: "${loggedOutput}"`,
+      handledMsg.includes("NIP/NUPTK tersebut sudah terdaftar") &&
+        loggedOutput.includes("duplicate key"),
+      "Detail teknis lengkap tetap dicatat di server log untuk developer, sementara pesan UI bersih untuk pengguna."
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
 
   // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN

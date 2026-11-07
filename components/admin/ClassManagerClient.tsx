@@ -237,10 +237,10 @@ export default function ClassManagerClient() {
         setCreateError("");
         loadData();
       } else {
-        setCreateError("Gagal menambah kelas: " + res.error);
+        setCreateError(res.error || "Gagal menambah kelas.");
       }
     } catch (err: any) {
-      setCreateError("Error: " + err.message);
+      setCreateError(err.message || "Terjadi kesalahan saat menambah kelas.");
     } finally {
       setSubmitting(false);
     }
@@ -270,10 +270,10 @@ export default function ClassManagerClient() {
         setEditError("");
         loadData();
       } else {
-        setEditError("Gagal update kelas: " + res.error);
+        setEditError(res.error || "Gagal memperbarui data kelas.");
       }
     } catch (err: any) {
-      setEditError("Error: " + err.message);
+      setEditError(err.message || "Terjadi kesalahan saat memperbarui data kelas.");
     } finally {
       setSubmitting(false);
     }
@@ -405,10 +405,10 @@ export default function ClassManagerClient() {
         setDeleteAllError(null);
         loadData();
       } else {
-        setDeleteAllError("Gagal menghapus seluruh kelas: " + (res.error || ""));
+        setDeleteAllError(res.error || "Gagal menghapus seluruh data kelas.");
       }
     } catch (e: any) {
-      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus kelas."));
+      setDeleteAllError(e.message || "Terjadi kesalahan saat menghapus kelas.");
     } finally {
       setIsDeletingAll(false);
     }

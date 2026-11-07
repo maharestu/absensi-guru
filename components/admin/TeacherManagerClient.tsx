@@ -159,10 +159,10 @@ export default function TeacherManagerClient() {
         setIsDeleteAllOpen(false);
         setDeleteAllError(null);
       } else {
-        setDeleteAllError("Gagal menghapus semua data guru: " + (res.error || ""));
+        setDeleteAllError(res.error || "Gagal menghapus seluruh data guru.");
       }
     } catch (e: any) {
-      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus guru."));
+      setDeleteAllError(e.message || "Terjadi kesalahan saat menghapus data guru.");
     } finally {
       setIsDeletingAll(false);
     }
@@ -203,10 +203,10 @@ export default function TeacherManagerClient() {
         setEditingTeacher(null);
         setEditError("");
       } else {
-        setEditError("Gagal mengupdate guru: " + (res.error || ""));
+        setEditError(res.error || "Gagal memperbarui data guru.");
       }
     } catch (err: any) {
-      setEditError("Error: " + (err.message || "Terjadi kesalahan saat mengupdate guru."));
+      setEditError(err.message || "Terjadi kesalahan saat memperbarui data guru.");
     } finally {
       setSubmitting(false);
     }
@@ -241,10 +241,10 @@ export default function TeacherManagerClient() {
         setCreateError("");
         setViewMode("list");
       } else {
-        setCreateError("Gagal menambah guru: " + (res.error || ""));
+        setCreateError(res.error || "Gagal menambahkan data guru.");
       }
     } catch (err: any) {
-      setCreateError("Error: " + (err.message || "Terjadi kesalahan saat menambah guru."));
+      setCreateError(err.message || "Terjadi kesalahan saat menambahkan data guru.");
     } finally {
       setSubmitting(false);
     }

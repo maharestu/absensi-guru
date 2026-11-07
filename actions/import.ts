@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { requireAdmin } from "@/lib/session";
 import { cleanNameString, isNameMatch } from "@/lib/name-matcher";
 import { konsolidasiJadwalTerpotongIstirahat } from "@/actions/jadwal";
+import { handleActionError } from "@/lib/error-handler";
 
 export type ParsedData = {
   ptk: {
@@ -551,7 +552,6 @@ export async function importExcelData(data: ParsedData) {
       },
     };
   } catch (error: any) {
-    console.error("Import Error:", error);
-    return { success: false, error: error.message || "Terjadi kesalahan internal" };
+    return { success: false, error: handleActionError(error, "importKbmDanPtkAction", "Terjadi kesalahan saat memproses data import.") };
   }
 }

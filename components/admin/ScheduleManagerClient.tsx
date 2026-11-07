@@ -204,7 +204,7 @@ export default function ScheduleManagerClient() {
       setEditingSchedule(null);
       setEditError("");
     } catch (err: any) {
-      setEditError(err.message || "Gagal mengupdate jadwal.");
+      setEditError(err.message || "Gagal memperbarui jadwal.");
     } finally {
       setSubmitting(false);
     }

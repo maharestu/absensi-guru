@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { isWithinGeofence } from "@/lib/geo";
 import { revalidatePath } from "next/cache";
+import { handleActionError } from "@/lib/error-handler";
 import {
   JAM_MASUK_SEKOLAH,
   JAM_CUTOFF_ABSENSI,
@@ -62,11 +63,10 @@ export async function verifikasiLokasiSekolah(userLat: number, userLng: number, 
       radiusMeter: config.radius_meter,
     };
   } catch (err: any) {
-    console.error("verifikasiLokasiSekolah error:", err);
     return {
       success: false,
       isValid: false,
-      error: err.message || "Gagal memverifikasi lokasi dari database.",
+      error: handleActionError(err, "verifikasiLokasiSekolah", "Gagal memverifikasi lokasi dari database."),
     };
   }
 }
@@ -101,8 +101,7 @@ export async function updateLokasiSekolah(
     revalidatePath("/admin/pengaturan");
     return { success: true };
   } catch (err: any) {
-    console.error("updateLokasiSekolah error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateLokasiSekolah") };
   }
 }
 
@@ -187,8 +186,7 @@ export async function upsertPengaturanSistem(
     revalidatePath("/kepsek");
     return { success: true };
   } catch (err: any) {
-    console.error("upsertPengaturanSistem error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "upsertPengaturanSistem") };
   }
 }
 
@@ -257,8 +255,7 @@ export async function tambahHariLibur(
     revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
-    console.error("tambahHariLibur error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "tambahHariLibur") };
   }
 }
 
@@ -278,8 +275,7 @@ export async function hapusHariLibur(
     revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
-    console.error("hapusHariLibur error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "hapusHariLibur") };
   }
 }
 
@@ -405,8 +401,7 @@ export async function updateLiburPanjang(
     revalidatePath("/kepsek/laporan");
     return { success: true };
   } catch (err: any) {
-    console.error("updateLiburPanjang error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateLiburPanjang") };
   }
 }
 

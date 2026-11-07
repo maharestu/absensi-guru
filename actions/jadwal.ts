@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Jadwal, JadwalWithDetail } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function getJadwalList(): Promise<JadwalWithDetail[]> {
   const { data, error } = await supabaseAdmin
@@ -97,7 +98,7 @@ export async function createJadwal(input: Omit<Jadwal, "id" | "created_at">) {
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleActionError(error, "createJadwal"));
   return data;
 }
 
@@ -110,7 +111,7 @@ export async function updateJadwal(id: string, input: Partial<Jadwal>) {
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleActionError(error, "updateJadwal"));
   return data;
 }
 
@@ -174,7 +175,7 @@ export async function deleteJadwal(
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteJadwal") };
   }
 }
 
@@ -206,8 +207,7 @@ export async function deleteAllJadwal(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllJadwal Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllJadwal") };
   }
 }
 
@@ -316,8 +316,7 @@ export async function konsolidasiJadwalTerpotongIstirahat(): Promise<{ success: 
 
     return { success: true, mergedCount };
   } catch (err: any) {
-    console.error("konsolidasiJadwalTerpotongIstirahat Error:", err);
-    return { success: false, mergedCount: 0, error: err.message };
+    return { success: false, mergedCount: 0, error: handleActionError(err, "konsolidasiJadwalTerpotongIstirahat") };
   }
 }
 

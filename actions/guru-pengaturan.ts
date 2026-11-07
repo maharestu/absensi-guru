@@ -11,6 +11,7 @@
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getSession } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export interface ProfilGuruData {
   id: string;
@@ -73,8 +74,7 @@ export async function getPengaturanGuruData(): Promise<{
       },
     };
   } catch (err: any) {
-    console.error("Error getPengaturanGuruData:", err);
-    return { success: false, error: err.message || "Terjadi kesalahan saat memuat data profil." };
+    return { success: false, error: handleActionError(err, "getPengaturanGuruData", "Terjadi kesalahan saat memuat data profil.") };
   }
 }
 
@@ -140,7 +140,6 @@ export async function gantiPasswordGuruAction(input: {
       message: "Kata sandi akun Anda berhasil diperbarui.",
     };
   } catch (err: any) {
-    console.error("Error gantiPasswordGuruAction:", err);
-    return { success: false, error: err.message || "Terjadi kesalahan internal pada server." };
+    return { success: false, error: handleActionError(err, "gantiPasswordGuruAction", "Terjadi kesalahan internal pada server.") };
   }
 }

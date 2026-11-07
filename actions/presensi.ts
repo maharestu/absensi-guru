@@ -17,6 +17,7 @@ import { STATUS_MASUK } from "@/lib/status";
 import { getHariWIB, getTodayWIB, getJamWIB, isWeekendWIB } from "@/lib/date";
 import { getSession } from "@/lib/session";
 import { getDevTestingConfigServer } from "@/lib/testing-mode";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
   try {
@@ -230,8 +231,7 @@ export async function submitPresensiMasukAction(formData: FormData) {
       throw innerError;
     }
   } catch (error: any) {
-    console.error("Presensi Error:", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: handleActionError(error, "submitPresensiAction") };
   }
 }
 
@@ -324,8 +324,7 @@ export async function submitPresensiMengajarAction(formData: FormData) {
       throw innerError;
     }
   } catch (error: any) {
-    console.error("Presensi Mengajar Error:", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: handleActionError(error, "submitPresensiMengajarAction") };
   }
 }
 
@@ -589,7 +588,7 @@ export async function getDetailPresensiPulangHariIni() {
       .maybeSingle();
 
     if (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: handleActionError(error, "getDetailPresensiPulangHariIni") };
     }
 
     const testConfig = await getDevTestingConfigServer();
@@ -643,8 +642,7 @@ export async function getDetailPresensiPulangHariIni() {
       waktuMasuk: record.waktu_submit,
     };
   } catch (error: any) {
-    console.error("getDetailPresensiPulangHariIni Error:", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: handleActionError(error, "getDetailPresensiPulangHariIni") };
   }
 }
 
@@ -780,7 +778,6 @@ export async function submitPresensiPulangAction(formData: FormData) {
       throw innerError;
     }
   } catch (error: any) {
-    console.error("Presensi Pulang Error:", error.message);
-    return { success: false, error: error.message };
+    return { success: false, error: handleActionError(error, "submitPresensiPulangAction") };
   }
 }
