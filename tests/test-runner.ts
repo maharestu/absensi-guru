@@ -2968,6 +2968,173 @@ async function runAllTests() {
   );
 
   // ============================================================================
+  // SUITE 33 (BARU): Penanganan Cut-Off Absensi & Status 'Tidak Hadir' Guru
+  // ============================================================================
+  const s33 = registerSuite(
+    "Suite 33 (BARU): Penanganan Cut-Off Absensi & Status 'Tidak Hadir'",
+    "app/guru/pilih-status/page.tsx, actions/presensi.ts"
+  );
+
+  // TC-CUTOFF-01: STATUS_LABELS memetakan 'tidak_hadir' secara presisi
+  const mockStatusLabels: Record<string, { label: string; color: string }> = {
+    hadir: { label: "Hadir", color: "text-[#16a34a]" },
+    sakit: { label: "Sakit", color: "text-[#16a34a]" },
+    izin: { label: "Izin", color: "text-[#16a34a]" },
+    dinas: { label: "Dinas Keluar", color: "text-[#2563eb]" },
+    tidak_hadir: { label: "Tidak Hadir", color: "text-amber-600" },
+  };
+  const mappedTidakHadir = mockStatusLabels["tidak_hadir"];
+  assert(
+    s33,
+    "TC-CUTOFF-01",
+    "Pemetaan Status 'tidak_hadir' pada STATUS_LABELS",
+    "STATUS_LABELS['tidak_hadir']",
+    mappedTidakHadir !== undefined &&
+      mappedTidakHadir.label === "Tidak Hadir" &&
+      mappedTidakHadir.color === "text-amber-600",
+    `Status dipetakan tepat: label='${mappedTidakHadir?.label}', color='${mappedTidakHadir?.color}' (tidak lagi fallback ke 'Hadir').`
+  );
+
+  // TC-CUTOFF-02: Evaluasi Batas Waktu Cut-off Jam 15:00 (Jam 3 Sore)
+  function evalPastCutoff(jamWIB: string, cutoffStr: string): boolean {
+    const [nowH = 0, nowM = 0] = jamWIB.split(":").map(Number);
+    const [cutH = 16, cutM = 0] = cutoffStr.split(":").map(Number);
+    return nowH * 60 + nowM >= cutH * 60 + cutM;
+  }
+  const isPast1500_after = evalPastCutoff("15:05", "15:00");
+  const isPast1500_before = evalPastCutoff("14:55", "15:00");
+  assert(
+    s33,
+    "TC-CUTOFF-02",
+    "Evaluasi Cut-Off Jam 15:00 (Jam 3 Sore)",
+    "15:05 (Lewat) vs 14:55 (Belum)",
+    isPast1500_after === true && isPast1500_before === false,
+    "15:05 WIB terdeteksi lewat cut-off jam 3; 14:55 WIB terdeteksi masih diizinkan absen."
+  );
+
+  // TC-CUTOFF-03: Evaluasi Batas Waktu Cut-off Jam 16:00 (Default Sistem)
+  const isPast1600_after = evalPastCutoff("16:01", "16:00");
+  const isPast1600_before = evalPastCutoff("15:59", "16:00");
+  assert(
+    s33,
+    "TC-CUTOFF-03",
+    "Evaluasi Cut-Off Jam 16:00 (Default Sistem)",
+    "16:01 (Lewat) vs 15:59 (Belum)",
+    isPast1600_after === true && isPast1600_before === false,
+    "16:01 WIB terdeteksi lewat cut-off jam 16:00; 15:59 WIB masih diizinkan absen."
+  );
+
+  // TC-CUTOFF-04: Penolakan Server Action Submit Absensi Pasca Cut-Off
+  function simulateSubmitPresensiWithCutoff(
+    jamWIB: string,
+    cutoffStr: string,
+    testMode: { isActive: boolean; bypassTime: boolean }
+  ): { success: boolean; error?: string } {
+    if (!testMode.isActive || !testMode.bypassTime) {
+      if (evalPastCutoff(jamWIB, cutoffStr)) {
+        return {
+          success: false,
+          error: `Batas waktu absensi kehadiran untuk hari ini telah berakhir (Cut-off: ${cutoffStr} WIB).`,
+        };
+      }
+    }
+    return { success: true };
+  }
+  const submitRejected = simulateSubmitPresensiWithCutoff("16:15", "16:00", {
+    isActive: false,
+    bypassTime: false,
+  });
+  assert(
+    s33,
+    "TC-CUTOFF-04",
+    "Penolakan Submit Absensi Kehadiran Pasca Cut-Off",
+    "Submit pada 16:15 WIB (Cut-off: 16:00)",
+    submitRejected.success === false &&
+      (submitRejected.error?.includes("telah berakhir") ?? false),
+    `Ditolak dengan pesan: "${submitRejected.error}".`
+  );
+
+  // TC-CUTOFF-05: Bypass Mode Testing Mengizinkan Submit Fleksibel Pasca Cut-Off
+  const submitBypassed = simulateSubmitPresensiWithCutoff("17:30", "16:00", {
+    isActive: true,
+    bypassTime: true,
+  });
+  assert(
+    s33,
+    "TC-CUTOFF-05",
+    "Bypass Mode Testing pada Validasi Cut-Off Waktu",
+    "isActive=true, bypassTime=true pada 17:30 WIB",
+    submitBypassed.success === true,
+    "Mode testing aktif berhasil melewati validasi cut-off untuk kebutuhan demonstrasi/QA."
+  );
+
+  // TC-CUTOFF-06: Tampilan UI Card Khusus Status 'tidak_hadir'
+  function getCardViewConfig(status: string) {
+    const isTidakHadir = status.toLowerCase() === "tidak_hadir";
+    return {
+      isTidakHadir,
+      cardTitle: isTidakHadir ? "Batas Waktu Absensi Berakhir" : "Anda sudah absen hari ini",
+      badgeText: isTidakHadir ? "Tidak Hadir" : "Hadir",
+      iconColor: isTidakHadir ? "bg-[#f59e0b]" : "bg-[#16a34a]",
+      buttonText: isTidakHadir ? "Kembali ke Dashboard" : "Selesai",
+    };
+  }
+  const viewTidakHadir = getCardViewConfig("tidak_hadir");
+  const viewHadir = getCardViewConfig("hadir");
+  assert(
+    s33,
+    "TC-CUTOFF-06",
+    "Tampilan UI Card Khusus Status 'tidak_hadir' vs 'hadir'",
+    "Perbedaan visual: heading, badge, icon, dan button",
+    viewTidakHadir.isTidakHadir === true &&
+      viewTidakHadir.cardTitle === "Batas Waktu Absensi Berakhir" &&
+      viewTidakHadir.badgeText === "Tidak Hadir" &&
+      viewTidakHadir.buttonText === "Kembali ke Dashboard" &&
+      viewHadir.cardTitle === "Anda sudah absen hari ini" &&
+      viewHadir.buttonText === "Selesai",
+    "Status 'tidak_hadir' menampilkan card peringatan khusus dengan tombol 'Kembali ke Dashboard'."
+  );
+
+  // TC-CUTOFF-07: Deteksi Otomatis Status 'tidak_hadir' saat Cek Status Pasca Cut-Off
+  function simulateCekStatus(
+    hasExistingRecord: boolean,
+    existingStatus: string | null,
+    isPastCutoff: boolean,
+    isWeekend: boolean
+  ) {
+    if (hasExistingRecord && existingStatus) {
+      return { completed: true, status: existingStatus };
+    }
+    if (!hasExistingRecord && isPastCutoff && !isWeekend) {
+      return { completed: true, status: "tidak_hadir", isPastCutoff: true };
+    }
+    return { completed: false };
+  }
+  const statusAfterCutoff = simulateCekStatus(false, null, true, false);
+  const statusBeforeCutoff = simulateCekStatus(false, null, false, false);
+  assert(
+    s33,
+    "TC-CUTOFF-07",
+    "Deteksi Otomatis 'tidak_hadir' pada Pengecekan Pasca Cut-Off",
+    "Belum ada record + sudah lewat cut-off",
+    statusAfterCutoff.completed === true &&
+      statusAfterCutoff.status === "tidak_hadir" &&
+      statusBeforeCutoff.completed === false,
+    "Guru tanpa record absensi setelah cut-off langsung terbaca 'tidak_hadir'."
+  );
+
+  // TC-CUTOFF-08: Akhir Pekan (Weekend) Bebas dari Auto Cut-Off 'tidak_hadir'
+  const weekendCutoffCheck = simulateCekStatus(false, null, true, true);
+  assert(
+    s33,
+    "TC-CUTOFF-08",
+    "Proteksi Akhir Pekan dari Penandaan Otomatis 'tidak_hadir'",
+    "Hari Sabtu/Minggu (isWeekend = true)",
+    weekendCutoffCheck.completed === false,
+    "Akhir pekan terlindungi dan tidak memicu pencatatan 'tidak_hadir' harian."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

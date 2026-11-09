@@ -182,16 +182,9 @@ export default function PresensiPulangPage() {
               Anda Belum Melakukan<br />Absensi Kehadiran
             </h2>
 
-            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Pastikan Anda sudah menyelesaikan absensi kehadiran dengan status <strong>Hadir</strong> terlebih dahulu sebelum melakukan absensi pulang.
             </p>
-
-            <Button
-              onClick={() => router.push("/guru/pilih-status")}
-              className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white py-3 rounded-xl font-bold shadow-md shadow-green-600/20 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              Lakukan Absensi Kehadiran
-            </Button>
           </div>
 
           <div className="w-full mt-4">

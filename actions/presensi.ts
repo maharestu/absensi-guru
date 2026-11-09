@@ -11,10 +11,18 @@ import {
   isHariLibur,
   isLiburPanjang,
   getStatusOperasionalHariIni,
+  getPengaturanSistem,
 } from "@/actions/pengaturan";
 import { uploadFotoAbsensi, deleteFotoAbsensi, KategoriAbsensi } from "@/lib/storage";
 import { STATUS_MASUK } from "@/lib/status";
-import { getHariWIB, getTodayWIB, getJamWIB, isWeekendWIB } from "@/lib/date";
+import {
+  getHariWIB,
+  getTodayWIB,
+  getJamWIB,
+  isWeekendWIB,
+  isPastCutoffTodayWIB,
+  JAM_CUTOFF_ABSENSI,
+} from "@/lib/date";
 import { getSession } from "@/lib/session";
 import { getDevTestingConfigServer } from "@/lib/testing-mode";
 import { handleActionError } from "@/lib/error-handler";
@@ -42,7 +50,36 @@ export async function cekStatusAbsensiHariIni(guruId: string, tanggal: string) {
         isPulang: Boolean(data.waktu_pulang),
       };
     }
-    
+
+    // Jika belum ada record dan tanggalnya adalah hari ini (hari kerja):
+    // Evaluasi apakah waktu saat ini telah melewati batas cut-off harian
+    const today = getTodayWIB();
+    if (tanggal === today && !isWeekendWIB(today)) {
+      const sysConfig = await getPengaturanSistem();
+      const cutoffJam = sysConfig.jam_cutoff || JAM_CUTOFF_ABSENSI;
+      const isPast = isPastCutoffTodayWIB(cutoffJam);
+
+      if (isPast) {
+        // Otomatis sinkronkan status tidak_hadir ke database tabel absensi_masuk
+        try {
+          const { sinkronisasiTidakHadirHarian } = await import("@/actions/dashboard");
+          await sinkronisasiTidakHadirHarian(today);
+        } catch (syncErr) {
+          console.warn("sinkronisasiTidakHadirHarian warning in cekStatusAbsensiHariIni:", syncErr);
+        }
+
+        return {
+          completed: true,
+          status: "tidak_hadir",
+          waktu: `${today}T${cutoffJam}:00+07:00`,
+          waktuPulang: null,
+          isPulang: false,
+          isPastCutoff: true,
+          jamCutoff: cutoffJam,
+        };
+      }
+    }
+
     return { completed: false };
   } catch (error) {
     console.error("Error cekStatusAbsensiHariIni:", error);
@@ -62,7 +99,7 @@ export async function getAbsensiMengajarHariIni(guruId: string, tanggal: string)
     }
 
     const { data, error } = await query;
-      
+
     if (error) {
       console.error("Error getAbsensiMengajarHariIni:", error);
       return [];
@@ -138,6 +175,15 @@ export async function submitPresensiMasukAction(formData: FormData) {
       throw new Error(`Absensi kehadiran tidak dapat dilakukan (${statusOp.judul}): ${statusOp.deskripsi}`);
     }
 
+    // Validasi batas waktu cut-off absensi harian (dilewati jika mode testing aktif dan bypassTime aktif)
+    if (!testConfig.isActive || !testConfig.bypassTime) {
+      const sysConfig = await getPengaturanSistem();
+      const cutoffJam = sysConfig.jam_cutoff || JAM_CUTOFF_ABSENSI;
+      if (isPastCutoffTodayWIB(cutoffJam)) {
+        throw new Error(`Batas waktu absensi kehadiran untuk hari ini telah berakhir (Cut-off: ${cutoffJam} WIB).`);
+      }
+    }
+
     if (!guruId || !status || !file) {
       throw new Error("Data presensi tidak lengkap.");
     }
@@ -153,7 +199,7 @@ export async function submitPresensiMasukAction(formData: FormData) {
       .eq("guru_id", guruId)
       .eq("tanggal", tanggal)
       .maybeSingle();
-      
+
     if (existingData) {
       throw new Error("Anda sudah melakukan absensi untuk tanggal ini.");
     }
@@ -166,13 +212,13 @@ export async function submitPresensiMasukAction(formData: FormData) {
         if (latitude == null || longitude == null || isNaN(latitude) || isNaN(longitude)) {
           throw new Error("Lokasi (GPS) wajib diisi untuk absensi hadir.");
         }
-        
+
         const config = await getLokasiSekolah();
         const isValidLocation = isWithinGeofence(
-          latitude, 
-          longitude, 
-          config.latitude, 
-          config.longitude, 
+          latitude,
+          longitude,
+          config.latitude,
+          config.longitude,
           config.radius_meter,
           accuracy
         );
@@ -186,7 +232,7 @@ export async function submitPresensiMasukAction(formData: FormData) {
     let uploadedPhotoUrl: string | null = null;
     try {
       const buffer = Buffer.from(await file.arrayBuffer());
-      
+
       // Upload foto ke Supabase Storage
       const publicUrl = await uploadFotoAbsensi({
         buffer,
@@ -282,7 +328,7 @@ export async function submitPresensiMengajarAction(formData: FormData) {
     if (!testConfig.isActive || !testConfig.bypassTime) {
       const jamSekarang = getJamWIB();
       if (jamSekarang < jadwal.jam_mulai || jamSekarang > jadwal.jam_selesai) {
-        throw new Error(`Anda hanya dapat absen pada rentang ${jadwal.jam_mulai.substring(0,5)} - ${jadwal.jam_selesai.substring(0,5)} WIB.`);
+        throw new Error(`Anda hanya dapat absen pada rentang ${jadwal.jam_mulai.substring(0, 5)} - ${jadwal.jam_selesai.substring(0, 5)} WIB.`);
       }
     }
 
@@ -335,7 +381,7 @@ export async function verifyQrKelas(jadwalId: string, scannedQr: string, lat?: n
       .select("kelas_id")
       .eq("id", jadwalId)
       .single();
-      
+
     if (!jadwal) return false;
 
     const { data: kelas } = await supabaseAdmin
@@ -613,7 +659,10 @@ export async function getDetailPresensiPulangHariIni() {
     }
 
     if (record.status !== "hadir") {
-      const statusLabel = record.status.charAt(0).toUpperCase() + record.status.slice(1);
+      const statusLabel =
+        record.status === "tidak_hadir"
+          ? "Tidak Hadir"
+          : record.status.charAt(0).toUpperCase() + record.status.slice(1);
       return {
         success: true,
         canPulang: false,
@@ -690,7 +739,7 @@ export async function submitPresensiPulangAction(formData: FormData) {
       }
 
       if (record.status !== "hadir") {
-        throw new Error(`Absensi pulang hanya berlaku jika status kehadiran hari ini adalah Hadir (Status Anda: ${record.status}).`);
+        throw new Error(`Absensi pulang hanya berlaku jika status kehadiran hari ini adalah Hadir (Status Anda: ${record.status === "tidak_hadir" ? "Tidak Hadir" : record.status}).`);
       }
     }
 
