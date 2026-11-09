@@ -166,37 +166,35 @@ export default function PresensiPulangPage() {
   if (!canAccess && notYetPresent) {
     return (
       <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-4 pb-20 animate-page-enter">
-        <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-between">
-          <div>
-            <PageHeader
-              backHref="/guru"
-              title="Absensi Pulang Gagal"
-              subtitle="Absensi pulang hanya bisa dilakukan setelah menyelesaikan absensi kehadiran."
-            />
+        <div className="max-w-md w-full mx-auto">
+          <PageHeader
+            backHref="/guru"
+            title="Absensi Pulang Gagal"
+            subtitle="Absensi pulang hanya bisa dilakukan setelah menyelesaikan absensi kehadiran."
+          />
 
-            <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
-              <div className="w-14 h-14 bg-[#ef4444] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-red-200">
-                <span className="font-bold text-2xl leading-none">!</span>
-              </div>
-
-              <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
-                Anda Belum Melakukan<br />Absensi Kehadiran
-              </h2>
-
-              <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                Pastikan Anda sudah menyelesaikan absensi kehadiran dengan status <strong>Hadir</strong> terlebih dahulu sebelum melakukan absensi pulang.
-              </p>
-
-              <Button
-                onClick={() => router.push("/guru/pilih-status")}
-                className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white py-3 rounded-xl font-bold shadow-md shadow-green-600/20 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                Lakukan Absensi Kehadiran
-              </Button>
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
+            <div className="w-14 h-14 bg-[#ef4444] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-red-200">
+              <span className="font-bold text-2xl leading-none">!</span>
             </div>
+
+            <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
+              Anda Belum Melakukan<br />Absensi Kehadiran
+            </h2>
+
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Pastikan Anda sudah menyelesaikan absensi kehadiran dengan status <strong>Hadir</strong> terlebih dahulu sebelum melakukan absensi pulang.
+            </p>
+
+            <Button
+              onClick={() => router.push("/guru/pilih-status")}
+              className="w-full bg-[#16a34a] hover:bg-[#15803d] text-white py-3 rounded-xl font-bold shadow-md shadow-green-600/20 active:scale-[0.98] transition-all cursor-pointer"
+            >
+              Lakukan Absensi Kehadiran
+            </Button>
           </div>
 
-          <div className="w-full pt-6">
+          <div className="w-full mt-4">
             <Button variant="outline" onClick={() => router.push("/guru")}>
               Kembali ke Dashboard
             </Button>
@@ -214,31 +212,29 @@ export default function PresensiPulangPage() {
 
     return (
       <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-4 pb-20 animate-page-enter">
-        <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-between">
-          <div>
-            <PageHeader
-              backHref="/guru"
-              title="Absensi Pulang Ditolak"
-              subtitle="Absensi pulang hanya berlaku bagi guru yang hadir di sekolah."
-            />
+        <div className="max-w-md w-full mx-auto">
+          <PageHeader
+            backHref="/guru"
+            title="Absensi Pulang Ditolak"
+            subtitle="Absensi pulang hanya berlaku bagi guru yang hadir di sekolah."
+          />
 
-            <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
-              <div className="w-14 h-14 bg-[#f59e0b] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-amber-200">
-                <span className="font-bold text-2xl leading-none">!</span>
-              </div>
-
-              <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
-                Status Kehadiran Anda:<br />
-                <span className="text-amber-600 capitalize">{labelStatus}</span>
-              </h2>
-
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Hari ini Anda tercatat dengan status <strong>{labelStatus}</strong>. Absensi pulang hanya diperuntukkan bagi guru dengan kehadiran <strong>Hadir</strong> di sekolah.
-              </p>
+          <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
+            <div className="w-14 h-14 bg-[#f59e0b] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-amber-200">
+              <span className="font-bold text-2xl leading-none">!</span>
             </div>
+
+            <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
+              Status Kehadiran Anda:<br />
+              <span className="text-amber-600 capitalize">{labelStatus}</span>
+            </h2>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Hari ini Anda tercatat dengan status <strong>{labelStatus}</strong>. Absensi pulang hanya diperuntukkan bagi guru dengan kehadiran <strong>Hadir</strong> di sekolah.
+            </p>
           </div>
 
-          <div className="w-full pt-6">
+          <div className="w-full mt-4">
             <Button variant="outline" onClick={() => router.push("/guru")}>
               Kembali ke Dashboard
             </Button>

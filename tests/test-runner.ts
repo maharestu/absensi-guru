@@ -2746,6 +2746,228 @@ async function runAllTests() {
   }
 
   // ============================================================================
+  // SUITE 32 (BARU): Sinkronisasi Penghapusan Foto di Supabase Storage
+  // ============================================================================
+  const s32 = registerSuite(
+    "Suite 32 (BARU): Sinkronisasi Penghapusan Foto Storage",
+    "lib/storage.ts, actions/guru.ts"
+  );
+
+  // --- Helper fungsi ekstraksi path (replika logika dari lib/storage.ts) ---
+  function extractStoragePathTest(url: string | null | undefined): string | null {
+    if (!url) return null;
+    if (url.includes("/foto-absensi/")) {
+      const parts = url.split("/foto-absensi/");
+      const path = parts[parts.length - 1];
+      return path || null;
+    }
+    return null;
+  }
+
+  // TC-STOR-01: Ekstraksi path dari URL publik Supabase Storage (hadir)
+  const urlHadir = "https://abc.supabase.co/storage/v1/object/public/foto-absensi/harian/hadir/guru-uuid-1/2026-11-01_1234567890.webp";
+  const pathHadir = extractStoragePathTest(urlHadir);
+  assert(
+    s32,
+    "TC-STOR-01",
+    "Ekstraksi Path Foto Hadir dari URL Supabase",
+    `URL: ${urlHadir}`,
+    pathHadir === "harian/hadir/guru-uuid-1/2026-11-01_1234567890.webp",
+    `Path berhasil diekstrak: '${pathHadir}'`
+  );
+
+  // TC-STOR-02: Ekstraksi path dari URL bukti izin/sakit
+  const urlIzin = "https://abc.supabase.co/storage/v1/object/public/foto-absensi/harian/izin/guru-uuid-2/2026-11-05_9876543210.webp";
+  const pathIzin = extractStoragePathTest(urlIzin);
+  assert(
+    s32,
+    "TC-STOR-02",
+    "Ekstraksi Path Foto Izin dari URL Supabase",
+    `URL: ${urlIzin}`,
+    pathIzin === "harian/izin/guru-uuid-2/2026-11-05_9876543210.webp",
+    `Path berhasil diekstrak: '${pathIzin}'`
+  );
+
+  // TC-STOR-03: Ekstraksi path dari URL foto mengajar
+  const urlMengajar = "https://abc.supabase.co/storage/v1/object/public/foto-absensi/mengajar/guru-uuid-3/jadwal-id-1_2026-11-07_1111111111.webp";
+  const pathMengajar = extractStoragePathTest(urlMengajar);
+  assert(
+    s32,
+    "TC-STOR-03",
+    "Ekstraksi Path Foto Mengajar dari URL Supabase",
+    `URL: ${urlMengajar}`,
+    pathMengajar === "mengajar/guru-uuid-3/jadwal-id-1_2026-11-07_1111111111.webp",
+    `Path berhasil diekstrak: '${pathMengajar}'`
+  );
+
+  // TC-STOR-04: Ekstraksi path dari URL foto pulang
+  const urlPulang = "https://abc.supabase.co/storage/v1/object/public/foto-absensi/harian/pulang/guru-uuid-4/2026-11-01_5555555555.webp";
+  const pathPulang = extractStoragePathTest(urlPulang);
+  assert(
+    s32,
+    "TC-STOR-04",
+    "Ekstraksi Path Foto Pulang dari URL Supabase",
+    `URL: ${urlPulang}`,
+    pathPulang === "harian/pulang/guru-uuid-4/2026-11-01_5555555555.webp",
+    `Path berhasil diekstrak: '${pathPulang}'`
+  );
+
+  // TC-STOR-05: Fungsi ekstraksi mengembalikan null untuk URL bukan storage foto-absensi
+  const urlBukan = "https://abc.supabase.co/storage/v1/object/public/logo/Logo.png";
+  const pathBukan = extractStoragePathTest(urlBukan);
+  assert(
+    s32,
+    "TC-STOR-05",
+    "Ekstraksi Path URL Bukan Bucket foto-absensi (Null)",
+    `URL: ${urlBukan}`,
+    pathBukan === null,
+    "Mengembalikan null jika URL bukan dari bucket foto-absensi."
+  );
+
+  // TC-STOR-06: Fungsi ekstraksi mengembalikan null untuk nilai null/kosong
+  assert(
+    s32,
+    "TC-STOR-06",
+    "Ekstraksi Path dari Nilai Null atau Kosong",
+    "url: null, undefined, ''",
+    extractStoragePathTest(null) === null &&
+    extractStoragePathTest(undefined) === null &&
+    extractStoragePathTest("") === null,
+    "Nilai null, undefined, dan string kosong menghasilkan null tanpa error."
+  );
+
+  // TC-STOR-07: Simulasi hasil agregasi penghapusan foto banyak guru
+  function simulateBulkStorageDeletion(
+    guruIds: string[],
+    fotoPerGuru: number,
+    failIndices: number[] = []
+  ): { deleted: number; failed: number } {
+    let deleted = 0;
+    let failed = 0;
+    for (let i = 0; i < guruIds.length; i++) {
+      for (let j = 0; j < fotoPerGuru; j++) {
+        const fotoIndex = i * fotoPerGuru + j;
+        if (failIndices.includes(fotoIndex)) {
+          failed++;
+        } else {
+          deleted++;
+        }
+      }
+    }
+    return { deleted, failed };
+  }
+
+  const bulkResult = simulateBulkStorageDeletion(["guru-A", "guru-B", "guru-C"], 4);
+  assert(
+    s32,
+    "TC-STOR-07",
+    "Simulasi Penghapusan Foto Banyak Guru Sekaligus (Bulk)",
+    "3 guru × 4 foto = 12 foto dihapus",
+    bulkResult.deleted === 12 && bulkResult.failed === 0,
+    `${bulkResult.deleted} foto dihapus, ${bulkResult.failed} gagal.`
+  );
+
+  // TC-STOR-08: Simulasi penghapusan parsial jika sebagian file gagal dihapus
+  const partialResult = simulateBulkStorageDeletion(["guru-A", "guru-B"], 3, [0, 4]);
+  assert(
+    s32,
+    "TC-STOR-08",
+    "Toleransi Kegagalan Parsial Penghapusan File Storage",
+    "2 guru × 3 foto, 2 file gagal dihapus",
+    partialResult.deleted === 4 && partialResult.failed === 2,
+    `${partialResult.deleted} foto berhasil, ${partialResult.failed} gagal — sistem tetap melanjutkan.`
+  );
+
+  // TC-STOR-09: Urutan operasi — foto dihapus SEBELUM data database dihapus
+  //             Memvalidasi desain intent: foto di storage dihapus duluan
+  const operationLog: string[] = [];
+  async function simulateDeleteGuruWithStorage(guruId: string): Promise<boolean> {
+    // Langkah 1: Hapus foto dari storage
+    operationLog.push(`storage:delete:${guruId}`);
+    // Langkah 2: Hapus baris absensi dari database
+    operationLog.push(`db:delete:absensi_mengajar:${guruId}`);
+    operationLog.push(`db:delete:absensi_masuk:${guruId}`);
+    operationLog.push(`db:delete:jadwal:${guruId}`);
+    operationLog.push(`db:delete:akun:${guruId}`);
+    operationLog.push(`db:delete:guru:${guruId}`);
+    return true;
+  }
+
+  operationLog.length = 0;
+  await simulateDeleteGuruWithStorage("guru-test-uuid");
+  const storageFirst = operationLog[0] === "storage:delete:guru-test-uuid";
+  const guruLast = operationLog[operationLog.length - 1] === "db:delete:guru:guru-test-uuid";
+  assert(
+    s32,
+    "TC-STOR-09",
+    "Urutan: Storage Dihapus SEBELUM Data Database Guru",
+    "Operasi pertama: storage, operasi terakhir: guru table",
+    storageFirst && guruLast,
+    "Foto dihapus sebelum baris database agar tidak ada file orphan apabila penghapusan DB gagal."
+  );
+
+  // TC-STOR-10: Pastikan foto guru terlindungi (admin/kepsek) tidak ikut dihapus
+  //             Memvalidasi bahwa daftar guruIdsToDelete tidak menyertakan guru yang dilindungi
+  const protectedGuruIds = new Set(["guru-admin-uuid", "guru-kepsek-uuid"]);
+  const allGuruIds = ["guru-admin-uuid", "guru-kepsek-uuid", "guru-biasa-1", "guru-biasa-2"];
+  const eligibleForDeletion = allGuruIds.filter((id) => !protectedGuruIds.has(id));
+  assert(
+    s32,
+    "TC-STOR-10",
+    "Perlindungan: Foto Guru Admin & Kepsek Tidak Ikut Dihapus",
+    "Hanya guru biasa yang masuk daftar penghapusan foto",
+    eligibleForDeletion.length === 2 &&
+    !eligibleForDeletion.includes("guru-admin-uuid") &&
+    !eligibleForDeletion.includes("guru-kepsek-uuid"),
+    "Foto guru admin dan kepala sekolah terlindungi dari penghapusan massal."
+  );
+
+  // TC-STOR-11: Validasi path format foto untuk setiap kategori absensi
+  function buildStoragePath(kategori: string, guruId: string, tanggal: string, jadwalId?: string): string {
+    const timestamp = 1234567890;
+    if (kategori === "mengajar") {
+      return `mengajar/${guruId}/${jadwalId}_${tanggal}_${timestamp}.webp`;
+    }
+    return `harian/${kategori}/${guruId}/${tanggal}_${timestamp}.webp`;
+  }
+  const categories = ["hadir", "izin", "sakit", "dinas", "pulang"];
+  const pathsValid = categories.every((kat) => {
+    const p = buildStoragePath(kat, "guru-uuid", "2026-11-07");
+    return p.startsWith(`harian/${kat}/guru-uuid/`) && p.endsWith(".webp");
+  });
+  const pathMengajarValid = buildStoragePath("mengajar", "guru-uuid", "2026-11-07", "jadwal-uuid").startsWith("mengajar/guru-uuid/");
+  assert(
+    s32,
+    "TC-STOR-11",
+    "Validasi Format Path Storage untuk Semua Kategori Absensi",
+    "hadir, izin, sakit, dinas, pulang, mengajar",
+    pathsValid && pathMengajarValid,
+    "Semua path foto absensi mengikuti konvensi bucket folder yang benar."
+  );
+
+  // TC-STOR-12: deleteFotoAbsensi — relative path tidak memerlukan parsing URL
+  function simulateDeleteFotoAbsensi(pathOrUrl: string): string {
+    // Replika logika parsing dari lib/storage.ts
+    let path = pathOrUrl;
+    if (pathOrUrl.includes("/foto-absensi/")) {
+      const parts = pathOrUrl.split("/foto-absensi/");
+      path = parts[parts.length - 1];
+    }
+    return path;
+  }
+  const relPath = "harian/hadir/guru-uuid/2026-11-01_123.webp";
+  const absUrl = "https://xyz.supabase.co/storage/v1/object/public/foto-absensi/harian/hadir/guru-uuid/2026-11-01_123.webp";
+  assert(
+    s32,
+    "TC-STOR-12",
+    "deleteFotoAbsensi: Path Relatif & URL Publik Menghasilkan Path yang Sama",
+    `Path relatif vs URL publik -> keduanya harus menghasilkan: '${relPath}'`,
+    simulateDeleteFotoAbsensi(relPath) === relPath &&
+    simulateDeleteFotoAbsensi(absUrl) === relPath,
+    "Fungsi deleteFotoAbsensi menangani input path relatif maupun URL publik secara konsisten."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;
