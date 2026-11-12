@@ -3,12 +3,23 @@ const TZ = "Asia/Jakarta";
 export const JAM_MASUK_SEKOLAH = "07:00";
 export const JAM_CUTOFF_ABSENSI = "16:00";
 export const TOLERANSI_TERLAMBAT_MENIT = 5;
-/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Hadir' (Senin, 19 Oktober 2026) */
-export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-19";
+/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Hadir' (Sabtu, 24 Oktober 2026) */
+export const TANGGAL_MULAI_TIDAK_HADIR = "2026-10-30";
+/** Tanggal mulai berlakunya pencatatan otomatis status 'Tidak Mengajar' */
+export const TANGGAL_MULAI_TIDAK_MENGAJAR = "2026-10-30";
 
 /** "YYYY-MM-DD" sesuai WIB */
 export function getTodayWIB(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
+}
+
+/** Konversi Date atau ISO string ke format "YYYY-MM-DD" sesuai zona waktu WIB */
+export function toDateStrWIB(d: Date | string): string {
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+    return d.trim();
+  }
+  const dateObj = typeof d === "string" ? new Date(d) : d;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(dateObj);
 }
 
 /** "senin" | "selasa" | ... | "minggu" sesuai WIB */
@@ -39,7 +50,7 @@ export function isPastCutoffTodayWIB(cutoffJamStr: string = JAM_CUTOFF_ABSENSI):
   return (nowJam * 60 + nowMenit) >= (targetJam * 60 + targetMenit);
 }
 
-export type FaseWaktuSekolah = 
+export type FaseWaktuSekolah =
   | "akhir_pekan"
   | "sebelum_masuk"
   | "jam_sekolah"

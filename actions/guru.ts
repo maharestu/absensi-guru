@@ -8,6 +8,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Guru } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
+import { deleteFotoGuruFromStorage, deleteFotoBanyakGuruFromStorage } from "@/lib/storage";
 
 export async function getGuruList(): Promise<Guru[]> {
   const { data, error } = await supabaseAdmin
@@ -49,10 +51,10 @@ export async function createGuru(
     await requireAdmin();
     const { linked_role, ...dataToInsert } = input as any;
     const { error } = await supabaseAdmin.from("guru").insert(dataToInsert);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "createGuru") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "createGuru") };
   }
 }
 
@@ -67,10 +69,10 @@ export async function updateGuru(
       .from("guru")
       .update(dataToUpdate)
       .eq("id", id);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "updateGuru") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateGuru") };
   }
 }
 
@@ -174,13 +176,17 @@ export async function deleteGuru(
             error: "Guru ini masih memiliki data terkait (akun/jadwal/absensi).",
           };
         }
-        return { success: false, error: error.message };
+        return { success: false, error: handleActionError(error, "deleteGuru") };
       }
       return { success: true };
     }
 
     // Force Cascade untuk guru biasa spesifik ini:
-    // 1. Ambil seluruh id jadwal yang terkait dengan guru ini
+    // 1. Hapus seluruh foto dari Supabase Storage SEBELUM menghapus data database
+    //    agar tidak ada file fisik yang tertinggal jika penghapusan DB gagal di tengah jalan.
+    await deleteFotoGuruFromStorage(id);
+
+    // 2. Ambil seluruh id jadwal yang terkait dengan guru ini
     const { data: jadwalList } = await supabaseAdmin
       .from("jadwal")
       .select("id")
@@ -195,20 +201,20 @@ export async function deleteGuru(
         .in("jadwal_id", jadwalIds);
     }
 
-    // 2. Hapus seluruh absensi masuk milik guru ini
+    // 3. Hapus seluruh absensi masuk milik guru ini
     await supabaseAdmin.from("absensi_masuk").delete().eq("guru_id", id);
 
-    // 3. Hapus seluruh jadwal milik guru ini
+    // 4. Hapus seluruh jadwal milik guru ini
     await supabaseAdmin.from("jadwal").delete().eq("guru_id", id);
 
-    // 4. Hapus akun login role guru yang terhubung ke guru ini
+    // 5. Hapus akun login role guru yang terhubung ke guru ini
     await supabaseAdmin
       .from("akun")
       .delete()
       .eq("guru_id", id)
       .eq("role", "guru");
 
-    // 5. Hapus data guru
+    // 6. Hapus data guru
     const { error: guruErr } = await supabaseAdmin
       .from("guru")
       .delete()
@@ -218,8 +224,7 @@ export async function deleteGuru(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteGuru Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteGuru") };
   }
 }
 
@@ -272,7 +277,11 @@ export async function deleteAllGuru(
     }
 
     // Force Cascade: Bersihkan berurutan HANYA untuk guru biasa
-    // 1. Ambil jadwal milik guru-guru yang akan dihapus
+    // 1. Hapus seluruh foto dari Supabase Storage SEBELUM menghapus data database
+    //    agar tidak ada file fisik yang tertinggal jika penghapusan DB gagal di tengah jalan.
+    await deleteFotoBanyakGuruFromStorage(guruIdsToDelete);
+
+    // 2. Ambil jadwal milik guru-guru yang akan dihapus
     const { data: jadwalList } = await supabaseAdmin
       .from("jadwal")
       .select("id")
@@ -292,20 +301,20 @@ export async function deleteAllGuru(
         .in("id", jadwalIds);
     }
 
-    // 2. Hapus seluruh absensi masuk guru-guru yang akan dihapus
+    // 3. Hapus seluruh absensi masuk guru-guru yang akan dihapus
     await supabaseAdmin
       .from("absensi_masuk")
       .delete()
       .in("guru_id", guruIdsToDelete);
 
-    // 3. Hapus akun HANYA untuk role 'guru' yang terkait dengan guru-guru ini
+    // 4. Hapus akun HANYA untuk role 'guru' yang terkait dengan guru-guru ini
     await supabaseAdmin
       .from("akun")
       .delete()
       .eq("role", "guru")
       .in("guru_id", guruIdsToDelete);
 
-    // 4. Hapus data guru biasa
+    // 5. Hapus data guru biasa
     const { error: guruErr } = await supabaseAdmin
       .from("guru")
       .delete()
@@ -315,8 +324,7 @@ export async function deleteAllGuru(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllGuru Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllGuru") };
   }
 }
 

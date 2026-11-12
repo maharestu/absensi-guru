@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Kelas } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function getKelasList(): Promise<Kelas[]> {
   const { data, error } = await supabaseAdmin
@@ -52,7 +53,7 @@ export async function createKelas(payload: { nama_kelas: string }): Promise<{ su
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "createKelas") };
   }
 }
 
@@ -68,7 +69,47 @@ export async function updateKelas(id: string, payload: { nama_kelas: string }): 
     if (error) throw error;
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateKelas") };
+  }
+}
+
+export async function updateLokasiKelas(
+  id: string,
+  payload: { latitude: number; longitude: number; radius_meter?: number }
+): Promise<{ success: boolean; data?: Kelas; error?: string }> {
+  try {
+    await requireAdmin();
+
+    const { latitude, longitude, radius_meter } = payload;
+
+    if (typeof latitude !== "number" || isNaN(latitude) || latitude < -90 || latitude > 90) {
+      return { success: false, error: "Latitude tidak valid (-90 hingga 90)." };
+    }
+
+    if (typeof longitude !== "number" || isNaN(longitude) || longitude < -180 || longitude > 180) {
+      return { success: false, error: "Longitude tidak valid (-180 hingga 180)." };
+    }
+
+    const radius = radius_meter !== undefined ? Number(radius_meter) : 10;
+    if (isNaN(radius) || radius <= 0 || radius > 500) {
+      return { success: false, error: "Radius toleransi harus berupa angka positif (1 - 500 meter)." };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("kelas")
+      .update({
+        latitude,
+        longitude,
+        radius_meter: radius,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    return { success: true, data: data as Kelas };
+  } catch (err: any) {
+    return { success: false, error: handleActionError(err, "updateLokasiKelas") };
   }
 }
 
@@ -132,7 +173,7 @@ export async function deleteKelas(
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteKelas") };
   }
 }
 
@@ -172,8 +213,7 @@ export async function deleteAllKelas(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllKelas Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllKelas") };
   }
 }
 

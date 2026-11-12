@@ -260,17 +260,94 @@ export default function ImportDataPage() {
           }
 
           const cellVal = String(row[col]).trim();
+          const cellClean = cellVal.toLowerCase().replace(/\s+/g, "");
           const isBreakOrEmpty =
             !cellVal ||
             cellVal === "-" ||
-            cellVal.toLowerCase().includes("istirahat") ||
-            cellVal.toLowerCase().includes("upacara") ||
-            cellVal.toLowerCase().includes("literasi") ||
-            cellVal.toLowerCase().includes("dhuha") ||
-            cellVal.toLowerCase().includes("senam");
+            cellClean.includes("istirahat") ||
+            cellClean.includes("upacara") ||
+            cellClean.includes("literasi") ||
+            cellClean.includes("dhuha") ||
+            cellClean.includes("senam");
 
           if (isBreakOrEmpty) {
             if (currentBlock) {
+              // Cek apakah jeda ini adalah jam istirahat yang memotong sesi guru & mapel yang sama
+              let willContinueAfterBreak = false;
+
+              for (let lookAheadIdx = rowIdx + 1; lookAheadIdx < dataKbmRaw.length; lookAheadIdx++) {
+                const nextRow = dataKbmRaw[lookAheadIdx];
+                if (!nextRow) continue;
+
+                // Jika berganti hari, hentikan penelusuran (tidak boleh lintas hari)
+                const nextHariRaw = String(nextRow[0]).trim().toLowerCase();
+                if (nextHariRaw) {
+                  let detectedNextHari = currentHari;
+                  if (nextHariRaw.includes("senin")) detectedNextHari = "senin";
+                  else if (nextHariRaw.includes("selasa")) detectedNextHari = "selasa";
+                  else if (nextHariRaw.includes("rabu")) detectedNextHari = "rabu";
+                  else if (nextHariRaw.includes("kamis")) detectedNextHari = "kamis";
+                  else if (nextHariRaw.includes("jumat") || nextHariRaw.includes("jum'at")) detectedNextHari = "jumat";
+
+                  if (detectedNextHari !== currentHari) {
+                    break;
+                  }
+                }
+
+                const nextCellVal = String(nextRow[col]).trim();
+                const nextCellClean = nextCellVal.toLowerCase().replace(/\s+/g, "");
+                const nextIsBreakOrEmpty =
+                  !nextCellVal ||
+                  nextCellVal === "-" ||
+                  nextCellClean.includes("istirahat") ||
+                  nextCellClean.includes("upacara") ||
+                  nextCellClean.includes("literasi") ||
+                  nextCellClean.includes("dhuha") ||
+                  nextCellClean.includes("senam");
+
+                // Jika masih berupa jeda/break berturut-turut, lanjutkan penelusuran ke baris berikutnya
+                if (nextIsBreakOrEmpty) {
+                  continue;
+                }
+
+                // Baris pelajaran non-break pertama ditemukan
+                const nextMatch = nextCellVal.match(/^(\d+)([a-zA-Z]+)$/);
+                if (nextMatch) {
+                  const nextGuruKode = nextMatch[1];
+                  const nextMapelKode = nextMatch[2].toUpperCase();
+
+                  const nextJamRaw = String(nextRow[2]).trim();
+                  let nextJamMulaiStr = "07:00:00";
+                  if (nextJamRaw && nextJamRaw.includes("-")) {
+                    const p = nextJamRaw.split("-").map((s) => s.trim());
+                    if (p[0]) nextJamMulaiStr = normalizeTimeString(p[0]);
+                  }
+
+                  const [cbH, cbM] = currentBlock.jamSelesai.split(":").map(Number);
+                  const [nxtH, nxtM] = nextJamMulaiStr.split(":").map(Number);
+                  const gapMinutes = (nxtH * 60 + nxtM) - (cbH * 60 + cbM);
+
+                  // Jika guru & mapel sama persis, dan jeda istirahat <= 60 menit:
+                  // Satukan jadwal! Jangan tutup currentBlock sekarang.
+                  if (
+                    nextGuruKode === currentBlock.guruKode &&
+                    nextMapelKode === currentBlock.mapelKode &&
+                    gapMinutes >= 0 &&
+                    gapMinutes <= 60
+                  ) {
+                    willContinueAfterBreak = true;
+                  }
+                }
+
+                // Setelah mengevaluasi baris pelajaran pertama setelah jeda, hentikan penelusuran
+                break;
+              }
+
+              if (willContinueAfterBreak) {
+                // Biarkan currentBlock tetap aktif untuk digabungkan dengan jam pelajaran lanjutan
+                continue;
+              }
+
               jadwalsList.push(currentBlock);
               currentBlock = null;
             }

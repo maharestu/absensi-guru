@@ -4,16 +4,22 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
 import { useAuth } from "@/context/AuthContext";
 import { getDynamicDateTime, formatTanggalLengkap } from "@/lib/format";
-import { formatJamWIB, getTodayWIB, isWeekendWIB } from "@/lib/date";
+import { formatJamWIB, getTodayWIB } from "@/lib/date";
 import { getDevTestingConfigClient } from "@/lib/testing-mode";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   hadir: { label: "Hadir", color: "text-[#16a34a]" },
   sakit: { label: "Sakit", color: "text-[#16a34a]" },
   izin: { label: "Izin", color: "text-[#16a34a]" },
   dinas: { label: "Dinas Keluar", color: "text-[#2563eb]" },
+  tidak_hadir: { label: "Tidak Hadir", color: "text-amber-600" },
 };
 
 const statusOptions = [
@@ -91,25 +97,29 @@ export default function PilihStatusPage() {
     time: "",
     date: "",
   });
+  const [statusOperasional, setStatusOperasional] = useState<StatusOperasionalHariIni | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     async function checkStatus() {
       if (!user?.guru_id) return;
       
-      // Validasi: cache hanya berlaku untuk guru yang sama
+      // Validasi: cache hanya berlaku untuk guru yang sama pada hari yang sama
       const cachedGuruId = sessionStorage.getItem("absensi_guru_id");
+      const cachedTanggal = sessionStorage.getItem("absensi_tanggal");
       const sessCompleted = sessionStorage.getItem("absensi_completed") === "true";
       const dynamic = getDynamicDateTime();
+      const todayWIB = getTodayWIB();
 
-      // Jika guru_id berbeda, hapus cache lama
-      if (cachedGuruId && cachedGuruId !== user.guru_id) {
+      // Jika guru_id berbeda ATAU tanggal berbeda, bersihkan cache lama
+      if ((cachedGuruId && cachedGuruId !== user.guru_id) || (cachedTanggal && cachedTanggal !== todayWIB)) {
         sessionStorage.removeItem("absensi_completed");
         sessionStorage.removeItem("absensi_status");
         sessionStorage.removeItem("absensi_time");
         sessionStorage.removeItem("absensi_date");
+        sessionStorage.removeItem("absensi_tanggal");
         sessionStorage.removeItem("absensi_guru_id");
-      } else if (sessCompleted && cachedGuruId === user.guru_id) {
+      } else if (sessCompleted && cachedGuruId === user.guru_id && cachedTanggal === todayWIB) {
         if (isMounted) {
           setIsAlreadyAbsen(true);
           setAbsenData({
@@ -123,9 +133,6 @@ export default function PilihStatusPage() {
 
       try {
         const { cekStatusAbsensiHariIni } = await import("@/actions/presensi");
-        // Gunakan tanggal WIB agar sinkron dengan server
-        const todayWIB = getTodayWIB();
-        
         const result = await cekStatusAbsensiHariIni(user.guru_id, todayWIB);
         
         if (isMounted) {
@@ -133,6 +140,7 @@ export default function PilihStatusPage() {
             sessionStorage.setItem("absensi_completed", "true");
             sessionStorage.setItem("absensi_status", result.status || "hadir");
             sessionStorage.setItem("absensi_guru_id", user.guru_id);
+            sessionStorage.setItem("absensi_tanggal", todayWIB);
             
             const dbDate = result.waktu ? new Date(result.waktu) : new Date();
             const timeStr = formatJamWIB(dbDate);
@@ -158,7 +166,16 @@ export default function PilihStatusPage() {
     }
     
     if (typeof window !== "undefined") {
+      getStatusOperasionalHariIni().then((res) => {
+        if (isMounted) setStatusOperasional(res);
+      }).catch(() => {});
+
       checkStatus();
+      // Pre-warm rute presensi agar transisi saat memilih status instan
+      router.prefetch("/guru/presensi/hadir");
+      router.prefetch("/guru/presensi/sakit");
+      router.prefetch("/guru/presensi/izin");
+      router.prefetch("/guru/presensi/dinas");
       // Bersihkan sisa draft foto/koordinat saat guru membuka menu pilih status
       sessionStorage.removeItem("absensi_captured_photo");
       sessionStorage.removeItem("absensi_photo_status");
@@ -167,7 +184,7 @@ export default function PilihStatusPage() {
     }
     
     return () => { isMounted = false; };
-  }, [user]);
+  }, [user, router]);
 
   const handleSelect = (statusId: string) => {
     // Bersihkan draft sebelumnya sebelum masuk ke alur status baru
@@ -179,66 +196,118 @@ export default function PilihStatusPage() {
   };
 
   const testConfig = getDevTestingConfigClient();
-  const isWeekend = testConfig.isActive ? false : isWeekendWIB();
+  const isHolidayPause = !testConfig.isActive && Boolean(statusOperasional && !statusOperasional.isOperasional);
 
-  if (isWeekend) {
+  if (isHolidayPause && statusOperasional) {
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+      <LiburPauseScreen
+        pageTitle="Absensi Kehadiran"
+        subtitle={statusOperasional.judul}
+        judul={statusOperasional.judul}
+        deskripsi={statusOperasional.deskripsi}
+        periode={statusOperasional.periode}
+        keterangan={statusOperasional.keterangan}
+        backHref="/guru"
+      />
+    );
+  }
+
+  if (isAlreadyAbsen === null) {
+    return (
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
         <PageHeader
           backHref="/guru"
           title="Absensi Kehadiran"
-          subtitle="Hari Libur Akhir Pekan"
+          subtitle="Memeriksa status absensi..."
         />
-
-        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-6">
-          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 mb-5 border border-amber-100 shadow-sm">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
-
-          <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
-            Hari Libur Akhir Pekan
-          </h2>
-
-          <p className="text-sm text-slate-500 leading-relaxed max-w-xs mb-8">
-            Absensi kehadiran harian hanya berlaku pada hari kerja (Senin s.d. Jumat). Selamat beristirahat!
-          </p>
-
-          <Button
-            onClick={() => router.push("/guru")}
-            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-colors"
-          >
-            Kembali ke Beranda
-          </Button>
+        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-12 text-center mt-4">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
+          <p className="text-xs text-slate-400 font-medium">Memeriksa data kehadiran hari ini...</p>
         </div>
       </div>
     );
   }
 
-  if (isAlreadyAbsen === null) {
-    return <div className="min-h-full bg-[#EEF2F7]" />;
-  }
-
   // Tampilan jika user sudah absen hari ini
   if (isAlreadyAbsen) {
+    const isTidakHadir = (absenData.status || "").toLowerCase() === "tidak_hadir";
     const normalizedStatus = (absenData.status || "").toLowerCase();
     const currentStatus = STATUS_LABELS[normalizedStatus] ?? {
-      label: "Hadir",
-      color: "text-[#16a34a]",
+      label: isTidakHadir ? "Tidak Hadir" : "Hadir",
+      color: isTidakHadir ? "text-amber-600" : "text-[#16a34a]",
     };
     const nip = user?.nip ?? "-";
     const nama = user?.nama ?? "-";
+
+    // ── Khusus Status "Tidak Hadir" (Pasca Cut-off / Alpa) ──
+    if (isTidakHadir) {
+      return (
+        <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-4 pb-20 animate-page-enter">
+          <div className="max-w-md w-full mx-auto">
+            <PageHeader
+              backHref="/guru"
+              title="Absensi Kehadiran"
+              subtitle="Status absensi kehadiran untuk hari ini."
+            />
+
+            {/* Card Tampilan Tidak Hadir */}
+            <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
+              <div className="w-14 h-14 bg-[#f59e0b] rounded-full flex items-center justify-center text-white mb-5 shadow-md shadow-amber-200">
+                <span className="font-bold text-2xl leading-none">!</span>
+              </div>
+
+              <h2 className="text-[20px] font-bold text-slate-900 leading-tight mb-2">
+                Batas Waktu Absensi Berakhir
+              </h2>
+
+              <p className="text-sm font-semibold text-amber-600 mb-6">
+                Tidak Hadir
+              </p>
+
+              <div className="w-full border-b border-slate-100 mb-6" />
+
+              <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                Waktu absensi kehadiran untuk hari ini telah ditutup. Anda tercatat dengan status <strong>Tidak Hadir</strong>.
+              </p>
+
+              <div className="flex flex-col gap-4 text-center w-full">
+                <div>
+                  <p className="text-xs text-slate-400 font-medium">Tanggal</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">
+                    {absenData.date || formatTanggalLengkap(new Date())}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 font-medium">Nama</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{nama}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 font-medium">NIP/NUPTK</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{nip}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol Kembali ke Dashboard tepat di bawah card */}
+            <div className="w-full mt-4">
+              <Button variant="outline" onClick={() => router.push("/guru")}>
+                Kembali ke Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tampilan Hadir / Izin / Sakit / Dinas (Sudah Absen Sukses) ──
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
-        <PageHeader
-          backHref="/guru"
-          title="Absensi Hari Ini"
-          subtitle="Status absensi kehadiran sudah tercatat."
-        />
+      <div className="flex flex-col min-h-screen bg-[#EEF2F7] px-6 pt-4 pb-20 animate-page-enter">
+        <div className="max-w-md w-full mx-auto">
+          <PageHeader
+            backHref="/guru"
+            title="Absensi Hari Ini"
+            subtitle="Status absensi kehadiran sudah tercatat."
+          />
 
           {/* Card Tampilan Sudah Absen */}
           <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-8 text-center mt-2">
@@ -264,7 +333,7 @@ export default function PilihStatusPage() {
 
             <div className="w-full border-b border-slate-100 mb-6" />
 
-            <div className="flex flex-col gap-4 text-center">
+            <div className="flex flex-col gap-4 text-center w-full">
               <div>
                 <p className="text-xs text-slate-400 font-medium">Tanggal dan Waktu Absensi</p>
                 <p className="text-sm font-bold text-slate-900 mt-1">
@@ -282,19 +351,20 @@ export default function PilihStatusPage() {
             </div>
           </div>
 
-          {/* Tombol Selesai */}
-          <div className="mt-8">
+          {/* Tombol Selesai tepat di bawah card */}
+          <div className="w-full mt-4">
             <Button onClick={() => router.push("/guru")}>
               Selesai
             </Button>
           </div>
         </div>
+      </div>
     );
   }
 
   // Tampilan pilihan status (jika belum absen)
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14 animate-page-enter">
       <PageHeader
         backHref="/guru"
         title="Pilih Status Kehadiran"

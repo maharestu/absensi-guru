@@ -117,9 +117,9 @@ function FotoSelfieKelasContent() {
   const hariQuery = hari ? `&hari=${encodeURIComponent(hari)}` : "";
 
   return (
-    <div className="flex flex-col min-h-full bg-[#F8FAFC] px-6 pt-3 pb-14">
+    <div className="flex flex-col flex-1 w-full min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
       <PageHeader
-        backHref={`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}${hariQuery}`}
+        backHref={`/guru/presensi-mengajar/lokasi?jadwal_id=${jadwalId}${hariQuery}`}
         title="Ambil Foto Mengajar"
         subtitle="Pastikan wajah Anda terlihat jelas dan pencahayaan cukup."
       />

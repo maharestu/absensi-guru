@@ -28,9 +28,10 @@ export default function LokasiPage() {
         try {
           const userLat = position.coords.latitude;
           const userLng = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
 
           // Verifikasi lokasi langsung dari database sekolah
-          const result = await verifikasiLokasiSekolah(userLat, userLng);
+          const result = await verifikasiLokasiSekolah(userLat, userLng, accuracy);
 
           if (!result.success) {
             setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
@@ -42,6 +43,9 @@ export default function LokasiPage() {
             // Simpan koordinat asli guru untuk dikirim ke database nanti
             sessionStorage.setItem("absensi_lat", userLat.toString());
             sessionStorage.setItem("absensi_lng", userLng.toString());
+            if (accuracy != null) {
+              sessionStorage.setItem("absensi_accuracy", accuracy.toString());
+            }
             setScanState("SUCCESS");
           } else {
             setErrorMsg("Pastikan Anda berada di area sekitar sekolah.");

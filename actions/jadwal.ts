@@ -8,6 +8,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Jadwal, JadwalWithDetail } from "@/types/schema";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 export async function getJadwalList(): Promise<JadwalWithDetail[]> {
   const { data, error } = await supabaseAdmin
@@ -34,7 +35,7 @@ export async function getJadwalById(id: string): Promise<JadwalWithDetail | null
     .select(`
       *,
       guru:guru_id ( id, nama, nip ),
-      kelas:kelas_id ( id, nama_kelas )
+      kelas:kelas_id ( id, nama_kelas, latitude, longitude, radius_meter )
     `)
     .eq("id", id)
     .single();
@@ -97,7 +98,7 @@ export async function createJadwal(input: Omit<Jadwal, "id" | "created_at">) {
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleActionError(error, "createJadwal"));
   return data;
 }
 
@@ -110,7 +111,7 @@ export async function updateJadwal(id: string, input: Partial<Jadwal>) {
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(handleActionError(error, "updateJadwal"));
   return data;
 }
 
@@ -174,7 +175,7 @@ export async function deleteJadwal(
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteJadwal") };
   }
 }
 
@@ -206,8 +207,116 @@ export async function deleteAllJadwal(
 
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllJadwal Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllJadwal") };
+  }
+}
+
+/**
+ * Menggabungkan jadwal-jadwal mengajar yang terpotong oleh jam istirahat sekolah.
+ * Jika guru, kelas, mata pelajaran, dan hari sama, dan jeda antara jam_selesai sesi 1
+ * dan jam_mulai sesi 2 adalah jeda istirahat (<= 60 menit), maka:
+ * 1. jam_selesai sesi 1 diperpanjang hingga jam_selesai sesi 2.
+ * 2. Catatan absensi_mengajar pada sesi 2 dialihkan ke sesi 1.
+ * 3. Sesi 2 yang redundan dihapus dari tabel jadwal.
+ */
+export async function konsolidasiJadwalTerpotongIstirahat(): Promise<{ success: boolean; mergedCount: number; error?: string }> {
+  try {
+    const { data: allJadwals, error } = await supabaseAdmin
+      .from("jadwal")
+      .select("id, guru_id, kelas_id, mata_pelajaran, hari, jam_mulai, jam_selesai, status")
+      .eq("status", "aktif")
+      .order("hari")
+      .order("kelas_id")
+      .order("jam_mulai");
+
+    if (error) throw error;
+    if (!allJadwals || allJadwals.length === 0) {
+      return { success: true, mergedCount: 0 };
+    }
+
+    // Kelompokkan jadwal berdasarkan guru_id, kelas_id, mata_pelajaran (normalized), dan hari
+    const normMapel = (m: string) => (m || "").trim().toUpperCase();
+    const grouped = new Map<string, typeof allJadwals>();
+
+    for (const j of allJadwals) {
+      const key = `${j.guru_id}_${j.kelas_id}_${normMapel(j.mata_pelajaran)}_${j.hari.toLowerCase()}`;
+      const list = grouped.get(key) || [];
+      list.push(j);
+      grouped.set(key, list);
+    }
+
+    let mergedCount = 0;
+
+    for (const [_, list] of grouped.entries()) {
+      if (list.length < 2) continue;
+
+      // Urutkan berdasarkan jam_mulai
+      list.sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai));
+
+      let i = 0;
+      while (i < list.length - 1) {
+        const sesi1 = list[i];
+        const sesi2 = list[i + 1];
+
+        const [s1H, s1M] = sesi1.jam_selesai.split(":").map(Number);
+        const [s2H, s2M] = sesi2.jam_mulai.split(":").map(Number);
+        const gapMinutes = (s2H * 60 + s2M) - (s1H * 60 + s1M);
+
+        // Jika jeda waktu antara sesi 1 dan sesi 2 adalah jeda istirahat (0 s.d. 60 menit)
+        if (gapMinutes >= 0 && gapMinutes <= 60) {
+          // 1. Update sesi 1 dengan jam_selesai dari sesi 2
+          const newJamSelesai = sesi2.jam_selesai > sesi1.jam_selesai ? sesi2.jam_selesai : sesi1.jam_selesai;
+          await supabaseAdmin
+            .from("jadwal")
+            .update({ jam_selesai: newJamSelesai })
+            .eq("id", sesi1.id);
+
+          sesi1.jam_selesai = newJamSelesai;
+
+          // 2. Alihkan data absensi_mengajar sesi 2 ke sesi 1 jika ada
+          const { data: absensiSesi2 } = await supabaseAdmin
+            .from("absensi_mengajar")
+            .select("id, tanggal")
+            .eq("jadwal_id", sesi2.id);
+
+          if (absensiSesi2 && absensiSesi2.length > 0) {
+            for (const abs of absensiSesi2) {
+              // Cek apakah sesi 1 sudah memiliki absensi di tanggal yang sama
+              const { data: existingAbsensiSesi1 } = await supabaseAdmin
+                .from("absensi_mengajar")
+                .select("id")
+                .eq("jadwal_id", sesi1.id)
+                .eq("tanggal", abs.tanggal)
+                .maybeSingle();
+
+              if (existingAbsensiSesi1) {
+                // Sesi 1 sudah diabsen pada tanggal tersebut, hapus duplikat dari sesi 2
+                await supabaseAdmin.from("absensi_mengajar").delete().eq("id", abs.id);
+              } else {
+                // Alihkan jadwal_id ke sesi 1
+                await supabaseAdmin
+                  .from("absensi_mengajar")
+                  .update({ jadwal_id: sesi1.id })
+                  .eq("id", abs.id);
+              }
+            }
+          }
+
+          // 3. Hapus sesi 2 yang redundan dari database
+          await supabaseAdmin.from("jadwal").delete().eq("id", sesi2.id);
+
+          // Hapus sesi 2 dari daftar in-memory list
+          list.splice(i + 1, 1);
+          mergedCount++;
+        } else {
+          i++;
+        }
+      }
+    }
+
+    return { success: true, mergedCount };
+  } catch (err: any) {
+    return { success: false, mergedCount: 0, error: handleActionError(err, "konsolidasiJadwalTerpotongIstirahat") };
   }
 }
 

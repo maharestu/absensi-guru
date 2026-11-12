@@ -5,7 +5,7 @@ import { Guru } from "@/types/schema";
 import { getGuruList, createGuru, updateGuru, deleteGuru, deleteAllGuru, checkGuruRelations } from "@/actions/guru";
 import { ClockBadges } from "./ui/ClockBadges";
 import { Modal } from "./ui/Modal";
-import { ChevronDown, Edit2, Trash2 } from "lucide-react";
+import { ChevronDown, Edit2, Trash2, AlertCircle } from "lucide-react";
 import TeacherForm, { TeacherFormData } from "./TeacherForm";
 import Pagination from "@/components/ui/pagination";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
@@ -29,6 +29,9 @@ export default function TeacherManagerClient() {
   const [deletingTeacher, setDeletingTeacher] = useState<Guru | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
   const [isForceDeletingSingle, setIsForceDeletingSingle] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -148,16 +151,18 @@ export default function TeacherManagerClient() {
 
   const handleConfirmDeleteAll = async (forceCascade: boolean) => {
     try {
+      setDeleteAllError(null);
       setIsDeletingAll(true);
       const res = await deleteAllGuru(forceCascade);
       if (res.success) {
         await loadTeachers();
         setIsDeleteAllOpen(false);
+        setDeleteAllError(null);
       } else {
-        alert("Gagal menghapus semua data guru: " + (res.error || ""));
+        setDeleteAllError(res.error || "Gagal menghapus seluruh data guru.");
       }
     } catch (e: any) {
-      alert("Error: " + e.message);
+      setDeleteAllError(e.message || "Terjadi kesalahan saat menghapus data guru.");
     } finally {
       setIsDeletingAll(false);
     }
@@ -165,6 +170,7 @@ export default function TeacherManagerClient() {
 
 
   const handleOpenEdit = (guru: Guru) => {
+    setEditError("");
     setEditingTeacher(guru);
     setEditForm({
       nama: guru.nama || "",
@@ -172,12 +178,12 @@ export default function TeacherManagerClient() {
       jabatan: guru.jabatan || "",
       no_telepon: guru.no_telepon || "",
       status: (guru.status?.toLowerCase() === "nonaktif" ? "nonaktif" : "aktif") as "aktif" | "nonaktif",
-
     });
   };
 
   const handleSaveEdit = async (data: TeacherFormData) => {
     if (!editingTeacher) return;
+    setEditError("");
 
     try {
       setSubmitting(true);
@@ -187,7 +193,6 @@ export default function TeacherManagerClient() {
         jabatan: data.jabatan,
         no_telepon: data.no_telepon,
         status: data.status,
-
       };
 
       const res = await updateGuru(editingTeacher.id, updateData);
@@ -196,18 +201,23 @@ export default function TeacherManagerClient() {
           prev.map((t) => (t.id === editingTeacher.id ? { ...t, ...updateData } : t))
         );
         setEditingTeacher(null);
+        setEditError("");
       } else {
-        alert("Gagal mengupdate guru: " + (res.error || ""));
+        setEditError(res.error || "Gagal memperbarui data guru.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setEditError(err.message || "Terjadi kesalahan saat memperbarui data guru.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleCreateSubmit = async (data: TeacherFormData) => {
-    if (!data.nama || !data.nip) return;
+    setCreateError("");
+    if (!data.nama || !data.nip) {
+      setCreateError("Nama dan NIP/NUPTK wajib diisi.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -217,7 +227,6 @@ export default function TeacherManagerClient() {
         jabatan: data.jabatan || "Guru Pengampu",
         no_telepon: data.no_telepon || "-",
         status: data.status,
-
       });
 
       if (res.success) {
@@ -228,14 +237,14 @@ export default function TeacherManagerClient() {
           jabatan: "",
           no_telepon: "",
           status: "aktif",
-
         });
+        setCreateError("");
         setViewMode("list");
       } else {
-        alert("Gagal menambah guru: " + (res.error || ""));
+        setCreateError(res.error || "Gagal menambahkan data guru.");
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      setCreateError(err.message || "Terjadi kesalahan saat menambahkan data guru.");
     } finally {
       setSubmitting(false);
     }
@@ -275,7 +284,7 @@ export default function TeacherManagerClient() {
         </div>
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 self-start sm:self-auto w-full sm:w-auto">
           <button
-            onClick={() => setViewMode("create")}
+            onClick={() => { setViewMode("create"); setCreateError(""); }}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+</span>
@@ -385,7 +394,10 @@ export default function TeacherManagerClient() {
 
       <DeleteAllModal
         isOpen={isDeleteAllOpen}
-        onClose={() => setIsDeleteAllOpen(false)}
+        onClose={() => {
+          setIsDeleteAllOpen(false);
+          setDeleteAllError(null);
+        }}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Data Guru"
         entityName="guru"
@@ -393,35 +405,49 @@ export default function TeacherManagerClient() {
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}
+        errorMessage={deleteAllError}
+        onClearError={() => setDeleteAllError(null)}
       />
 
 
-      <Modal isOpen={!!editingTeacher} onClose={() => setEditingTeacher(null)} maxWidth="max-w-3xl">
+      <Modal isOpen={!!editingTeacher} onClose={() => { setEditingTeacher(null); setEditError(""); }} maxWidth="max-w-3xl">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Update Data Guru</h3>
           <p className="text-xs text-slate-400 mt-0.5">Perbarui informasi guru yang dipilih.</p>
         </div>
+        {editError && (
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-medium leading-relaxed">{editError}</span>
+          </div>
+        )}
         <div className="mt-6">
           <TeacherForm
             initialData={editForm}
             onSubmit={handleSaveEdit}
-            onCancel={() => setEditingTeacher(null)}
+            onCancel={() => { setEditingTeacher(null); setEditError(""); }}
             submitting={submitting}
             submitText="Simpan Perubahan"
           />
         </div>
       </Modal>
 
-      <Modal isOpen={viewMode === "create"} onClose={() => setViewMode("list")} maxWidth="max-w-3xl">
+      <Modal isOpen={viewMode === "create"} onClose={() => { setViewMode("list"); setCreateError(""); }} maxWidth="max-w-3xl">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Tambah Data Guru</h3>
           <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
         </div>
+        {createError && (
+          <div className="mt-4 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-medium leading-relaxed">{createError}</span>
+          </div>
+        )}
         <div className="mt-6">
           <TeacherForm
             initialData={createForm}
             onSubmit={handleCreateSubmit}
-            onCancel={() => setViewMode("list")}
+            onCancel={() => { setViewMode("list"); setCreateError(""); }}
             submitting={submitting}
             submitText="Tambah Data"
           />

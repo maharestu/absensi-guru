@@ -8,7 +8,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-[#EEF2F7] flex flex-col justify-between px-6 pt-10 sm:pt-8 pb-6">
       {/* Container Form Login (Tengah / Center) */}
-      <div className="w-full max-w-sm sm:max-w-md mx-auto my-auto sm:bg-white sm:p-10 sm:rounded-[32px] sm:shadow-sm sm:border sm:border-slate-200">
+      <div className="w-full max-w-sm sm:max-w-md mx-auto my-auto sm:bg-white sm:p-10 sm:rounded-[32px] sm:shadow-sm sm:border sm:border-slate-200 animate-page-enter">
         {/* Logo Sekolah & Title */}
         <div className="flex flex-col items-center mb-8 text-center">
           <Image

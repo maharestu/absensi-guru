@@ -8,14 +8,21 @@ import {
   getKepsekStats,
   getKehadiranHariIni,
   getMengajarHariIni,
+  getPulangHariIni,
   KepsekStats,
   KehadiranHariIni,
   MengajarHariIni,
+  PulangHariIni,
 } from "@/actions/dashboard";
 import { getStatusColorText } from "@/lib/status";
 import { getFaseWaktuSekolah, getTodayWIB, TANGGAL_MULAI_TIDAK_HADIR } from "@/lib/date";
 import { PhotoOverlay } from "@/components/kepsek/PhotoOverlay";
 import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
+import FullScreenLoader from "@/components/ui/full-screen-loader";
 
 function getStatusBadge(status: string) {
   const s = status.toLowerCase();
@@ -39,8 +46,10 @@ export default function KepsekDashboardPage() {
   });
   const [kehadiran, setKehadiran] = useState<KehadiranHariIni[]>([]);
   const [mengajar, setMengajar] = useState<MengajarHariIni[]>([]);
+  const [pulang, setPulang] = useState<PulangHariIni[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoOverlayUrl, setPhotoOverlayUrl] = useState<string | null>(null);
+  const [statusOp, setStatusOp] = useState<StatusOperasionalHariIni | null>(null);
 
   // Pagination items per page
   const itemsPerPage = 10;
@@ -48,8 +57,10 @@ export default function KepsekDashboardPage() {
   // Pagination states & Search states
   const [currentPageKehadiran, setCurrentPageKehadiran] = useState(1);
   const [currentPageMengajar, setCurrentPageMengajar] = useState(1);
+  const [currentPagePulang, setCurrentPagePulang] = useState(1);
   const [searchKehadiran, setSearchKehadiran] = useState("");
   const [searchMengajar, setSearchMengajar] = useState("");
+  const [searchPulang, setSearchPulang] = useState("");
 
   useEffect(() => {
     setCurrentPageKehadiran(1);
@@ -58,6 +69,10 @@ export default function KepsekDashboardPage() {
   useEffect(() => {
     setCurrentPageMengajar(1);
   }, [searchMengajar]);
+
+  useEffect(() => {
+    setCurrentPagePulang(1);
+  }, [searchPulang]);
 
   // Filter Kehadiran
   const filteredKehadiran = kehadiran.filter(row => 
@@ -73,6 +88,14 @@ export default function KepsekDashboardPage() {
     row.status.toLowerCase().includes(searchMengajar.toLowerCase())
   );
 
+  // Filter Pulang
+  const filteredPulang = pulang.filter(row => 
+    row.nama_guru.toLowerCase().includes(searchPulang.toLowerCase()) ||
+    (row.nip_guru && row.nip_guru.toLowerCase().includes(searchPulang.toLowerCase())) ||
+    row.waktu_pulang.toLowerCase().includes(searchPulang.toLowerCase()) ||
+    row.tanggal.toLowerCase().includes(searchPulang.toLowerCase())
+  );
+
   const paginatedKehadiran = filteredKehadiran.slice(
     (currentPageKehadiran - 1) * itemsPerPage,
     currentPageKehadiran * itemsPerPage
@@ -83,17 +106,26 @@ export default function KepsekDashboardPage() {
     currentPageMengajar * itemsPerPage
   );
 
+  const paginatedPulang = filteredPulang.slice(
+    (currentPagePulang - 1) * itemsPerPage,
+    currentPagePulang * itemsPerPage
+  );
+
   useEffect(() => {
     async function loadData() {
       try {
-        const [statsData, hadirData, mengajarData] = await Promise.all([
+        const [statsData, hadirData, mengajarData, opData, pulangData] = await Promise.all([
           getKepsekStats(),
           getKehadiranHariIni(),
           getMengajarHariIni(),
+          getStatusOperasionalHariIni(),
+          getPulangHariIni(),
         ]);
         setStats(statsData);
         setKehadiran(hadirData);
         setMengajar(mengajarData);
+        setStatusOp(opData);
+        setPulang(pulangData);
       } catch (err) {
         console.error("Gagal memuat data dashboard kepsek:", err);
       } finally {
@@ -107,7 +139,11 @@ export default function KepsekDashboardPage() {
   const isEffective = getTodayWIB() >= TANGGAL_MULAI_TIDAK_HADIR;
 
   let belumAbsenLabel = "Belum Absen";
-  if (fase === "akhir_pekan") {
+  if (statusOp?.tipeLibur === "LIBUR_PANJANG") {
+    belumAbsenLabel = "Libur Panjang";
+  } else if (statusOp?.tipeLibur === "HARI_LIBUR") {
+    belumAbsenLabel = "Hari Libur";
+  } else if (statusOp?.tipeLibur === "WEEKEND" || fase === "akhir_pekan") {
     belumAbsenLabel = "Libur Akhir Pekan";
   } else if (fase === "setelah_pulang" && isEffective) {
     belumAbsenLabel = "Tidak Hadir";
@@ -190,8 +226,12 @@ export default function KepsekDashboardPage() {
     },
   ];
 
+  if (loading) {
+    return <FullScreenLoader message="Memuat data dashboard..." bgClass="bg-[#f8fafc]" />;
+  }
+
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="space-y-5 sm:space-y-8 animate-page-enter">
       {/* ── HEADER ROW ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
@@ -243,6 +283,29 @@ export default function KepsekDashboardPage() {
         </div>
       </div>
 
+      {/* ── BANNER STATUS LIBUR / SHUTDOWN (JIKA AKTIF) ── */}
+      {statusOp && !statusOp.isOperasional && (statusOp.tipeLibur === "LIBUR_PANJANG" || statusOp.tipeLibur === "HARI_LIBUR") && (
+        <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 shadow-2xs flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-700">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">
+              {statusOp.judul}
+            </p>
+            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+              {statusOp.deskripsi}
+              {statusOp.periode && statusOp.tipeLibur === "LIBUR_PANJANG" ? ` (Periode: ${statusOp.periode})` : ""}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── STAT CARDS ── */}
       <ScrollingStatCards
         items={statCardItems}
@@ -274,14 +337,15 @@ export default function KepsekDashboardPage() {
         </div>
 
         {/* Responsive Table for Kehadiran */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[500px] sm:min-w-[650px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[32%]">NAMA GURU</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">WAKTU MASUK</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[15%] text-center">AKSI</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[38%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[34%]">WAKTU MASUK</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">STATUS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -296,6 +360,20 @@ export default function KepsekDashboardPage() {
                   <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
+                    </td>
+                    <td className="py-2.5 sm:py-4">
+                      {(row.foto_absensi || row.file_bukti_izin_sakit) ? (
+                        <button
+                          type="button"
+                          onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
+                          className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                          title="Lihat Foto / Bukti"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-700 font-medium">
                       <div className="flex flex-wrap items-center gap-2">
@@ -317,26 +395,12 @@ export default function KepsekDashboardPage() {
                     <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
                     </td>
-                    <td className="py-2.5 sm:py-4 text-center">
-                      {(row.foto_absensi || row.file_bukti_izin_sakit) ? (
-                        <button
-                          type="button"
-                          onClick={() => setPhotoOverlayUrl((row.foto_absensi || row.file_bukti_izin_sakit)!)}
-                          className="inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2.5 py-1 text-xs font-semibold hover:bg-blue-100 transition-colors active:scale-95"
-                          title="Lihat Foto / Bukti"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Foto</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
-                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          </div>
           {!loading && filteredKehadiran.length > 0 && (
             <Pagination
               size="sm"
@@ -373,17 +437,18 @@ export default function KepsekDashboardPage() {
         </div>
 
         {/* Responsive Table for Mengajar */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[650px] sm:min-w-[800px]">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 shadow-sm overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[800px]">
             <thead>
               <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[22%]">NAMA GURU</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[8%]">FOTO</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[18%]">MATA PELAJARAN</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[10%]">KELAS</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[20%]">WAKTU ABSENSI</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">JAM MENGAJAR</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold w-[11%] hidden sm:table-cell">JAM MENGAJAR</th>
                 <th className="pb-2.5 sm:pb-4 font-semibold w-[11%]">STATUS</th>
-                <th className="pb-2.5 sm:pb-4 font-semibold w-[10%] text-center">AKSI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
@@ -399,8 +464,25 @@ export default function KepsekDashboardPage() {
                     <td className="py-2.5 sm:py-4 font-semibold text-slate-800">
                       {row.nama_guru}
                     </td>
-                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
-                      {row.mata_pelajaran}
+                    <td className="py-2.5 sm:py-4">
+                      {row.foto_absensi ? (
+                        <button
+                          type="button"
+                          onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
+                          className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                          title="Lihat Foto"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-slate-300 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 sm:py-4">
+                      <div className="text-slate-500 font-medium">{row.mata_pelajaran}</div>
+                      <div className="text-[11px] text-slate-400 font-normal sm:hidden mt-0.5">
+                        {row.jam_mengajar}
+                      </div>
                     </td>
                     <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
                       {row.kelas}
@@ -422,32 +504,18 @@ export default function KepsekDashboardPage() {
                         )}
                       </div>
                     </td>
-                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium">
+                    <td className="py-2.5 sm:py-4 text-slate-500 font-medium hidden sm:table-cell">
                       {row.jam_mengajar}
                     </td>
                     <td className={`py-2.5 sm:py-4 font-semibold ${getStatusColorText(row.status)}`}>
                       {row.status}
-                    </td>
-                    <td className="py-2.5 sm:py-4 text-center">
-                      {row.foto_absensi ? (
-                        <button
-                          type="button"
-                          onClick={() => setPhotoOverlayUrl(row.foto_absensi!)}
-                          className="inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 text-blue-600 rounded-lg px-2.5 py-1 text-xs font-semibold hover:bg-blue-100 transition-colors active:scale-95"
-                          title="Lihat Foto"
-                        >
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>Foto</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-300 text-xs">—</span>
-                      )}
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          </div>
           {!loading && filteredMengajar.length > 0 && (
             <Pagination
               size="sm"
@@ -455,6 +523,88 @@ export default function KepsekDashboardPage() {
               totalItems={filteredMengajar.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPageMengajar}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ── TABEL & CARD: ABSENSI PULANG HARI INI ── */}
+      <div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-3.5 sm:mb-4">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              Absensi Pulang Hari Ini
+            </h2>
+            <p className="text-xs text-slate-500 sm:hidden mt-0.5">
+              {filteredPulang.length} data ditemukan
+            </p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari guru atau jam..."
+              value={searchPulang}
+              onChange={(e) => setSearchPulang(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          </div>
+        </div>
+
+        {/* Responsive Table for Pulang */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-hidden">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                  <th className="pb-2.5 sm:pb-4 font-semibold w-[46%] sm:w-[50%] text-left">NAMA GURU</th>
+                  <th className="pb-2.5 sm:pb-4 font-semibold w-[22%] sm:w-[20%] text-center">FOTO</th>
+                  <th className="pb-2.5 sm:pb-4 font-semibold w-[32%] sm:w-[30%] text-center">WAKTU PULANG</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
+                {filteredPulang.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-slate-400 font-medium">
+                      {loading ? "Memuat absensi pulang..." : "Belum ada catatan presensi pulang hari ini."}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedPulang.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 sm:py-4 font-semibold text-slate-800 align-middle pr-2 break-words">
+                        {row.nama_guru}
+                      </td>
+                      <td className="py-2.5 sm:py-4 text-center align-middle">
+                        {row.foto_pulang ? (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoOverlayUrl(row.foto_pulang!)}
+                            className="inline-flex items-center justify-center border border-blue-200 bg-blue-50 text-blue-600 rounded-lg p-1.5 hover:bg-blue-100 transition-colors active:scale-95 cursor-pointer"
+                            title="Lihat Foto Pulang"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 sm:py-4 text-slate-700 font-medium text-center align-middle whitespace-nowrap">
+                        {row.waktu_pulang}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {!loading && filteredPulang.length > 0 && (
+            <Pagination
+              size="sm"
+              currentPage={currentPagePulang}
+              totalItems={filteredPulang.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPagePulang}
             />
           )}
         </div>

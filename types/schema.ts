@@ -3,6 +3,7 @@
 export type RoleAkun = "admin" | "kepala_sekolah" | "guru";
 export type StatusAktif = "aktif" | "nonaktif";
 export type StatusAbsensiMasuk = "hadir" | "sakit" | "izin" | "dinas" | "tidak_hadir";
+export type StatusAbsensiMengajar = "mengajar" | "tidak_mengajar";
 export type HariJadwal =
   | "senin"
   | "selasa"
@@ -49,6 +50,9 @@ export interface Kelas {
   id: string; // uuid
   nama_kelas: string;
   kode_qr: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  radius_meter?: number | null;
   created_at: Date | string;
 }
 
@@ -73,6 +77,9 @@ export interface JadwalWithDetail extends Jadwal {
   kelas?: {
     id: string;
     nama_kelas: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    radius_meter?: number | null;
   } | null;
 }
 
@@ -85,6 +92,8 @@ export interface AbsensiMasuk {
   file_bukti_izin_sakit?: string | null; // Wajib jika Sakit/Izin
   latitude?: number | null; // Lokasi validasi (jika Hadir)
   longitude?: number | null;
+  waktu_pulang?: Date | string | null;
+  foto_pulang?: string | null;
   waktu_submit: Date | string;
 }
 
@@ -92,6 +101,7 @@ export interface AbsensiMengajar {
   id: string; // uuid
   jadwal_id: string; // uuid
   tanggal: string; // format YYYY-MM-DD
-  foto_absensi: string;
+  status: StatusAbsensiMengajar;
+  foto_absensi?: string | null;
   waktu_submit: Date | string;
 }

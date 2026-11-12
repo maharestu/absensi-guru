@@ -2,14 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
+import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
 import { useAuth } from "@/context/AuthContext";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
 import { formatTanggalLengkap } from "@/lib/format";
 import { formatJamWIB, getTodayWIB } from "@/lib/date";
 import { getDevTestingConfigClient } from "@/lib/testing-mode";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 const HARI_LABEL: Record<string, string> = {
   senin: "Senin",
   selasa: "Selasa",
@@ -28,10 +34,16 @@ export default function PresensiMengajarPage() {
   const [hariList, setHariList] = useState<string[]>([]);
   const [jadwalMap, setJadwalMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [statusOperasional, setStatusOperasional] = useState<StatusOperasionalHariIni | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     
+    // Evaluasi status operasional/libur terlebih dahulu tanpa bergantung pada session cache
+    getStatusOperasionalHariIni().then((res) => {
+      if (isMounted) setStatusOperasional(res);
+    }).catch((err) => console.warn("getStatusOperasionalHariIni error:", err));
+
     async function checkStatus() {
       if (!user?.guru_id) return;
       
@@ -131,13 +143,42 @@ export default function PresensiMengajarPage() {
     router.push(`/guru/presensi-mengajar/${hariId}`);
   };
 
+  const testConfig = getDevTestingConfigClient();
+  const isHolidayPause = !testConfig.isActive && Boolean(statusOperasional && !statusOperasional.isOperasional);
+
+  if (isHolidayPause && statusOperasional) {
+    return (
+      <LiburPauseScreen
+        pageTitle="Absensi Mengajar"
+        subtitle={statusOperasional.judul}
+        judul={statusOperasional.judul}
+        deskripsi={statusOperasional.deskripsi}
+        periode={statusOperasional.periode}
+        keterangan={statusOperasional.keterangan}
+        backHref="/guru"
+      />
+    );
+  }
+
   if (canAccess === null) {
-    return <div className="min-h-full bg-[#EEF2F7]" />;
+    return (
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
+        <PageHeader
+          backHref="/guru"
+          title="Absensi Mengajar"
+          subtitle="Memeriksa prasyarat kehadiran..."
+        />
+        <div className="w-full bg-white border border-slate-100 rounded-[28px] shadow-sm flex flex-col items-center justify-center p-12 text-center mt-2">
+          <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
+          <p className="text-xs text-slate-400 font-medium">Memeriksa status kehadiran hari ini...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!canAccess) {
     return (
-      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20">
+      <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-20 animate-page-enter">
         <PageHeader
           backHref="/guru"
           title="Absensi Mengajar Gagal"
@@ -168,7 +209,7 @@ export default function PresensiMengajarPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">
+    <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14 animate-page-enter">
       <PageHeader
         backHref="/guru"
         title="Absensi Mengajar"
@@ -197,9 +238,10 @@ export default function PresensiMengajarPage() {
           </div>
         ) : (
           hariList.map((hariId) => (
-            <button
+            <Link
               key={hariId}
-              onClick={() => handleSelectHari(hariId)}
+              href={`/guru/presensi-mengajar/${encodeURIComponent(hariId)}`}
+              prefetch={true}
               className="w-full bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 flex items-center justify-between active:scale-[0.98] transition-all duration-150 hover:shadow-md text-left touch-manipulation cursor-pointer"
             >
               <div>
@@ -221,7 +263,7 @@ export default function PresensiMengajarPage() {
                   />
                 </svg>
               </div>
-            </button>
+            </Link>
           ))
         )}
       </div>

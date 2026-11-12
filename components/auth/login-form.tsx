@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginAction } from "@/actions/auth";
 import { Akun } from "@/types/schema";
+import { getDashboardPath } from "@/lib/error-handler";
 
 export default function LoginForm() {
   const [nip, setNip] = useState("");
@@ -15,7 +16,13 @@ export default function LoginForm() {
 
   const { login } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
+
+  // Pre-warm dashboard routes agar transisi pasca-login instan & mulus
+  useEffect(() => {
+    router.prefetch("/guru");
+    router.prefetch("/kepsek");
+    router.prefetch("/admin");
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,27 +35,19 @@ export default function LoginForm() {
 
       if (result.success) {
         login(result.user as Akun);
-        
-        const nextParam = searchParams.get("next");
-        if (nextParam && nextParam.startsWith("/")) {
-          router.push(nextParam);
-          return;
-        }
 
-        // Arahkan sesuai role (lowercase sesuai DB schema)
-        if (result.user.role === "guru") {
-          router.push("/guru");
-        } else if (result.user.role === "kepala_sekolah") {
-          router.push("/kepsek");
-        } else {
-          router.push("/admin");
-        }
+        // Selalu arahkan pengguna ke dashboard sesuai dengan role masing-masing setelah login.
+        // Jangan mengarahkan pengguna kembali ke halaman terakhir yang diakses sebelum sesi berakhir.
+        const targetDashboard = getDashboardPath(result.user.role);
+        router.replace(targetDashboard);
+        // Catatan: sengaja tidak memanggil setIsLoading(false) di sini agar state
+        // tombol tetap "Memproses..." sampai dashboard tujuan siap menggantikan halaman login.
       } else {
         setHasError(true);
+        setIsLoading(false);
       }
     } catch {
       setHasError(true);
-    } finally {
       setIsLoading(false);
     }
   };

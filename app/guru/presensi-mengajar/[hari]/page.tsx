@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
+import LiburPauseScreen from "@/components/absensi/libur-pause-screen";
 import { getJadwalByGuruAndHari } from "@/actions/jadwal";
 import { getAbsensiMengajarHariIni } from "@/actions/presensi";
 import { getTodayWIB } from "@/lib/date";
@@ -10,6 +11,10 @@ import { useAuth } from "@/context/AuthContext";
 import { JadwalWithDetail } from "@/types/schema";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { getDevTestingConfigClient } from "@/lib/testing-mode";
+import {
+  getStatusOperasionalHariIni,
+  StatusOperasionalHariIni,
+} from "@/actions/pengaturan";
 
 const HARI_ORDER = ["minggu", "senin", "selasa", "rabu", "kamis", "jumat", "sabtu"];
 
@@ -31,6 +36,15 @@ export default function DaftarJadwalHarianPage() {
   const [jadwalList, setJadwalList] = useState<JadwalWithDetail[]>([]);
   const [sudahAbsenIds, setSudahAbsenIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusOperasional, setStatusOperasional] = useState<StatusOperasionalHariIni | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getStatusOperasionalHariIni().then((res) => {
+      if (isMounted) setStatusOperasional(res);
+    }).catch((err) => console.warn("getStatusOperasionalHariIni error:", err));
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -42,18 +56,15 @@ export default function DaftarJadwalHarianPage() {
       
       try {
         setLoading(true);
-        const data = await getJadwalByGuruAndHari(
-          user.guru_id,
-          undefined,
-          hari
-        );
+        router.prefetch("/guru/presensi-mengajar/scan");
+        const today = getTodayWIB();
+        const [data, absenIds] = await Promise.all([
+          getJadwalByGuruAndHari(user.guru_id, undefined, hari),
+          getAbsensiMengajarHariIni(user.guru_id, today),
+        ]);
         
         const sortedData = data.sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai));
         setJadwalList(sortedData);
-
-        // Ambil daftar jadwal yang sudah diabsen hari ini
-        const today = getTodayWIB();
-        const absenIds = await getAbsensiMengajarHariIni(user.guru_id, today);
         setSudahAbsenIds(absenIds);
       } catch (err) {
         console.error("Gagal memuat jadwal:", err);
@@ -100,6 +111,23 @@ export default function DaftarJadwalHarianPage() {
     if (status !== "bisa_absen") return;
     router.push(`/guru/presensi-mengajar/scan?jadwal_id=${jadwalId}&hari=${encodeURIComponent(hari)}`);
   };
+
+  const testConfig = getDevTestingConfigClient();
+  const isHolidayPause = !testConfig.isActive && Boolean(statusOperasional && !statusOperasional.isOperasional);
+
+  if (isHolidayPause && statusOperasional) {
+    return (
+      <LiburPauseScreen
+        pageTitle={`Jadwal Hari ${hariLabel}`}
+        subtitle={statusOperasional.judul}
+        judul={statusOperasional.judul}
+        deskripsi={statusOperasional.deskripsi}
+        periode={statusOperasional.periode}
+        keterangan={statusOperasional.keterangan}
+        backHref="/guru"
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-full bg-[#EEF2F7] px-6 pt-3 pb-14">

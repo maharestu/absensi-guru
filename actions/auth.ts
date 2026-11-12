@@ -86,7 +86,7 @@ export async function loginAction(
   const { password_hash, ...userSafe } = data;
   const finalUser = { ...userSafe, nip } as Omit<Akun, "password_hash">;
 
-  // Set HTTP-Only Cookie Session (1 hari)
+  // Set HTTP-Only Cookie Session (1 jam)
   await createSession(finalUser);
 
   return {

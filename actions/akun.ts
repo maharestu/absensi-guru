@@ -11,6 +11,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { Akun } from "@/types/schema";
 import { AdminAkunItem } from "@/types/admin";
 import { requireAdmin } from "@/lib/session";
+import { handleActionError } from "@/lib/error-handler";
 
 const SALT_ROUNDS = 10;
 
@@ -56,10 +57,10 @@ export async function createAkun(input: {
       guru_id: input.guru_id ?? null,
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "createAkun") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "createAkun") };
   }
 }
 
@@ -91,10 +92,10 @@ export async function updateAkun(
       .update(updateData)
       .eq("id", id);
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "updateAkun") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "updateAkun") };
   }
 }
 
@@ -139,10 +140,10 @@ export async function deleteAkun(
       .from("akun")
       .delete()
       .eq("id", id);
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: handleActionError(error, "deleteAkun") };
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAkun") };
   }
 }
 
@@ -167,8 +168,7 @@ export async function deleteAllAkun(
     if (error) throw error;
     return { success: true };
   } catch (err: any) {
-    console.error("deleteAllAkun Error:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: handleActionError(err, "deleteAllAkun") };
   }
 }
 

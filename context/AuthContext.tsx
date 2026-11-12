@@ -26,6 +26,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    // Baca cached user dari localStorage secepatnya di client untuk mencegah flash spinner
+    try {
+      const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (storedUser && isMounted) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && parsed.role) {
+          setUser(parsed);
+          setIsLoading(false);
+        }
+      }
+    } catch {
+      // Abaikan jika localStorage tidak dapat diakses
+    }
+
     async function syncSession() {
       try {
         const serverUser = await getCurrentUserAction();
@@ -64,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Dipanggil setelah loginAction berhasil
   const login = (userData: Omit<Akun, "password_hash">) => {
     setUser(userData as Akun);
+    setIsLoading(false);
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
   };
 

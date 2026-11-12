@@ -6,7 +6,7 @@ import { getGuruList } from "@/actions/guru";
 import { getKelasList } from "@/actions/kelas";
 import { Guru, Kelas, JadwalWithDetail, HariJadwal } from "@/types/schema";
 import { ClockBadges } from "./ui/ClockBadges";
-import { Edit2, Trash2 } from "lucide-react";
+import { Edit2, Trash2, AlertCircle } from "lucide-react";
 import ScheduleForm, { ScheduleFormData } from "./ScheduleForm";
 import Pagination from "@/components/ui/pagination";
 import { DeleteSingleModal } from "./ui/DeleteSingleModal";
@@ -37,6 +37,9 @@ export default function ScheduleManagerClient() {
   const [editingSchedule, setEditingSchedule] = useState<JadwalWithDetail | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<JadwalWithDetail | null>(null);
   const [singleDeleteError, setSingleDeleteError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [deleteAllError, setDeleteAllError] = useState<string | null>(null);
 
   // States untuk Hapus Semua
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
@@ -150,16 +153,18 @@ export default function ScheduleManagerClient() {
 
   const handleConfirmDeleteAll = async (forceCascade: boolean) => {
     try {
+      setDeleteAllError(null);
       setIsDeletingAll(true);
       const res = await deleteAllJadwal(forceCascade);
       if (res.success) {
         setIsDeleteAllOpen(false);
+        setDeleteAllError(null);
         await loadAllData();
       } else {
-        alert(res.error || "Gagal menghapus seluruh data jadwal.");
+        setDeleteAllError(res.error || "Gagal menghapus seluruh data jadwal.");
       }
     } catch (e: any) {
-      alert("Error: " + e.message);
+      setDeleteAllError("Error: " + (e.message || "Terjadi kesalahan saat menghapus jadwal."));
     } finally {
       setIsDeletingAll(false);
     }
@@ -167,6 +172,7 @@ export default function ScheduleManagerClient() {
 
   // Open Edit Modal
   const handleOpenEdit = (jadwal: JadwalWithDetail) => {
+    setEditError("");
     setEditingSchedule(jadwal);
     setEditForm({
       hari: (jadwal.hari as HariJadwal) || "senin",
@@ -181,6 +187,7 @@ export default function ScheduleManagerClient() {
   // Save Edit
   const handleSaveEdit = async (data: ScheduleFormData) => {
     if (!editingSchedule) return;
+    setEditError("");
 
     try {
       setSubmitting(true);
@@ -195,8 +202,9 @@ export default function ScheduleManagerClient() {
 
       await loadAllData();
       setEditingSchedule(null);
+      setEditError("");
     } catch (err: any) {
-      alert("Gagal mengupdate jadwal: " + err.message);
+      setEditError(err.message || "Gagal memperbarui jadwal.");
     } finally {
       setSubmitting(false);
     }
@@ -204,8 +212,9 @@ export default function ScheduleManagerClient() {
 
   // Handle Create Schedule Submit
   const handleCreateSubmit = async (data: ScheduleFormData) => {
+    setCreateError("");
     if (!data.mata_pelajaran || !data.hari || !data.kelas_id || !data.guru_id) {
-      alert("Mohon lengkapi seluruh formulir jadwal!");
+      setCreateError("Mohon lengkapi seluruh formulir jadwal!");
       return;
     }
 
@@ -230,9 +239,10 @@ export default function ScheduleManagerClient() {
         jam_selesai: "08:30",
         mata_pelajaran: "",
       });
+      setCreateError("");
       setViewMode("list");
     } catch (err: any) {
-      alert("Gagal menambahkan jadwal: " + err.message);
+      setCreateError(err.message || "Gagal menambahkan jadwal.");
     } finally {
       setSubmitting(false);
     }
@@ -285,7 +295,7 @@ export default function ScheduleManagerClient() {
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
-            onClick={() => setViewMode("create")}
+            onClick={() => { setViewMode("create"); setCreateError(""); }}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span>+</span>
@@ -395,7 +405,10 @@ export default function ScheduleManagerClient() {
       {/* MODAL: HAPUS SEMUA JADWAL */}
       <DeleteAllModal
         isOpen={isDeleteAllOpen}
-        onClose={() => setIsDeleteAllOpen(false)}
+        onClose={() => {
+          setIsDeleteAllOpen(false);
+          setDeleteAllError(null);
+        }}
         onConfirm={handleConfirmDeleteAll}
         title="Hapus Semua Jadwal"
         entityName="jadwal pelajaran"
@@ -403,6 +416,8 @@ export default function ScheduleManagerClient() {
         isChecking={isCheckingRelations}
         relationInfo={relationAudit}
         isDeleting={isDeletingAll}
+        errorMessage={deleteAllError}
+        onClearError={() => setDeleteAllError(null)}
       />
 
       {/* MODAL: UPDATE JADWAL */}
@@ -414,13 +429,20 @@ export default function ScheduleManagerClient() {
               <p className="text-xs text-slate-400 mt-0.5">Perbarui waktu dan informasi jadwal mengajar.</p>
             </div>
 
+            {editError && (
+              <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span className="font-medium leading-relaxed">{editError}</span>
+              </div>
+            )}
+
             <div className="mt-6">
               <ScheduleForm
                 initialData={editForm}
                 kelasList={kelasList}
                 guruList={guruList}
                 onSubmit={handleSaveEdit}
-                onCancel={() => setEditingSchedule(null)}
+                onCancel={() => { setEditingSchedule(null); setEditError(""); }}
                 submitting={submitting}
                 submitText="Simpan Perubahan"
               />
@@ -437,13 +459,21 @@ export default function ScheduleManagerClient() {
               <h3 className="text-xl font-bold text-slate-900">Tambah Jadwal</h3>
               <p className="text-sm text-slate-500 mt-1">Lengkapi data berikut, lalu tambah ke daftar.</p>
             </div>
+
+            {createError && (
+              <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span className="font-medium leading-relaxed">{createError}</span>
+              </div>
+            )}
+
             <div className="mt-6">
               <ScheduleForm
                 initialData={createForm}
                 kelasList={kelasList}
                 guruList={guruList}
                 onSubmit={handleCreateSubmit}
-                onCancel={() => setViewMode("list")}
+                onCancel={() => { setViewMode("list"); setCreateError(""); }}
                 submitting={submitting}
                 submitText="Tambah Data"
               />

@@ -9,6 +9,8 @@ export interface StatCardItem {
   bgIcon: string;
   shadowIcon: string;
   icon: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
 }
 
 interface ScrollingStatCardsProps {
@@ -27,6 +29,7 @@ export function ScrollingStatCards({
   const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isPointerDownRef = useRef(false);
+  const hasDraggedRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const startXRef = useRef(0);
   const startScrollLeftRef = useRef(0);
@@ -55,6 +58,7 @@ export function ScrollingStatCards({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
 
+    hasDraggedRef.current = false;
     startInteracting();
     isPointerDownRef.current = true;
     setIsDragging(true);
@@ -74,6 +78,9 @@ export function ScrollingStatCards({
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isPointerDownRef.current || !statScrollRef.current) return;
     const x = e.pageX - statScrollRef.current.offsetLeft;
+    if (Math.abs(x - startXRef.current) > 6) {
+      hasDraggedRef.current = true;
+    }
     const walk = (x - startXRef.current) * 1.2;
     statScrollRef.current.scrollLeft = startScrollLeftRef.current - walk;
   };
@@ -92,6 +99,9 @@ export function ScrollingStatCards({
     }
 
     scheduleResume(1500);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 100);
   };
 
   // Wheel handling for trackpad / mousewheel horizontal scroll
@@ -146,26 +156,84 @@ export function ScrollingStatCards({
     };
   }, []);
 
-  const renderStatCard = (item: StatCardItem, keySuffix: string = "") => (
-    <div
-      key={`${item.id}${keySuffix}`}
-      className="min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-5 shadow-sm flex items-center gap-3 sm:gap-4 select-none cursor-default"
-    >
+  const renderStatValue = (val: string | number, isMobile: boolean) => {
+    if (loading) return "...";
+    if (typeof val === "number") {
+      return (
+        <span className={isMobile ? "text-[15px] sm:text-lg font-bold text-slate-900" : "text-xl sm:text-2xl font-bold text-slate-900"}>
+          {val}
+        </span>
+      );
+    }
+    const str = String(val).trim();
+    const match = str.match(/^([^\s]+)\s+(.+)$/);
+    if (match) {
+      const [, numPart, unitPart] = match;
+      return (
+        <span className="inline-flex items-baseline gap-1 truncate">
+          <span className={isMobile ? "text-[15px] sm:text-lg font-bold text-slate-900" : "text-xl sm:text-2xl font-bold text-slate-900"}>
+            {numPart}
+          </span>
+          <span className={isMobile ? "text-[10.5px] sm:text-xs font-normal text-slate-400" : "text-xs sm:text-sm font-normal text-slate-400"}>
+            {unitPart}
+          </span>
+        </span>
+      );
+    }
+    return (
+      <span className={isMobile ? "text-[15px] sm:text-lg font-bold text-slate-900" : "text-xl sm:text-2xl font-bold text-slate-900"}>
+        {str}
+      </span>
+    );
+  };
+
+  const renderStatCard = (item: StatCardItem, keySuffix: string = "", isMobile: boolean = false) => {
+    const isClickable = Boolean(item.onClick);
+    return (
       <div
-        className={`w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl ${item.bgIcon} flex items-center justify-center text-white flex-shrink-0 shadow-md ${item.shadowIcon}`}
+        key={`${item.id}${keySuffix}`}
+        onClick={() => {
+          if (item.onClick && !hasDraggedRef.current) {
+            item.onClick();
+          }
+        }}
+        className={`${
+          isMobile
+            ? "min-w-[160px] sm:min-w-[180px] p-3 sm:p-4 gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl"
+            : "min-w-[170px] sm:min-w-[190px] lg:min-w-0 flex-1 flex-shrink-0 lg:flex-shrink p-3.5 sm:p-5 gap-3 sm:gap-4 rounded-2xl"
+        } bg-white border shadow-sm flex items-center select-none transition-all ${
+          isClickable
+            ? "cursor-pointer hover:shadow-md hover:border-slate-300 active:scale-[0.98]"
+            : "cursor-default"
+        } ${
+          item.active
+            ? "ring-2 ring-blue-500 border-blue-500/80 bg-blue-50/20 shadow-xs"
+            : "border-slate-100"
+        }`}
       >
-        {item.icon}
+        <div
+          className={`${
+            isMobile
+              ? "w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl [&>svg]:w-4.5 [&>svg]:h-4.5 sm:[&>svg]:w-5.5 sm:[&>svg]:h-5.5"
+              : "w-10 h-10 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl"
+          } ${item.bgIcon} flex items-center justify-center text-white flex-shrink-0 shadow-md ${item.shadowIcon}`}
+        >
+          {item.icon}
+        </div>
+        <div className="min-w-0">
+          <p
+            className={`${isMobile ? "text-[10px] sm:text-[11px]" : "text-[10.5px] sm:text-xs"} font-semibold text-slate-400 line-clamp-2 leading-snug`}
+            title={item.label}
+          >
+            {item.label}
+          </p>
+          <div className="mt-0.5 tracking-tight truncate leading-tight">
+            {renderStatValue(item.value, isMobile)}
+          </div>
+        </div>
       </div>
-      <div>
-        <p className="text-[10.5px] sm:text-xs font-semibold text-slate-400">
-          {item.label}
-        </p>
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5 tracking-tight">
-          {loading ? "..." : item.value}
-        </h2>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -205,15 +273,15 @@ export function ScrollingStatCards({
           }}
         >
           {/* 3 identical sets to ensure seamless infinite wrapping in both directions */}
-          {items.map((item) => renderStatCard(item, "-set1"))}
-          {items.map((item) => renderStatCard(item, "-set2"))}
-          {items.map((item) => renderStatCard(item, "-set3"))}
+          {items.map((item) => renderStatCard(item, "-set1", true))}
+          {items.map((item) => renderStatCard(item, "-set2", true))}
+          {items.map((item) => renderStatCard(item, "-set3", true))}
         </div>
       </div>
 
       {/* Desktop Grid (lg+) */}
       <div className={`hidden lg:grid ${desktopGridCols} gap-3 sm:gap-4 lg:gap-5`}>
-        {items.map((item) => renderStatCard(item))}
+        {items.map((item) => renderStatCard(item, "", false))}
       </div>
     </>
   );
