@@ -11,17 +11,15 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Check
+  Check,
+  Info,
+  FileCheck
 } from "lucide-react";
-import * as XLSX from "xlsx-js-style";
 import { importExcelData, ParsedData } from "@/actions/import";
-import { isNameMatch } from "@/lib/name-matcher";
-import { normalizeTimeString } from "@/lib/format";
+import { parseExcelWorkbook } from "@/lib/excel-parser";
 
 export default function ImportDataPage() {
-  const [filePtk, setFilePtk] = useState<File | null>(null);
-  const [fileKbm, setFileKbm] = useState<File | null>(null);
-
+  const [fileWorkbook, setFileWorkbook] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [skippedPtkGurus, setSkippedPtkGurus] = useState<ParsedData["ptk"]>([]);
   const [selectedExtraPtkNames, setSelectedExtraPtkNames] = useState<string[]>([]);
@@ -31,15 +29,25 @@ export default function ImportDataPage() {
   const [isParsing, setIsParsing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [importStats, setImportStats] = useState<any>(null);
   const [importError, setImportError] = useState("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'ptk' | 'kbm') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      if (type === 'ptk') setFilePtk(e.target.files[0]);
-      if (type === 'kbm') setFileKbm(e.target.files[0]);
+      setFileWorkbook(e.target.files[0]);
+      setParsedData(null);
       setImportSuccess(false);
+      setImportStats(null);
       setImportError("");
     }
+  };
+
+  const handleRemoveFile = () => {
+    setFileWorkbook(null);
+    setParsedData(null);
+    setImportSuccess(false);
+    setImportStats(null);
+    setImportError("");
   };
 
   const toggleExtraPtk = (nama: string) => {
@@ -48,391 +56,31 @@ export default function ImportDataPage() {
     );
   };
 
-  const processBothFiles = async () => {
-    if (!filePtk || !fileKbm) {
-      setImportError("Harap unggah kedua file (Data PTK dan Data Jadwal KBM) terlebih dahulu.");
+  const processWorkbookFile = async () => {
+    if (!fileWorkbook) {
+      setImportError("Harap pilih atau unggah file Excel workbook terlebih dahulu.");
       return;
     }
 
     setIsParsing(true);
     setImportSuccess(false);
+    setImportStats(null);
     setImportError("");
 
     try {
-      // 1. PROSES & VALIDASI FILE DATA PTK
-      const bufferPtk = await filePtk.arrayBuffer();
-      const wbPtk = XLSX.read(bufferPtk, { type: "array" });
-      const sheetPtkName = wbPtk.SheetNames.find((s: string) => s.toLowerCase() === "ptk" || s.toLowerCase().includes("ptk")) || wbPtk.SheetNames[0];
-      const dataPtkRaw = XLSX.utils.sheet_to_json(wbPtk.Sheets[sheetPtkName], { header: 1, defval: "", raw: false }) as any[][];
+      const result = await parseExcelWorkbook(fileWorkbook);
 
-      // Cek apakah ini file KBM yang nyasar ke input PTK
-      const ptkStr = dataPtkRaw.slice(0, 15).map(r => r.join(" ")).join(" ");
-      if (ptkStr.includes("7A") || ptkStr.includes("8A") || ptkStr.includes("LEGENDA GURU")) {
-        throw new Error("File yang Anda masukkan ke kolom 'Data PTK' terdeteksi sebagai file 'Jadwal KBM'. Harap periksa kembali file Anda.");
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Gagal memproses file Excel workbook.");
       }
 
-      // Cari baris header PTK
-      let headerRowIndex = -1;
-      for (let i = 0; i < 20; i++) {
-        if (!dataPtkRaw[i]) continue;
-        const rowStrings = dataPtkRaw[i].map((c: any) => String(c).trim().toLowerCase());
-        if (rowStrings.includes("nama") || rowStrings.includes("nip")) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-
-      if (headerRowIndex === -1) {
-        throw new Error("Format file 'Data PTK' tidak dikenali. Pastikan file memiliki kolom 'Nama' atau 'NIP'.");
-      }
-
-      const headers = dataPtkRaw[headerRowIndex].map((h: any) => String(h).trim().toLowerCase());
-      const colNama = headers.findIndex((h: string) => h === "nama" || h === "nama lengkap" || h === "nama guru" || h.includes("nama"));
-      
-      if (colNama === -1) {
-        throw new Error("Kolom 'Nama' tidak ditemukan di file 'Data PTK'. Harap gunakan format yang sesuai.");
-      }
-
-      const colNip = headers.findIndex((h: string) =>
-        h === "nip" || h === "no. nip" || h === "no nip" || h === "nomor nip" || h === "nip/nuptk" || h === "nip / nuptk" || (h.includes("nip") && !h.includes("jenis"))
-      );
-      const colNuptk = headers.findIndex((h: string) =>
-        h === "nuptk" || h === "no. nuptk" || h === "no nuptk" || h === "nomor nuptk" || h.includes("nuptk")
-      );
-      const colJenisPtk = headers.findIndex((h: string) => h === "jenis ptk" || h.includes("jenis ptk"));
-      const colGelarDepan = headers.findIndex((h: string) => h === "gelar depan" || h.includes("gelar depan"));
-      const colGelarBelakang = headers.findIndex((h: string) => h === "gelar belakang" || h.includes("gelar belakang"));
-
-      const colNoTelepon = headers.findIndex((h: string) =>
-        h === "no hp" || h === "no. hp" || h === "hp" ||
-        h === "nomor hp" || h === "no telepon" || h === "nomor telepon" ||
-        h === "telepon" || h === "telp" || h === "no telp" || h === "no. telp" ||
-        h.includes("telepon") || h.includes("handphone") || (h.includes("hp") && !h.includes("ptk"))
-      );
-      const colJabatan = headers.findIndex((h: string) =>
-        h === "jabatan" || h === "tugas tambahan" || h.includes("tugas tambahan") || (h.includes("jabatan") && !h.includes("ptk"))
-      );
-
-      const rawPtkGurus: ParsedData["ptk"] = [];
-
-      for (let i = headerRowIndex + 1; i < dataPtkRaw.length; i++) {
-        const row = dataPtkRaw[i];
-        if (!row || !row[colNama]) continue;
-        const jenisPtk = colJenisPtk !== -1 ? String(row[colJenisPtk]).trim() : "Guru";
-
-        if (jenisPtk.toLowerCase().includes("guru")) {
-          let namaLengkap = String(row[colNama]).trim();
-
-          if (colGelarDepan !== -1 && row[colGelarDepan]) {
-            const gd = String(row[colGelarDepan]).trim();
-            if (gd && gd !== "-") namaLengkap = `${gd} ${namaLengkap}`;
-          }
-
-          if (colGelarBelakang !== -1 && row[colGelarBelakang]) {
-            const gb = String(row[colGelarBelakang]).trim();
-            if (gb && gb !== "-") {
-              if (namaLengkap.endsWith(",")) {
-                namaLengkap = `${namaLengkap} ${gb}`;
-              } else {
-                namaLengkap = `${namaLengkap}, ${gb}`;
-              }
-            }
-          }
-
-          let rawNoTelepon = colNoTelepon !== -1 ? String(row[colNoTelepon] || "").trim() : "";
-          if (rawNoTelepon === "-" || rawNoTelepon === "0") rawNoTelepon = "";
-
-          let rawJabatan = colJabatan !== -1 ? String(row[colJabatan] || "").trim() : "";
-          if (!rawJabatan || rawJabatan === "-") rawJabatan = "Guru";
-
-          let rawNipVal = colNip !== -1 ? String(row[colNip] || "").trim() : "";
-          if (rawNipVal === "-" || rawNipVal.toLowerCase() === "null") rawNipVal = "";
-
-          let rawNuptkVal = colNuptk !== -1 ? String(row[colNuptk] || "").trim() : "";
-          if (rawNuptkVal === "-" || rawNuptkVal.toLowerCase() === "null") rawNuptkVal = "";
-
-          rawPtkGurus.push({
-            nama: namaLengkap,
-            nip: rawNipVal,
-            nuptk: rawNuptkVal,
-            jenisPtk,
-            noTelepon: rawNoTelepon,
-            jabatan: rawJabatan,
-          });
-        }
-      }
-
-      if (rawPtkGurus.length === 0) {
-        throw new Error("Tidak ada data guru yang ditemukan dalam file 'Data PTK'.");
-      }
-
-      // 2. PROSES & VALIDASI FILE JADWAL KBM
-      const bufferKbm = await fileKbm.arrayBuffer();
-      const wbKbm = XLSX.read(bufferKbm, { type: "array" });
-      const sheetKbmName = wbKbm.SheetNames.find((s: string) => s.toLowerCase() === "jadwal kbm" || s.toLowerCase().includes("kbm") || s.toLowerCase().includes("jadwal")) || wbKbm.SheetNames[0];
-      const dataKbmRaw = XLSX.utils.sheet_to_json(wbKbm.Sheets[sheetKbmName], { header: 1, defval: "" }) as any[][];
-
-      // Cek apakah ini file PTK yang nyasar ke input KBM
-      const kbmStr = dataKbmRaw.slice(0, 15).map(r => r.join(" ")).join(" ");
-      if (kbmStr.toLowerCase().includes("ptk") && (kbmStr.toLowerCase().includes("gelar") || kbmStr.toLowerCase().includes("nip"))) {
-        throw new Error("File yang Anda masukkan ke kolom 'Data Jadwal KBM' terdeteksi sebagai file 'Profil PTK'. Harap periksa kembali file Anda.");
-      }
-
-      const legendaGuru: Record<string, string> = {};
-      const legendaMapel: Record<string, string> = {};
-
-      for (let i = 0; i < dataKbmRaw.length; i++) {
-        const row = dataKbmRaw[i];
-        if (row && row[26] && row[27] && String(row[26]).trim() !== "") {
-          const kode = String(row[26]).trim();
-          const nama = String(row[27]).trim();
-          if (kode.match(/^\d+$/)) {
-            legendaGuru[kode] = nama;
-          } else if (kode.match(/^[a-zA-Z]$/)) {
-            legendaMapel[kode.toUpperCase()] = nama;
-          }
-        }
-      }
-
-      if (Object.keys(legendaGuru).length === 0) {
-        throw new Error("Format file 'Jadwal KBM' tidak valid. Kolom 'Legenda Guru' tidak ditemukan (biasanya di kolom AA & AB).");
-      }
-
-      // Deteksi baris header kelas (misal baris yang memuat 7A, 8A, 9A)
-      let headerKbmRowIndex = -1;
-      for (let i = 0; i < Math.min(25, dataKbmRaw.length); i++) {
-        if (!dataKbmRaw[i]) continue;
-        const str = dataKbmRaw[i].map((c: any) => String(c).trim()).join(" ");
-        if (str.includes("7A") || str.includes("8A") || str.includes("9A")) {
-          headerKbmRowIndex = i;
-          break;
-        }
-      }
-
-      if (headerKbmRowIndex === -1) {
-        throw new Error("Struktur kelas (7A, 8A, 9A, dsb) tidak ditemukan dalam file 'Jadwal KBM'.");
-      }
-
-      const kelasRow = dataKbmRaw[headerKbmRowIndex];
-      const kelasesList: string[] = [];
-      const colToKelas: Record<number, string> = {};
-      if (kelasRow) {
-        for (let col = 3; col < kelasRow.length; col++) {
-          const namaKelas = String(kelasRow[col]).trim();
-          if (namaKelas && (namaKelas.startsWith("7") || namaKelas.startsWith("8") || namaKelas.startsWith("9"))) {
-            if (!kelasesList.includes(namaKelas)) {
-              kelasesList.push(namaKelas);
-            }
-            colToKelas[col] = namaKelas;
-          }
-        }
-      }
-
-      // ALGORITMA BLOCK MERGING (Sintesis Blok Jadwal Mengajar)
-      const jadwalsList: ParsedData["jadwals"] = [];
-      let currentHari = "senin";
-
-      for (const colStr of Object.keys(colToKelas)) {
-        const col = parseInt(colStr, 10);
-        const kelasNama = colToKelas[col];
-        let currentBlock: any = null;
-
-        for (let rowIdx = headerKbmRowIndex + 1; rowIdx < dataKbmRaw.length; rowIdx++) {
-          const row = dataKbmRaw[rowIdx];
-          if (!row) continue;
-
-          const hariRaw = String(row[0]).trim();
-          if (hariRaw) {
-            if (hariRaw.toLowerCase().includes("senin")) currentHari = "senin";
-            else if (hariRaw.toLowerCase().includes("selasa")) currentHari = "selasa";
-            else if (hariRaw.toLowerCase().includes("rabu")) currentHari = "rabu";
-            else if (hariRaw.toLowerCase().includes("kamis")) currentHari = "kamis";
-            else if (hariRaw.toLowerCase().includes("jumat") || hariRaw.toLowerCase().includes("jum'at")) currentHari = "jumat";
-          }
-
-          const jamRaw = String(row[2]).trim();
-          let jamMulaiStr = "07:00:00";
-          let jamSelesaiStr = "14:00:00";
-          if (jamRaw && jamRaw.includes("-")) {
-            const parts = jamRaw.split("-").map((s) => s.trim());
-            if (parts[0]) jamMulaiStr = normalizeTimeString(parts[0]);
-            if (parts[1]) jamSelesaiStr = normalizeTimeString(parts[1]);
-          }
-
-          const cellVal = String(row[col]).trim();
-          const cellClean = cellVal.toLowerCase().replace(/\s+/g, "");
-          const isBreakOrEmpty =
-            !cellVal ||
-            cellVal === "-" ||
-            cellClean.includes("istirahat") ||
-            cellClean.includes("upacara") ||
-            cellClean.includes("literasi") ||
-            cellClean.includes("dhuha") ||
-            cellClean.includes("senam");
-
-          if (isBreakOrEmpty) {
-            if (currentBlock) {
-              // Cek apakah jeda ini adalah jam istirahat yang memotong sesi guru & mapel yang sama
-              let willContinueAfterBreak = false;
-
-              for (let lookAheadIdx = rowIdx + 1; lookAheadIdx < dataKbmRaw.length; lookAheadIdx++) {
-                const nextRow = dataKbmRaw[lookAheadIdx];
-                if (!nextRow) continue;
-
-                // Jika berganti hari, hentikan penelusuran (tidak boleh lintas hari)
-                const nextHariRaw = String(nextRow[0]).trim().toLowerCase();
-                if (nextHariRaw) {
-                  let detectedNextHari = currentHari;
-                  if (nextHariRaw.includes("senin")) detectedNextHari = "senin";
-                  else if (nextHariRaw.includes("selasa")) detectedNextHari = "selasa";
-                  else if (nextHariRaw.includes("rabu")) detectedNextHari = "rabu";
-                  else if (nextHariRaw.includes("kamis")) detectedNextHari = "kamis";
-                  else if (nextHariRaw.includes("jumat") || nextHariRaw.includes("jum'at")) detectedNextHari = "jumat";
-
-                  if (detectedNextHari !== currentHari) {
-                    break;
-                  }
-                }
-
-                const nextCellVal = String(nextRow[col]).trim();
-                const nextCellClean = nextCellVal.toLowerCase().replace(/\s+/g, "");
-                const nextIsBreakOrEmpty =
-                  !nextCellVal ||
-                  nextCellVal === "-" ||
-                  nextCellClean.includes("istirahat") ||
-                  nextCellClean.includes("upacara") ||
-                  nextCellClean.includes("literasi") ||
-                  nextCellClean.includes("dhuha") ||
-                  nextCellClean.includes("senam");
-
-                // Jika masih berupa jeda/break berturut-turut, lanjutkan penelusuran ke baris berikutnya
-                if (nextIsBreakOrEmpty) {
-                  continue;
-                }
-
-                // Baris pelajaran non-break pertama ditemukan
-                const nextMatch = nextCellVal.match(/^(\d+)([a-zA-Z]+)$/);
-                if (nextMatch) {
-                  const nextGuruKode = nextMatch[1];
-                  const nextMapelKode = nextMatch[2].toUpperCase();
-
-                  const nextJamRaw = String(nextRow[2]).trim();
-                  let nextJamMulaiStr = "07:00:00";
-                  if (nextJamRaw && nextJamRaw.includes("-")) {
-                    const p = nextJamRaw.split("-").map((s) => s.trim());
-                    if (p[0]) nextJamMulaiStr = normalizeTimeString(p[0]);
-                  }
-
-                  const [cbH, cbM] = currentBlock.jamSelesai.split(":").map(Number);
-                  const [nxtH, nxtM] = nextJamMulaiStr.split(":").map(Number);
-                  const gapMinutes = (nxtH * 60 + nxtM) - (cbH * 60 + cbM);
-
-                  // Jika guru & mapel sama persis, dan jeda istirahat <= 60 menit:
-                  // Satukan jadwal! Jangan tutup currentBlock sekarang.
-                  if (
-                    nextGuruKode === currentBlock.guruKode &&
-                    nextMapelKode === currentBlock.mapelKode &&
-                    gapMinutes >= 0 &&
-                    gapMinutes <= 60
-                  ) {
-                    willContinueAfterBreak = true;
-                  }
-                }
-
-                // Setelah mengevaluasi baris pelajaran pertama setelah jeda, hentikan penelusuran
-                break;
-              }
-
-              if (willContinueAfterBreak) {
-                // Biarkan currentBlock tetap aktif untuk digabungkan dengan jam pelajaran lanjutan
-                continue;
-              }
-
-              jadwalsList.push(currentBlock);
-              currentBlock = null;
-            }
-            continue;
-          }
-
-          const match = cellVal.match(/^(\d+)([a-zA-Z]+)$/);
-          if (match) {
-            const guruKode = match[1];
-            const mapelKode = match[2].toUpperCase();
-
-            if (
-              currentBlock &&
-              currentBlock.guruKode === guruKode &&
-              currentBlock.mapelKode === mapelKode &&
-              currentBlock.hari === currentHari &&
-              currentBlock.kelasNama === kelasNama
-            ) {
-              currentBlock.jamSelesai = jamSelesaiStr;
-            } else {
-              if (currentBlock) {
-                jadwalsList.push(currentBlock);
-              }
-              currentBlock = {
-                guruKode,
-                mapelKode,
-                kelasNama,
-                hari: currentHari,
-                jamMulai: jamMulaiStr,
-                jamSelesai: jamSelesaiStr,
-              };
-            }
-          } else {
-            if (currentBlock) {
-              jadwalsList.push(currentBlock);
-              currentBlock = null;
-            }
-          }
-        }
-        if (currentBlock) {
-          jadwalsList.push(currentBlock);
-        }
-      }
-
-      // 3. FILTERING: HANYA GURU YANG AKTIF DI JADWAL KBM
-      const activeGuruCodes = new Set(jadwalsList.map((j) => j.guruKode));
-      const activeKbmEntries = Object.entries(legendaGuru).filter(([kode]) => activeGuruCodes.has(kode));
-      const activeKbmNames = activeKbmEntries.map(([, nama]) => nama);
-
-      const matchedPtkList: ParsedData["ptk"] = [];
-      const skippedPtkList: ParsedData["ptk"] = [];
-
-      for (const ptk of rawPtkGurus) {
-        const isMatch = activeKbmNames.some((kbmName) => isNameMatch(kbmName, ptk.nama));
-        if (isMatch) {
-          matchedPtkList.push(ptk);
-        } else {
-          skippedPtkList.push(ptk);
-        }
-      }
-
-      // KBM Only Gurus (guru aktif di KBM yang belum ada di file PTK)
-      const kbmOnlyList: { kode: string; nama: string }[] = [];
-      for (const [kode, nama] of activeKbmEntries) {
-        const isInPtk = rawPtkGurus.some((ptk) => isNameMatch(ptk.nama, nama));
-        if (!isInPtk) {
-          kbmOnlyList.push({ kode, nama });
-        }
-      }
-
-      setSkippedPtkGurus(skippedPtkList);
+      setParsedData(result.data);
+      setSkippedPtkGurus(result.skippedPtkGurus || []);
+      setKbmOnlyGurus(result.kbmOnlyGurus || []);
       setSelectedExtraPtkNames([]);
-      setKbmOnlyGurus(kbmOnlyList);
       setShowSkippedAccordion(false);
-
-      setParsedData({
-        ptk: matchedPtkList,
-        legendaGuru,
-        legendaMapel,
-        kelases: kelasesList,
-        jadwals: jadwalsList
-      });
-
     } catch (err: any) {
-      console.error(err);
+      console.error("Kesalahan parsing:", err);
       setImportError(err.message || "Gagal memproses file Excel.");
     } finally {
       setIsParsing(false);
@@ -444,6 +92,7 @@ export default function ImportDataPage() {
     setIsImporting(true);
     setImportError("");
     setImportSuccess(false);
+    setImportStats(null);
 
     try {
       // Gabungkan guru aktif KBM dari PTK dengan guru non-KBM yang dipilih admin (jika ada)
@@ -452,17 +101,17 @@ export default function ImportDataPage() {
 
       const result = await importExcelData({
         ...parsedData,
-        ptk: finalPtkList
+        ptk: finalPtkList,
       });
 
       if (result.success) {
         setImportSuccess(true);
+        setImportStats(result.stats || null);
         setParsedData(null);
         setSkippedPtkGurus([]);
         setSelectedExtraPtkNames([]);
         setKbmOnlyGurus([]);
-        setFilePtk(null);
-        setFileKbm(null);
+        setFileWorkbook(null);
       } else {
         throw new Error(result.error);
       }
@@ -479,117 +128,179 @@ export default function ImportDataPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold text-slate-900 tracking-tight">
-            Import Data Ganda
+            Import Jadwal & Data Guru
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Unggah File PTK dan File Jadwal KBM untuk sinkronisasi guru aktif dan jadwal secara otomatis.
+            Unggah satu file Excel workbook terpadu (memuat sheet Data Guru & Jadwal KBM) untuk sinkronisasi otomatis.
           </p>
         </div>
 
         <ClockBadges />
       </div>
 
-      {/* ── UPLOAD AREA ── */}
+      {/* ── PANDUAN RINGKAS ── */}
+      <div className="bg-blue-50/60 border border-blue-200/70 rounded-2xl p-5 flex items-start gap-3.5 text-blue-900">
+        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+        <div className="text-[13px] leading-relaxed text-blue-800 space-y-1">
+          <p className="font-semibold text-blue-950">Petunjuk Format File Workbook Tunggal:</p>
+          <ul className="list-disc list-inside space-y-0.5 text-blue-800/90 text-xs">
+            <li>File harus berupa <strong>satu workbook Excel</strong> (.xlsx / .xls) yang berisi 2 sheet.</li>
+            <li><strong>Sheet Data Guru:</strong> Memuat identitas guru seperti Nama, Gelar, NIP, NUPTK, Jabatan, dan No. HP.</li>
+            <li><strong>Sheet Jadwal KBM:</strong> Memuat matriks jadwal mingguan (Senin s.d. Jumat), daftar kelas, serta tabel Legenda Guru dan Mapel di bagian samping.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* ── UNIFIED UPLOAD AREA ── */}
       <div className="w-full">
         <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-6 sm:p-8">
-
-          <div className="flex flex-col gap-8">
-            {/* Upload PTK */}
-            <div>
-              <h3 className="text-[16px] font-bold text-slate-900">1. Data Profil Guru / PTK (Excel / CSV)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file data guru profil PTK sekolah. Hanya guru aktif mengajar yang akan diproses secara default.</p>
-
-              <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
-                <input
-                  type="file"
-                  accept=".csv, .xls, .xlsx"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  onChange={(e) => handleFileChange(e, 'ptk')}
-                />
-                <div className="flex flex-col items-center justify-center pointer-events-none">
-                  {filePtk ? (
-                    <FileSpreadsheet className="w-10 h-10 mb-3 text-blue-600" strokeWidth={1.5} />
-                  ) : (
-                    <UploadCloud className="w-10 h-10 mb-3 text-blue-600 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
-                  )}
-                  <p className="text-[15px] font-bold text-slate-900">{filePtk ? filePtk.name : "Upload file ke sini"}</p>
-                  {!filePtk && <p className="text-[13px] text-slate-400 mt-1">.csv, .xls, .xlsx • Maks. 10 MB</p>}
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-[16px] font-bold text-slate-900">
+                  Unggah Berkas Workbook Excel
+                </h3>
+                <p className="text-[13px] text-slate-500 mt-0.5">
+                  Pilih file .xlsx yang berisi sheet &ldquo;Data Guru&rdquo; dan sheet &ldquo;Jadwal KBM&rdquo;.
+                </p>
               </div>
+
+              {fileWorkbook && (
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Ganti File
+                </button>
+              )}
             </div>
 
-            {/* Upload Jadwal */}
-            <div>
-              <h3 className="text-[16px] font-bold text-slate-900">2. Data Jadwal KBM (Excel / CSV)</h3>
-              <p className="text-[13px] text-slate-500 mt-0.5 mb-3">Pilih file Jadwal KBM. Seluruh guru aktif, kelas, dan blok jadwal akan dipetakan otomatis.</p>
+            {/* Dropzone */}
+            <div
+              className={`relative w-full h-[220px] rounded-[24px] border-2 border-dashed transition-all group flex flex-col items-center justify-center ${
+                fileWorkbook
+                  ? "border-emerald-300 bg-emerald-50/20"
+                  : "border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30"
+              }`}
+            >
+              <input
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                onChange={handleFileChange}
+              />
 
-              <div className="relative w-full h-[180px] rounded-[20px] border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 flex flex-col items-center justify-center transition-all group">
-                <input
-                  type="file"
-                  accept=".csv, .xls, .xlsx"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  onChange={(e) => handleFileChange(e, 'kbm')}
-                />
-                <div className="flex flex-col items-center justify-center pointer-events-none">
-                  {fileKbm ? (
-                    <FileSpreadsheet className="w-10 h-10 mb-3 text-blue-600" strokeWidth={1.5} />
-                  ) : (
-                    <UploadCloud className="w-10 h-10 mb-3 text-blue-600 group-hover:scale-110 transition-transform duration-300" strokeWidth={1.5} />
-                  )}
-                  <p className="text-[15px] font-bold text-slate-900">{fileKbm ? fileKbm.name : "Upload file ke sini"}</p>
-                  {!fileKbm && <p className="text-[13px] text-slate-400 mt-1">.csv, .xls, .xlsx • Maks. 10 MB</p>}
-                </div>
+              <div className="flex flex-col items-center justify-center pointer-events-none text-center px-4">
+                {fileWorkbook ? (
+                  <>
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center mb-3">
+                      <FileCheck className="w-7 h-7" strokeWidth={2} />
+                    </div>
+                    <p className="text-[15px] font-bold text-slate-900 truncate max-w-[360px]">
+                      {fileWorkbook.name}
+                    </p>
+                    <p className="text-[12px] text-slate-500 mt-1">
+                      {(fileWorkbook.size / (1024 * 1024)).toFixed(2)} MB • Siap diproses
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100/50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
+                      <UploadCloud className="w-7 h-7" strokeWidth={1.75} />
+                    </div>
+                    <p className="text-[15px] font-bold text-slate-900">
+                      Tarik & Letakkan File Excel ke Sini
+                    </p>
+                    <p className="text-[13px] text-slate-500 mt-1">
+                      atau <span className="text-blue-600 font-semibold underline underline-offset-2">pilih dari komputer</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-2">
+                      Format: .xlsx, .xls • Maksimal 15 MB
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
+          {/* Action Button */}
           <div className="mt-8 flex justify-end">
             <button
-              onClick={processBothFiles}
-              disabled={isParsing || !filePtk || !fileKbm}
-              className="px-6 h-12 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
+              onClick={processWorkbookFile}
+              disabled={isParsing || !fileWorkbook}
+              className="px-7 h-12 text-white text-sm font-bold rounded-xl flex items-center justify-center transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
             >
               {isParsing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Memproses File...
+                  Menganalisis File...
                 </>
               ) : (
                 <>
-                  <UploadCloud className="w-5 h-5 mr-2" />
-                  Proses File
+                  <FileSpreadsheet className="w-5 h-5 mr-2" />
+                  Proses File Excel
                 </>
               )}
             </button>
           </div>
 
+          {/* Error Alert */}
           {importError && (
             <div className="mt-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600">
-              <X className="w-5 h-5 shrink-0" />
-              <p className="text-sm font-medium leading-relaxed">{importError}</p>
+              <X className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="text-sm font-medium leading-relaxed">
+                <p className="font-bold">Gagal Memproses:</p>
+                <p>{importError}</p>
+              </div>
             </div>
           )}
 
+          {/* Success Alert */}
           {importSuccess && (
-            <div className="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-start gap-3 text-emerald-600">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <p className="text-sm font-medium leading-relaxed">Data guru aktif dan jadwal KBM berhasil disinkronisasi ke database.</p>
+            <div className="mt-6 p-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-start gap-3.5 text-emerald-800">
+              <CheckCircle2 className="w-6 h-6 shrink-0 text-emerald-600 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-[15px] font-bold text-emerald-950">
+                  Sinkronisasi Data Berhasil!
+                </p>
+                <p className="text-sm text-emerald-800/90">
+                  Seluruh data guru aktif, kelas, dan jadwal KBM telah disinkronkan ke database sekolah.
+                </p>
+                {importStats && (
+                  <div className="pt-2 flex flex-wrap gap-2 text-xs font-semibold text-emerald-900">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
+                      Guru: +{importStats.gurusInserted} baru, {importStats.gurusUpdated} diperbarui
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
+                      Kelas: +{importStats.kelasesInserted} baru
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
+                      Jadwal: +{importStats.jadwalsInserted} baru, {importStats.jadwalsUpdated} diperbarui
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── MODAL OVERLAY (RINGKASAN ANALISIS DARI KEDUA FILE) ── */}
+      {/* ── MODAL OVERLAY (RINGKASAN ANALISIS DATA SEBELUM IMPORT) ── */}
       {parsedData && !importSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setParsedData(null)}></div>
-          <div className="relative bg-white rounded-3xl w-full max-w-[560px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setParsedData(null)}
+          ></div>
+          <div className="relative bg-white rounded-3xl w-full max-w-[580px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Ringkasan Analisis Data</h3>
                 <p className="text-[13px] text-slate-500 mt-1">
-                  Data difilter otomatis: hanya guru yang aktif di jadwal KBM yang diproses.
+                  Data siap disinkronisasi ke sistem. Periksa ringkasan sebelum mengeksekusi import.
                 </p>
               </div>
               <button
@@ -609,11 +320,12 @@ export default function ImportDataPage() {
                   <p className="text-2xl font-bold text-blue-600">
                     {parsedData.ptk.length + kbmOnlyGurus.length + selectedExtraPtkNames.length}
                     <span className="text-xs font-normal text-slate-400 ml-1.5">
-                      ({parsedData.ptk.length + kbmOnlyGurus.length} KBM{selectedExtraPtkNames.length > 0 ? ` + ${selectedExtraPtkNames.length} Manual` : ""})
+                      ({parsedData.ptk.length + kbmOnlyGurus.length} KBM
+                      {selectedExtraPtkNames.length > 0 ? ` + ${selectedExtraPtkNames.length} Manual` : ""})
                     </span>
                   </p>
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    {parsedData.ptk.length} dari PTK • {kbmOnlyGurus.length} dari KBM
+                    {parsedData.ptk.length} dari Data Guru • {kbmOnlyGurus.length} dari KBM
                   </p>
                 </div>
 
@@ -638,6 +350,16 @@ export default function ImportDataPage() {
                 </div>
               </div>
 
+              {/* Catatan Guru Luar Sheet Guru */}
+              {kbmOnlyGurus.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-blue-800 leading-relaxed flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p>
+                    Terdapat <strong>{kbmOnlyGurus.length} guru</strong> yang tercantum di Jadwal KBM tetapi belum ada di Sheet Data Guru. Sistem akan otomatis mendaftarkannya dengan NIP sementara.
+                  </p>
+                </div>
+              )}
+
               {/* Accordion Guru Non-KBM yang dilewati */}
               {skippedPtkGurus.length > 0 && (
                 <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 overflow-hidden">
@@ -650,7 +372,7 @@ export default function ImportDataPage() {
                       <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                       <div>
                         <span className="text-[13px] font-bold text-amber-900">
-                          {skippedPtkGurus.length} Guru di Profil PTK Tidak Mengajar di KBM
+                          {skippedPtkGurus.length} Guru di Data Guru Tidak Mengajar di KBM
                         </span>
                         <p className="text-[11px] text-amber-700/80 mt-0.5">
                           Klik untuk melihat rincian atau centang jika ingin tetap didaftarkan (Kepsek / BK)
@@ -676,10 +398,11 @@ export default function ImportDataPage() {
                             <div
                               key={ptk.nama}
                               onClick={() => toggleExtraPtk(ptk.nama)}
-                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${isSelected
+                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                                isSelected
                                   ? "bg-blue-50/90 border-blue-300 shadow-xs"
                                   : "bg-white/80 border-slate-200 hover:border-slate-300"
-                                }`}
+                              }`}
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
@@ -693,15 +416,16 @@ export default function ImportDataPage() {
                                   )}
                                 </div>
                                 <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                                  NIP: {ptk.nip || ptk.nuptk || "-"} • {ptk.jenisPtk}
+                                  NIP: {ptk.nip || ptk.nuptk || "-"} • {ptk.jabatan || ptk.jenisPtk}
                                 </p>
                               </div>
 
                               <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${isSelected
+                                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
+                                  isSelected
                                     ? "bg-blue-600 border-blue-600 text-white"
                                     : "border-slate-300 bg-white"
-                                  }`}
+                                }`}
                               >
                                 {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>

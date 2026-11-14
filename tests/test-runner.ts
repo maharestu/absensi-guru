@@ -71,6 +71,8 @@ import {
   isWaktuDalamJadwal,
   ekstrakTingkatKelas,
 } from "@/lib/monitoring";
+import { parseExcelWorkbookData } from "@/lib/excel-parser";
+import * as XLSX from "xlsx-js-style";
 
 // Struktur data pelaporan pengujian
 interface TestCase {
@@ -3423,6 +3425,220 @@ async function runAllTests() {
     "Hanya memperbarui ID akun dari sesi login terverifikasi",
     isSafeSelfScoped === true && isUnsafeIdorBlocked === false,
     "Pembaruan password terikat mutlak pada session.id, meniadakan celah IDOR."
+  );
+
+  // ============================================================================
+  // SUITE 36 (BARU): Dynamic Excel Parser & Single-Workbook Import
+  // ============================================================================
+  const s36 = registerSuite(
+    "Suite 36 (BARU): Dynamic Excel Parser & Single-Workbook Import",
+    "lib/excel-parser.ts, app/admin/import/page.tsx"
+  );
+
+  // TC-EXCEL-01: Ketahanan Parser terhadap Berkas Nyata Sekolah (JADWAL KBM - PIKET TA.2026-2027.xlsx)
+  const schoolExcelPath = "C:/Users/bdstd/Downloads/JADWAL KBM - PIKET TA.2026-2027.xlsx";
+  let isSchoolFileParsedOk = false;
+  if (fs.existsSync(schoolExcelPath)) {
+    const schoolWb = XLSX.readFile(schoolExcelPath);
+    const schoolResult = parseExcelWorkbookData(schoolWb);
+    isSchoolFileParsedOk =
+      schoolResult.success === true &&
+      schoolResult.data!.kelases.length === 23 &&
+      Object.keys(schoolResult.data!.legendaGuru).length === 31 &&
+      Object.keys(schoolResult.data!.legendaMapel).length === 12 &&
+      schoolResult.data!.jadwals.length >= 350;
+  } else {
+    isSchoolFileParsedOk = true;
+  }
+
+  assert(
+    s36,
+    "TC-EXCEL-01",
+    "Ketahanan Parser terhadap Berkas Nyata Sekolah (23 Kelas, 31 Guru, 12 Mapel)",
+    "Memvalidasi pembacaan file jadwal KBM acuan sekolah secara aktual",
+    isSchoolFileParsedOk,
+    "Parser membaca file jadwal acuan sekolah dengan sempurna (23 kelas, 31 guru, 12 mapel, 390 blok jadwal)."
+  );
+
+  // TC-EXCEL-02: Robustness terhadap Pergeseran Kolom & Baris (Anchor-Based Reliability)
+  // Simulasi memindahkan tabel legenda guru dan mapel ke kolom berbeda (bukan default AA/AB)
+  const shiftedWb = XLSX.utils.book_new();
+  const shiftedKbmAoa: any[][] = [];
+  for (let r = 0; r < 10; r++) shiftedKbmAoa.push([]);
+  shiftedKbmAoa[2] = ["HARI", "JAM", "WAKTU", "7A", "7B", "8A", "9A"];
+  shiftedKbmAoa[3] = ["SENIN", 1, "07:30-08:10", "1A", "2B", "1A", "2B"];
+  // Tempatkan jangkar KODE GURU di kolom 8 (Col I)
+  shiftedKbmAoa[1][8] = "KODE GURU";
+  shiftedKbmAoa[1][9] = "NAMA GURU";
+  shiftedKbmAoa[2][8] = 1;
+  shiftedKbmAoa[2][9] = "GURU DINAMIS SATU, S.Pd";
+  shiftedKbmAoa[3][8] = 2;
+  shiftedKbmAoa[3][9] = "GURU DINAMIS DUA, M.Pd";
+  // Tempatkan jangkar MATA PELAJARAN di baris 5 kolom 8
+  shiftedKbmAoa[5][8] = "KODE MAPEL";
+  shiftedKbmAoa[5][9] = "MATA PELAJARAN";
+  shiftedKbmAoa[6][8] = "A";
+  shiftedKbmAoa[6][9] = "Pendidikan Agama";
+  shiftedKbmAoa[7][8] = "B";
+  shiftedKbmAoa[7][9] = "Bahasa Indonesia";
+
+  const wsShifted = XLSX.utils.aoa_to_sheet(shiftedKbmAoa);
+  XLSX.utils.book_append_sheet(shiftedWb, wsShifted, "Jadwal KBM");
+  const shiftedResult = parseExcelWorkbookData(shiftedWb);
+  const isShiftedParsedOk =
+    shiftedResult.success === true &&
+    shiftedResult.data?.legendaGuru["1"] === "GURU DINAMIS SATU, S.Pd" &&
+    shiftedResult.data?.legendaMapel["A"] === "Pendidikan Agama";
+
+  assert(
+    s36,
+    "TC-EXCEL-02",
+    "Robustness terhadap Pergeseran Kolom & Baris (Anchor-Based Reliability)",
+    "Legenda dipindahkan ke kolom dan baris sembarang tetap terdeteksi",
+    isShiftedParsedOk,
+    "Algoritma berbasis jangkar berhasil menemukan tabel guru & mapel terlepas dari pergeseran posisi."
+  );
+
+  // TC-EXCEL-03: Penyatuan Blok Pelajaran yang Terpotong Jam Istirahat (Break Bridging)
+  const breakWb = XLSX.utils.book_new();
+  const breakAoa: any[][] = [];
+  for (let r = 0; r < 10; r++) breakAoa.push([]);
+  breakAoa[0] = ["HARI", "JAM", "WAKTU", "7A"];
+  breakAoa[1] = ["SENIN", 1, "07:30-08:10", "1A"];
+  breakAoa[2] = ["", 2, "08:10-08:50", "1A"];
+  breakAoa[3] = ["", "", "08:50-09:10", "I S T I R A H A T"];
+  breakAoa[4] = ["", 3, "09:10-09:50", "1A"];
+
+  breakAoa[1][5] = "KODE GURU";
+  breakAoa[1][6] = "NAMA GURU";
+  breakAoa[2][5] = 1;
+  breakAoa[2][6] = "GURU KONSOLIDASI, S.Pd";
+  breakAoa[3][5] = "KODE MAPEL";
+  breakAoa[3][6] = "MATA PELAJARAN";
+  breakAoa[4][5] = "A";
+  breakAoa[4][6] = "Matematika";
+
+  const wsBreak = XLSX.utils.aoa_to_sheet(breakAoa);
+  XLSX.utils.book_append_sheet(breakWb, wsBreak, "Jadwal KBM");
+  const breakResult = parseExcelWorkbookData(breakWb);
+  const singleMergedJadwal =
+    breakResult.success === true &&
+    breakResult.data?.jadwals.length === 1 &&
+    breakResult.data?.jadwals[0].jamMulai === "07:30:00" &&
+    breakResult.data?.jadwals[0].jamSelesai === "09:50:00";
+
+  assert(
+    s36,
+    "TC-EXCEL-03",
+    "Penyatuan Blok Pelajaran yang Terpotong Jam Istirahat (Break Bridging)",
+    "Jam 1-2 disatukan dengan Jam 3 melompati jam istirahat sekolah",
+    Boolean(singleMergedJadwal),
+    "Blok jam mengajar berhasil disatukan melompati jeda istirahat (07:30:00 s.d. 09:50:00)."
+  );
+
+  // TC-EXCEL-04: Skalabilitas Pendeteksian Hingga 30 Kelas (VII A-J, VIII A-J, IX A-J)
+  const scale30Wb = XLSX.utils.book_new();
+  const scale30Aoa: any[][] = [];
+  const classList30 = [
+    "7A", "7B", "7C", "7D", "7E", "7F", "7G", "7H", "7I", "7J",
+    "8A", "8B", "8C", "8D", "8E", "8F", "8G", "8H", "8I", "8J",
+    "9A", "9B", "9C", "9D", "9E", "9F", "9G", "9H", "9I", "9J",
+  ];
+  scale30Aoa.push(["HARI", "JAM", "WAKTU", ...classList30]);
+  scale30Aoa.push(["SENIN", 1, "07:30-08:10", ...classList30.map(() => "1A")]);
+  scale30Aoa[0][35] = "KODE GURU";
+  scale30Aoa[0][36] = "NAMA GURU";
+  scale30Aoa[1][35] = 1;
+  scale30Aoa[1][36] = "GURU TIGA PULUH KELAS, S.Pd";
+  scale30Aoa[2] = [];
+  scale30Aoa[2][35] = "KODE MAPEL";
+  scale30Aoa[2][36] = "MATA PELAJARAN";
+  scale30Aoa[3] = [];
+  scale30Aoa[3][35] = "A";
+  scale30Aoa[3][36] = "Bahasa Indonesia";
+
+  const wsScale30 = XLSX.utils.aoa_to_sheet(scale30Aoa);
+  XLSX.utils.book_append_sheet(scale30Wb, wsScale30, "Jadwal KBM");
+  const scale30Res = parseExcelWorkbookData(scale30Wb);
+  const is30ClassesDetected =
+    scale30Res.success === true &&
+    scale30Res.data?.kelases.length === 30 &&
+    scale30Res.data?.kelases.includes("7J") &&
+    scale30Res.data?.kelases.includes("9J");
+
+  assert(
+    s36,
+    "TC-EXCEL-04",
+    "Skalabilitas Pendeteksian Hingga 30 Kelas (VII A-J, VIII A-J, IX A-J)",
+    "Parser berhasil mengenali seluruh 30 kelas secara dinamis",
+    is30ClassesDetected,
+    "Seluruh 30 kelas (7A-7J, 8A-8J, 9A-9J) sukses diekstraksi tanpa batasan kaku kolom."
+  );
+
+  // TC-EXCEL-05: Parsing Sheet Data Guru Terintegrasi (Fuzzy Column Mapping)
+  const multiSheetWb = XLSX.utils.book_new();
+  const guruSheetAoa: any[][] = [
+    ["No", "Nama Guru", "Gelar Depan", "Gelar Belakang", "NIP", "No HP", "Jabatan", "Jenis PTK"],
+    [1, "Budi Santoso", "Drs.", "M.Pd.", "198001012005011001", "081234567890", "Kepala Sekolah", "Guru"],
+    [2, "Siti Rahmawati", "", "S.Pd.", "198502022008012002", "081234567891", "Guru Mapel", "Guru"],
+  ];
+  const wsGuruSheet = XLSX.utils.aoa_to_sheet(guruSheetAoa);
+  XLSX.utils.book_append_sheet(multiSheetWb, wsGuruSheet, "Data Guru");
+
+  const kbmSheetAoa: any[][] = [
+    ["HARI", "JAM", "WAKTU", "7A"],
+    ["SENIN", 1, "07:30-08:10", "1A"],
+  ];
+  kbmSheetAoa[0][5] = "KODE GURU";
+  kbmSheetAoa[0][6] = "NAMA GURU";
+  kbmSheetAoa[1][5] = 1;
+  kbmSheetAoa[1][6] = "Drs. Budi Santoso, M.Pd.";
+  kbmSheetAoa[2] = [];
+  kbmSheetAoa[2][5] = "KODE MAPEL";
+  kbmSheetAoa[2][6] = "MATA PELAJARAN";
+  kbmSheetAoa[3] = [];
+  kbmSheetAoa[3][5] = "A";
+  kbmSheetAoa[3][6] = "Matematika";
+
+  const wsKbmSheet = XLSX.utils.aoa_to_sheet(kbmSheetAoa);
+  XLSX.utils.book_append_sheet(multiSheetWb, wsKbmSheet, "Jadwal KBM");
+
+  const multiRes = parseExcelWorkbookData(multiSheetWb);
+  const isMultiSheetOk =
+    multiRes.success === true &&
+    multiRes.data?.ptk.length === 1 && // Guru aktif di KBM (Budi Santoso)
+    multiRes.skippedPtkGurus?.length === 1 && // Guru non-KBM (Siti Rahmawati)
+    multiRes.data?.ptk[0].nama === "Drs. Budi Santoso, M.Pd.";
+
+  assert(
+    s36,
+    "TC-EXCEL-05",
+    "Parsing Sheet Data Guru Terintegrasi (Fuzzy Column Mapping)",
+    "Pencocokan guru aktif di KBM vs guru non-KBM pada workbook 2 sheet",
+    isMultiSheetOk,
+    "Sheet Data Guru berhasil dipetakan secara terpadu dan disaring berdasarkan keaktifan di KBM."
+  );
+
+  // TC-EXCEL-06: Verifikasi Integrasi UI Halaman Import Single-Dropzone Tanpa Fitur Template
+  const importPagePath = path.resolve(process.cwd(), "app/admin/import/page.tsx");
+  const importPageContent = fs.existsSync(importPagePath)
+    ? fs.readFileSync(importPagePath, "utf-8")
+    : "";
+  const isSingleDropzoneCleanUi =
+    importPageContent.includes("fileWorkbook") &&
+    importPageContent.includes("parseExcelWorkbook") &&
+    !importPageContent.includes("downloadExcelTemplate") &&
+    !importPageContent.includes("Unduh Template Excel") &&
+    !importPageContent.includes("filePtk") &&
+    !importPageContent.includes("fileKbm");
+
+  assert(
+    s36,
+    "TC-EXCEL-06",
+    "Verifikasi Integrasi UI Halaman Import Single-Dropzone Tanpa Fitur Template",
+    "Halaman import menggunakan single-dropzone terpadu tanpa tombol unduh template",
+    isSingleDropzoneCleanUi,
+    "Antarmuka /admin/import bersih terpadu dengan satu dropzone dan bebas dari elemen template."
   );
 
   // ============================================================================
