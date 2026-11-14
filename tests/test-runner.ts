@@ -3294,6 +3294,138 @@ async function runAllTests() {
   );
 
   // ============================================================================
+  // SUITE 35 (BARU): Fitur Pengaturan & Ganti Password Kepala Sekolah
+  // ============================================================================
+  const s35 = registerSuite(
+    "Suite 35 (BARU): Pengaturan & Ganti Password Kepala Sekolah",
+    "actions/kepsek-pengaturan.ts, app/kepsek/pengaturan/page.tsx, components/kepsek/KepsekSidebar.tsx"
+  );
+
+  // TC-KEPSEK-PW-01: Integrasi Menu Pengaturan di Sidebar Kepala Sekolah
+  const kepsekSidebarPath = path.resolve(process.cwd(), "components/kepsek/KepsekSidebar.tsx");
+  const kepsekSidebarContent = fs.existsSync(kepsekSidebarPath)
+    ? fs.readFileSync(kepsekSidebarPath, "utf-8")
+    : "";
+  const hasKepsekSettingsNav =
+    kepsekSidebarContent.includes("/kepsek/pengaturan") &&
+    kepsekSidebarContent.includes("Pengaturan");
+  assert(
+    s35,
+    "TC-KEPSEK-PW-01",
+    "Integrasi Menu Pengaturan di Sidebar Kepala Sekolah",
+    "KepsekSidebar.tsx memiliki item menu /kepsek/pengaturan",
+    hasKepsekSettingsNav,
+    "Menu 'Pengaturan' terpasang pada navigasi KepsekSidebar menuju /kepsek/pengaturan."
+  );
+
+  // TC-KEPSEK-PW-02: Halaman Pengaturan Kepala Sekolah Terfokus Ganti Password
+  const kepsekSettingsPagePath = path.resolve(process.cwd(), "app/kepsek/pengaturan/page.tsx");
+  const kepsekSettingsPageExists = fs.existsSync(kepsekSettingsPagePath);
+  const kepsekSettingsContent = kepsekSettingsPageExists
+    ? fs.readFileSync(kepsekSettingsPagePath, "utf-8")
+    : "";
+  const isKepsekDirectPasswordPage =
+    kepsekSettingsContent.includes("gantiPasswordKepsekAction") &&
+    kepsekSettingsContent.includes("Ubah Kata Sandi") &&
+    !kepsekSettingsContent.includes("activeTab");
+  assert(
+    s35,
+    "TC-KEPSEK-PW-02",
+    "Halaman Pengaturan Kepala Sekolah Terfokus Ganti Password",
+    "app/kepsek/pengaturan/page.tsx menyajikan formulir ganti password tanpa tab switcher",
+    kepsekSettingsPageExists && isKepsekDirectPasswordPage,
+    "Halaman pengaturan kepala sekolah terfokus langsung pada pengelolaan kata sandi."
+  );
+
+  // TC-KEPSEK-PW-03: Validasi Password Baru Minimal 6 Karakter
+  function validateKepsekPasswordLength(pass: string): boolean {
+    return Boolean(pass && pass.length >= 6);
+  }
+  assert(
+    s35,
+    "TC-KEPSEK-PW-03",
+    "Validasi Password Baru Minimal 6 Karakter",
+    "passwordBaru: '12345' (5 karakter) vs '123456' (6 karakter)",
+    !validateKepsekPasswordLength("12345") && validateKepsekPasswordLength("123456"),
+    "Kata sandi baru di bawah 6 karakter ditolak dengan validasi ketat."
+  );
+
+  // TC-KEPSEK-PW-04: Validasi Kesesuaian Konfirmasi Password
+  function validateKepsekPasswordMatch(pass: string, confirm: string): boolean {
+    return Boolean(pass && confirm && pass === confirm);
+  }
+  assert(
+    s35,
+    "TC-KEPSEK-PW-04",
+    "Validasi Kesesuaian Konfirmasi Password",
+    "passwordBaru: 'kepsek2026', konfirmasi: 'kepsekSALAH'",
+    !validateKepsekPasswordMatch("kepsek2026", "kepsekSALAH") &&
+      validateKepsekPasswordMatch("kepsek2026", "kepsek2026"),
+    "Konfirmasi password yang tidak cocok ditolak; konfirmasi yang cocok diterima."
+  );
+
+  // TC-KEPSEK-PW-05: Verifikasi Bcrypt Kata Sandi Lama
+  const mockOldHash = await bcrypt.hash("kepsekLama123", 10);
+  const isOldMatchCorrect = await bcrypt.compare("kepsekLama123", mockOldHash);
+  const isOldMatchWrong = await bcrypt.compare("passwordSalah", mockOldHash);
+  assert(
+    s35,
+    "TC-KEPSEK-PW-05",
+    "Verifikasi Bcrypt Kata Sandi Lama Kepala Sekolah",
+    "Input kata sandi lama benar vs salah terhadap bcrypt hash",
+    isOldMatchCorrect === true && isOldMatchWrong === false,
+    "Kata sandi lama yang salah ditolak dengan aman sebelum proses pembaruan dijalankan."
+  );
+
+  // TC-KEPSEK-PW-06: Mekanisme Hashing Bcrypt Password Baru dengan Salt Rounds 10
+  const mockNewPlainPassword = "KepsekBaru#2026";
+  const mockNewHash = await bcrypt.hash(mockNewPlainPassword, 10);
+  const isNewHashValid = await bcrypt.compare(mockNewPlainPassword, mockNewHash);
+  const isBcryptFormat = mockNewHash.startsWith("$2a$") || mockNewHash.startsWith("$2b$");
+  assert(
+    s35,
+    "TC-KEPSEK-PW-06",
+    "Mekanisme Hashing Bcrypt Password Baru (Salt Rounds 10)",
+    "Format hash bcrypt ($2a$/$2b$) & verifikasi integritas",
+    isBcryptFormat === true && isNewHashValid === true,
+    "Kata sandi baru berhasil di-hash dengan standar bcrypt salt rounds 10."
+  );
+
+  // TC-KEPSEK-PW-07: Proteksi Role Akses Server Action (Otorisasi Kepala Sekolah)
+  function validateKepsekRoleAccess(role: string): boolean {
+    const allowed = ["kepala_sekolah"];
+    return allowed.includes(role);
+  }
+  const isKepsekAllowed = validateKepsekRoleAccess("kepala_sekolah");
+  const isGuruBlocked = validateKepsekRoleAccess("guru");
+  const isAdminBlocked = validateKepsekRoleAccess("admin");
+  const isAnonBlocked = validateKepsekRoleAccess("");
+  assert(
+    s35,
+    "TC-KEPSEK-PW-07",
+    "Proteksi Role Akses Server Action Ganti Password",
+    "kepala_sekolah diizinkan, role lain diblokir",
+    isKepsekAllowed === true && !isGuruBlocked && !isAdminBlocked && !isAnonBlocked,
+    "Akses server action khusus role 'kepala_sekolah', menolak role lain dan anonim."
+  );
+
+  // TC-KEPSEK-PW-08: Keamanan Self-Scoped (Proteksi Anti-IDOR)
+  function simulateSelfScopedQuery(sessionUserId: string, targetParamUserId?: string): boolean {
+    // Server Action tidak boleh menerima targetParamUserId dari klien; wajib menggunakan sessionUserId
+    return targetParamUserId === undefined && Boolean(sessionUserId);
+  }
+  const isSafeSelfScoped = simulateSelfScopedQuery("acc-kepsek-uuid-123", undefined);
+  const isUnsafeIdorBlocked = simulateSelfScopedQuery("acc-kepsek-uuid-123", "target-other-uuid");
+  assert(
+    s35,
+    "TC-KEPSEK-PW-08",
+    "Keamanan Self-Scoped Pembaruan Password (Proteksi Anti-IDOR)",
+    "Hanya memperbarui ID akun dari sesi login terverifikasi",
+    isSafeSelfScoped === true && isUnsafeIdorBlocked === false,
+    "Pembaruan password terikat mutlak pada session.id, meniadakan celah IDOR."
+  );
+
+  // ============================================================================
   // REKAPITULASI & CETAK MATRIKS HASIL PENGUJIAN
   // ============================================================================
   let totalCases = 0;

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRealtimeClock } from "@/hooks/use-realtime-clock";
-import { Search, RefreshCw, Layers, CheckCircle2, AlertCircle, Clock, Eye, Info, AlertTriangle } from "lucide-react";
+import { Search, RefreshCw, Layers, CheckCircle2, AlertCircle, Clock, Eye, Info, AlertTriangle, Calendar } from "lucide-react";
 import Pagination from "@/components/ui/pagination";
 import FullScreenLoader from "@/components/ui/full-screen-loader";
 import {
@@ -118,40 +118,48 @@ export default function MonitoringKelasPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-8 animate-page-enter">
       
-      {/* ── Header Halaman ───────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* ── HEADER ROW (Selaras dengan Dashboard & Laporan) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-              <Layers className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
-              Monitoring Kelas
-            </h1>
-          </div>
-          <p className="text-xs md:text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl sm:text-[26px] font-bold text-slate-900 tracking-tight">
+            Monitoring Kelas
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Pantau keterisian dan kegiatan belajar mengajar di seluruh ruang kelas secara real-time (WIB).
           </p>
+
+          {/* Realtime Clock & Date for Mobile (< sm) */}
+          <div className="flex sm:hidden items-center gap-2 mt-2.5">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-2xs">
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              <span>{timeString}</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span className="truncate max-w-[200px]">{dateString}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Indikator Jam WIB & Tombol Refresh */}
-        <div className="flex items-center gap-3">
-          <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/90 text-right">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              WAKTU WIB
-            </p>
-            <p className="text-sm font-bold text-slate-800 tabular-nums">
-              {timeString || summary.jamSekarangWIB} WIB
-            </p>
+        {/* Top Badges & Refresh Button for Desktop (sm+) */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="hidden sm:flex items-center gap-2.5 bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs">
+            <Clock className="w-[18px] h-[18px] text-slate-700" strokeWidth={2} />
+            <span className="text-sm font-semibold text-slate-700">{timeString}</span>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2.5 bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 shadow-2xs">
+            <Calendar className="w-[18px] h-[18px] text-slate-700" strokeWidth={2} />
+            <span className="text-sm font-semibold text-slate-700">{dateString}</span>
           </div>
 
           <button
             type="button"
             onClick={() => fetchData(true)}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs md:text-sm font-semibold transition-all shadow-xs disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-2xs disabled:opacity-60 cursor-pointer"
             title="Segarkan data monitoring"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
