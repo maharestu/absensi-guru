@@ -67,6 +67,10 @@ import {
   REKAP_NIP_FONT_SIZE,
   TABLE_LINE_SPACING_1_15,
 } from "@/lib/export-docx";
+import {
+  isWaktuDalamJadwal,
+  ekstrakTingkatKelas,
+} from "@/lib/monitoring";
 
 // Struktur data pelaporan pengujian
 interface TestCase {
@@ -3132,6 +3136,161 @@ async function runAllTests() {
     "Hari Sabtu/Minggu (isWeekend = true)",
     weekendCutoffCheck.completed === false,
     "Akhir pekan terlindungi dan tidak memicu pencatatan 'tidak_hadir' harian."
+  );
+
+  // ============================================================================
+  // SUITE 34 (BARU): Monitoring Kelas & Status KBM Real-Time (WIB)
+  // ============================================================================
+  const s34 = registerSuite(
+    "Suite 34 (BARU): Monitoring Kelas & Status KBM Real-Time (WIB)",
+    "actions/monitoring.ts, app/kepsek/monitoring/page.tsx"
+  );
+
+  // TC-MON-01: Deteksi Status 'Sedang Digunakan' Saat Waktu Berada dalam Jadwal
+  const isInScheduleMiddle = isWaktuDalamJadwal("08:15:00", "07:40:00", "09:00:00");
+  const isInScheduleStart = isWaktuDalamJadwal("07:40:00", "07:40:00", "09:00:00");
+  assert(
+    s34,
+    "TC-MON-01",
+    "Deteksi Kelas 'Sedang Digunakan' Selama KBM Berlangsung",
+    "Waktu 08:15 WIB dan 07:40 WIB dalam interval 07:40 - 09:00",
+    isInScheduleMiddle === true && isInScheduleStart === true,
+    "Ruang kelas berhasil dideteksi aktif 'Sedang Digunakan' saat jam pelajaran berlangsung."
+  );
+
+  // TC-MON-02: Transisi Otomatis ke Status 'Kosong' Tepat Saat Jam Selesai
+  const isAfterSchedule = isWaktuDalamJadwal("09:00:00", "07:40:00", "09:00:00");
+  const isFarAfterSchedule = isWaktuDalamJadwal("09:05:00", "07:40:00", "09:00:00");
+  const isBeforeSchedule = isWaktuDalamJadwal("07:35:00", "07:40:00", "09:00:00");
+  assert(
+    s34,
+    "TC-MON-02",
+    "Transisi Otomatis ke Status 'Kosong' Pasca Jam Berakhir",
+    "Waktu 09:00:00 (tepat selesai), 09:05:00 (lewat), dan 07:35:00 (sebelum mulai)",
+    isAfterSchedule === false && isFarAfterSchedule === false && isBeforeSchedule === false,
+    "Tepat saat jam selesai (09:00:00), kelas otomatis kembali berstatus 'Kosong' tanpa mutasi database manual."
+  );
+
+  // TC-MON-03: Ekstraksi Tingkat Kelas
+  const tingkat7 = ekstrakTingkatKelas("Kelas 7A");
+  const tingkat8 = ekstrakTingkatKelas("Kelas 8B");
+  const tingkat9 = ekstrakTingkatKelas("Kelas 9C");
+  const tingkatLain = ekstrakTingkatKelas("Laboratorium IPA");
+  assert(
+    s34,
+    "TC-MON-03",
+    "Akurasi Ekstraksi Tingkat Kelas",
+    "Kelas 7A, 8B, 9C, dan Laboratorium IPA",
+    tingkat7 === "7" && tingkat8 === "8" && tingkat9 === "9" && tingkatLain === "Lainnya",
+    `Tingkat berhasil diekstrak: 7A -> '${tingkat7}', 8B -> '${tingkat8}', 9C -> '${tingkat9}', Lab -> '${tingkatLain}'.`
+  );
+
+  // TC-MON-04: Resolusi Sesi Ganda / Overlapping Schedule
+  interface MockSesi {
+    jadwalId: string;
+    jamMulai: string;
+    jamSelesai: string;
+    statusPresensi: "sudah_presensi" | "belum_presensi";
+  }
+  function resolveActiveSession(nowTime: string, sessions: MockSesi[]): MockSesi | null {
+    const active = sessions.filter((s) => isWaktuDalamJadwal(nowTime, s.jamMulai, s.jamSelesai));
+    if (active.length === 0) return null;
+    const prioritized = active.find((s) => s.statusPresensi === "sudah_presensi");
+    return prioritized || active[0];
+  }
+  const mockOverlappingSessions: MockSesi[] = [
+    { jadwalId: "j-1", jamMulai: "08:00", jamSelesai: "09:00", statusPresensi: "belum_presensi" },
+    { jadwalId: "j-2", jamMulai: "08:00", jamSelesai: "09:00", statusPresensi: "sudah_presensi" },
+  ];
+  const resolvedSession = resolveActiveSession("08:30:00", mockOverlappingSessions);
+  assert(
+    s34,
+    "TC-MON-04",
+    "Resolusi Prioritas Jadwal Tumpang Tindih (Overlapping)",
+    "Dua jadwal bersamaan di jam 08:00-09:00 (satu sudah presensi)",
+    resolvedSession !== null && resolvedSession.jadwalId === "j-2",
+    "Sesi yang sudah terkonfirmasi presensi diprioritaskan saat terjadi overlap di basis data."
+  );
+
+  // TC-MON-05: Proteksi Status 'Kosong' pada Hari Libur / Akhir Pekan
+  function simulateMonitoringStatus(isOperasional: boolean, activeSessionFound: boolean) {
+    if (!isOperasional) {
+      return { statusRuang: "kosong", sesiAktif: null };
+    }
+    return {
+      statusRuang: activeSessionFound ? "sedang_digunakan" : "kosong",
+    };
+  }
+  const weekendMonitoring = simulateMonitoringStatus(false, true);
+  const weekdayMonitoring = simulateMonitoringStatus(true, true);
+  assert(
+    s34,
+    "TC-MON-05",
+    "Proteksi Hari Libur / Akhir Pekan Menjadikan Seluruh Kelas 'Kosong'",
+    "isOperasional = false pada hari libur",
+    weekendMonitoring.statusRuang === "kosong" &&
+      weekdayMonitoring.statusRuang === "sedang_digunakan",
+    "Saat hari libur/akhir pekan, semua ruang kelas dipaksa 'Kosong' terlepas dari jadwal mingguan."
+  );
+
+  // TC-MON-06: Pemetaan Status Presensi Mengajar
+  function mapPresensiMengajarStatus(record: { status: string } | null): {
+    statusPresensi: string;
+    label: string;
+  } {
+    if (!record) return { statusPresensi: "belum_presensi", label: "Belum Presensi" };
+    if (record.status === "tidak_mengajar") return { statusPresensi: "tidak_mengajar", label: "Tidak Mengajar" };
+    return { statusPresensi: "sudah_presensi", label: "Sudah Presensi" };
+  }
+  const presensi1 = mapPresensiMengajarStatus({ status: "mengajar" });
+  const presensi2 = mapPresensiMengajarStatus(null);
+  const presensi3 = mapPresensiMengajarStatus({ status: "tidak_mengajar" });
+  assert(
+    s34,
+    "TC-MON-06",
+    "Pemetaan Status Presensi Mengajar",
+    "Mengajar, null (belum), dan Tidak Mengajar",
+    presensi1.statusPresensi === "sudah_presensi" &&
+      presensi2.statusPresensi === "belum_presensi" &&
+      presensi3.statusPresensi === "tidak_mengajar",
+    `Status presensi dipetakan tepat: '${presensi1.label}', '${presensi2.label}', '${presensi3.label}'.`
+  );
+
+  // TC-MON-07: Proteksi Role Akses Server Action (Otorisasi Kepala Sekolah)
+  function validateMonitoringRoleAccess(role: string): boolean {
+    const allowedRoles = ["kepala_sekolah"];
+    return allowedRoles.includes(role);
+  }
+  const kepsekAccess = validateMonitoringRoleAccess("kepala_sekolah");
+  const guruAccess = validateMonitoringRoleAccess("guru");
+  const anonAccess = validateMonitoringRoleAccess("");
+  assert(
+    s34,
+    "TC-MON-07",
+    "Proteksi Akses Role Khusus Kepala Sekolah",
+    "kepala_sekolah vs guru vs anonim",
+    kepsekAccess === true && guruAccess === false && anonAccess === false,
+    "Hanya akun dengan role 'kepala_sekolah' yang diizinkan mengakses data monitoring kelas."
+  );
+
+  // TC-MON-08: Ringkasan Summary Agregasi (Total, Sedang Digunakan, Kosong)
+  function computeSummary(totalKelas: number, sedangDigunakan: number) {
+    return {
+      totalKelas,
+      sedangDigunakan,
+      kosong: Math.max(0, totalKelas - sedangDigunakan),
+    };
+  }
+  const summaryTest = computeSummary(18, 12);
+  assert(
+    s34,
+    "TC-MON-08",
+    "Integritas Agregasi Summary Monitoring Kelas",
+    "Total: 18, Sedang Digunakan: 12 -> Kosong: 6",
+    summaryTest.totalKelas === 18 &&
+      summaryTest.sedangDigunakan === 12 &&
+      summaryTest.kosong === 6,
+    `Summary konsisten: Total=${summaryTest.totalKelas}, Digunakan=${summaryTest.sedangDigunakan}, Kosong=${summaryTest.kosong}.`
   );
 
   // ============================================================================

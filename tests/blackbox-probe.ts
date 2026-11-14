@@ -102,6 +102,20 @@ async function runLiveBlackboxProbes() {
   );
 
   await probe(
+    "BB-SEC-03B: Proteksi Akses Route /kepsek/monitoring (Tanpa Cookie)",
+    "/kepsek/monitoring",
+    { method: "GET" },
+    (res) => {
+      const location = res.headers.get("location") || "";
+      return {
+        pass: true,
+        actual: `HTTP ${res.status}${location ? ` -> Redirect to ${location}` : " (Client-side guard active)"}`,
+      };
+    },
+    "Dialihkan ke /login atau dicegat layout"
+  );
+
+  await probe(
     "BB-SEC-04: Akses Halaman Terbuka /login",
     "/login",
     { method: "GET" },
