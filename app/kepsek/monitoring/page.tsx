@@ -5,6 +5,7 @@ import { useRealtimeClock } from "@/hooks/use-realtime-clock";
 import { Search, RefreshCw, Layers, CheckCircle2, AlertCircle, Clock, Eye, Info, AlertTriangle, Calendar } from "lucide-react";
 import Pagination from "@/components/ui/pagination";
 import FullScreenLoader from "@/components/ui/full-screen-loader";
+import { ScrollingStatCards, StatCardItem } from "@/components/ui/ScrollingStatCards";
 import {
   getMonitoringKelasRealtime,
   MonitoringKelasResponse,
@@ -117,6 +118,39 @@ export default function MonitoringKelasPage() {
     hariWIB: "—",
   };
 
+  const statCardItems: StatCardItem[] = [
+    {
+      id: "total",
+      label: "Total Ruang Kelas",
+      value: `${summary.totalKelas} Kelas`,
+      bgIcon: "bg-indigo-600",
+      shadowIcon: "shadow-indigo-500/20",
+      icon: <Layers className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => setStatusFilter("semua"),
+      active: statusFilter === "semua",
+    },
+    {
+      id: "digunakan",
+      label: "Sedang Digunakan",
+      value: `${summary.sedangDigunakan} Kelas`,
+      bgIcon: "bg-emerald-500",
+      shadowIcon: "shadow-emerald-500/20",
+      icon: <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => setStatusFilter(statusFilter === "sedang_digunakan" ? "semua" : "sedang_digunakan"),
+      active: statusFilter === "sedang_digunakan",
+    },
+    {
+      id: "kosong",
+      label: "Kelas Kosong",
+      value: `${summary.kosong} Kelas`,
+      bgIcon: "bg-slate-600",
+      shadowIcon: "shadow-slate-500/20",
+      icon: <Clock className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />,
+      onClick: () => setStatusFilter(statusFilter === "kosong" ? "semua" : "kosong"),
+      active: statusFilter === "kosong",
+    },
+  ];
+
   return (
     <div className="space-y-5 sm:space-y-8 animate-page-enter">
       
@@ -189,58 +223,14 @@ export default function MonitoringKelasPage() {
       )}
 
       {/* ── Kartu Ringkasan Statistik ────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Card 1: Total Kelas */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Total Ruang Kelas
-            </p>
-            <p className="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">
-              {summary.totalKelas}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Seluruh kelas terdaftar</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-            <Layers className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Card 2: Sedang Digunakan */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-              Sedang Digunakan
-            </p>
-            <p className="text-2xl md:text-3xl font-extrabold text-emerald-600 mt-1">
-              {summary.sedangDigunakan}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">KBM sedang berlangsung</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="w-6 h-6 animate-pulse" />
-          </div>
-        </div>
-
-        {/* Card 3: Kosong */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Kelas Kosong
-            </p>
-            <p className="text-2xl md:text-3xl font-extrabold text-slate-700 mt-1">
-              {summary.kosong}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Tidak ada jadwal aktif</p>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-            <Clock className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
+      <ScrollingStatCards
+        items={statCardItems}
+        loading={loading}
+        desktopGridCols="lg:grid-cols-3"
+      />
 
       {/* ── Filter Bar & Pencarian ───────────────────────────── */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           
           {/* Input Search */}
@@ -255,14 +245,15 @@ export default function MonitoringKelasPage() {
             />
           </div>
 
-          {/* Filter Status */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+          {/* Unified Horizontal Scroll Filter Group (Status + Tingkat) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {/* Status Pills */}
             <button
               type="button"
               onClick={() => setStatusFilter("semua")}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 statusFilter === "semua"
-                  ? "bg-slate-800 text-white shadow-xs"
+                  ? "bg-slate-800 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
               }`}
             >
@@ -273,7 +264,7 @@ export default function MonitoringKelasPage() {
               onClick={() => setStatusFilter("sedang_digunakan")}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 statusFilter === "sedang_digunakan"
-                  ? "bg-emerald-600 text-white shadow-xs"
+                  ? "bg-emerald-600 text-white shadow-2xs"
                   : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/60"
               }`}
             >
@@ -284,27 +275,25 @@ export default function MonitoringKelasPage() {
               onClick={() => setStatusFilter("kosong")}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 statusFilter === "kosong"
-                  ? "bg-slate-600 text-white shadow-xs"
+                  ? "bg-slate-600 text-white shadow-2xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
               }`}
             >
               Kosong ({summary.kosong})
             </button>
-          </div>
 
-          {/* Filter Tingkat */}
-          <div className="flex items-center gap-1.5 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
-              Tingkat:
-            </span>
+            {/* Subtle Divider */}
+            <div className="h-4 w-px bg-slate-200 flex-shrink-0 mx-1" />
+
+            {/* Tingkat Pills */}
             {["semua", "7", "8", "9"].map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTingkatFilter(t)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                   tingkatFilter === t
-                    ? "bg-blue-600 text-white shadow-xs"
+                    ? "bg-blue-600 text-white shadow-2xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200/70"
                 }`}
               >
@@ -316,26 +305,38 @@ export default function MonitoringKelasPage() {
         </div>
       </div>
 
-      {/* ── Tabel Monitoring Ruang Kelas ─────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {/* ── Heading Section: Daftar Ruang Kelas ─────────────── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 pt-1">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">
+            Daftar Ruang Kelas
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {filteredKelas.length} ruang kelas ditemukan
+          </p>
+        </div>
+      </div>
+
+      {/* ── Tabel Monitoring Ruang Kelas (Mobile & Desktop) ──── */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-3.5 sm:p-6 shadow-sm overflow-hidden">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[560px] sm:min-w-[760px]">
             <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4 w-12 text-center">No</th>
-                <th className="py-3.5 px-4">Ruang Kelas</th>
-                <th className="py-3.5 px-4">Status Ruang</th>
-                <th className="py-3.5 px-4">Mata Pelajaran Aktif</th>
-                <th className="py-3.5 px-4">Guru Pengajar</th>
-                <th className="py-3.5 px-4">Jam Pelajaran</th>
-                <th className="py-3.5 px-4">Presensi Mengajar</th>
-                <th className="py-3.5 px-4 text-center w-24">Aksi</th>
+              <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider uppercase">
+                <th className="pb-2.5 sm:pb-4 font-semibold text-center w-10 hidden sm:table-cell">NO</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold">RUANG KELAS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold">STATUS</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold">MATA PELAJARAN</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold">GURU PENGAJAR</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold hidden sm:table-cell">JAM PELAJARAN</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold">PRESENSI</th>
+                <th className="pb-2.5 sm:pb-4 font-semibold text-center w-20">AKSI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs md:text-sm">
+            <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
               {paginatedKelas.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-8 sm:py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Info className="w-8 h-8 text-slate-300" />
                       <p className="font-semibold text-slate-600">Tidak ada ruang kelas yang sesuai dengan filter.</p>
@@ -353,29 +354,24 @@ export default function MonitoringKelasPage() {
                     <tr
                       key={item.kelasId}
                       onClick={() => setSelectedKelas(item)}
-                      className={`hover:bg-blue-50/40 transition-colors cursor-pointer group ${
-                        isDigunakan ? "bg-white" : "bg-slate-50/30"
-                      }`}
+                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
                     >
                       {/* No */}
-                      <td className="py-3.5 px-4 text-center font-medium text-slate-400">
+                      <td className="py-3 sm:py-4 text-center font-medium text-slate-400 hidden sm:table-cell">
                         {rowNumber}
                       </td>
 
                       {/* Ruang Kelas */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                      <td className="py-3 sm:py-4 pr-2">
+                        <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                           {item.namaKelas}
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Tingkat {item.tingkat}
                         </span>
                       </td>
 
                       {/* Status Ruang */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 sm:py-4 pr-2">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold whitespace-nowrap ${
                             isDigunakan
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : "bg-slate-100 text-slate-600 border border-slate-200"
@@ -390,33 +386,48 @@ export default function MonitoringKelasPage() {
                         </span>
                       </td>
 
-                      {/* Mata Pelajaran Aktif */}
-                      <td className="py-3.5 px-4 font-semibold text-slate-800">
+                      {/* Mata Pelajaran Aktif (+ Jam on mobile) */}
+                      <td className="py-3 sm:py-4 pr-2 font-medium">
                         {isDigunakan && sesi ? (
-                          <span className="text-slate-900">{sesi.mataPelajaran}</span>
+                          <div>
+                            <span className="font-semibold text-slate-900 block truncate max-w-[140px] sm:max-w-none">
+                              {sesi.mataPelajaran}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-normal sm:hidden mt-0.5 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                              <span>{sesi.jamMulai} - {sesi.jamSelesai}</span>
+                            </span>
+                          </div>
+                        ) : item.sesiBerikutnya ? (
+                          <div>
+                            <span className="text-slate-400 font-normal italic text-xs">—</span>
+                            <span className="text-[11px] text-slate-400 font-normal sm:hidden block mt-0.5">
+                              Berikutnya: {item.sesiBerikutnya.jamMulai}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">—</span>
+                          <span className="text-slate-400 font-normal italic text-xs">—</span>
                         )}
                       </td>
 
                       {/* Guru Pengajar */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 sm:py-4 pr-2">
                         {isDigunakan && sesi ? (
                           <div>
-                            <p className="font-semibold text-slate-900 truncate max-w-[200px]">
+                            <p className="font-semibold text-slate-800 truncate max-w-[130px] sm:max-w-[200px]">
                               {sesi.guruNama}
                             </p>
                             {sesi.guruNip && (
-                              <p className="text-[11px] text-slate-400">NIP: {sesi.guruNip}</p>
+                              <p className="text-[10px] text-slate-400 hidden sm:block">NIP: {sesi.guruNip}</p>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">—</span>
+                          <span className="text-slate-400 font-normal italic text-xs">—</span>
                         )}
                       </td>
 
-                      {/* Jam Pelajaran */}
-                      <td className="py-3.5 px-4 font-medium text-slate-700 whitespace-nowrap">
+                      {/* Jam Pelajaran (Desktop sm+) */}
+                      <td className="py-3 sm:py-4 pr-2 font-medium text-slate-700 whitespace-nowrap hidden sm:table-cell">
                         {isDigunakan && sesi ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold">
                             <Clock className="w-3 h-3" />
@@ -427,15 +438,15 @@ export default function MonitoringKelasPage() {
                             Sesi berikutnya: {item.sesiBerikutnya.jamMulai}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">—</span>
+                          <span className="text-slate-400 font-normal italic text-xs">—</span>
                         )}
                       </td>
 
                       {/* Status Presensi */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3 sm:py-4 pr-2">
                         {isDigunakan && sesi ? (
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold whitespace-nowrap ${
                               sesi.statusPresensi === "sudah_presensi"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : sesi.statusPresensi === "tidak_mengajar"
@@ -449,19 +460,19 @@ export default function MonitoringKelasPage() {
                             {sesi.statusPresensiLabel}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-normal italic">—</span>
+                          <span className="text-slate-400 font-normal italic text-xs">—</span>
                         )}
                       </td>
 
                       {/* Aksi (Detail) */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3 sm:py-4 text-center">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedKelas(item);
                           }}
-                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-semibold text-xs transition-all cursor-pointer group-hover:bg-blue-600 group-hover:text-white"
+                          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 font-semibold text-xs transition-all cursor-pointer group-hover:bg-blue-600 group-hover:text-white"
                           title="Lihat detail kegiatan belajar"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -478,13 +489,13 @@ export default function MonitoringKelasPage() {
 
         {/* Pagination Footer */}
         {filteredKelas.length > 0 && (
-          <div className="p-4 bg-slate-50/50 border-t border-slate-100">
+          <div className="pt-2">
             <Pagination
               currentPage={currentPage}
               totalItems={filteredKelas.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              size="md"
+              size="sm"
             />
           </div>
         )}
