@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/page-header";
 import Button from "@/components/ui/button";
 import { verifikasiLokasiSekolah } from "@/actions/pengaturan";
+import { getAccurateCurrentPosition } from "@/lib/client-geo";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -12,62 +13,54 @@ export default function LokasiPage() {
   const router = useRouter();
   const [scanState, setScanState] = useState<ScanState>("IDLE");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setScanState("SCANNING");
     setErrorMsg("");
+    setGpsAccuracy(null);
 
-    if (!navigator.geolocation) {
-      setErrorMsg("Geolokasi tidak didukung oleh browser Anda.");
-      setScanState("FAIL");
-      return;
-    }
+    try {
+      // Ambil posisi dengan stabilisasi sinyal satelit (maksimal tunggu 3.5 detik atau akurasi <= 25m)
+      const position = await getAccurateCurrentPosition({
+        desiredAccuracyMeter: 25,
+        maxWaitMs: 3500,
+        onProgress: (acc) => setGpsAccuracy(acc),
+      });
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          const accuracy = position.coords.accuracy;
+      const userLat = position.latitude;
+      const userLng = position.longitude;
+      const accuracy = position.accuracy;
 
-          // Verifikasi lokasi langsung dari database sekolah
-          const result = await verifikasiLokasiSekolah(userLat, userLng, accuracy);
+      // Verifikasi lokasi langsung dari database sekolah
+      const result = await verifikasiLokasiSekolah(userLat, userLng, accuracy);
 
-          if (!result.success) {
-            setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
-            setScanState("FAIL");
-            return;
-          }
-
-          if (result.isValid) {
-            // Simpan koordinat asli guru untuk dikirim ke database nanti
-            sessionStorage.setItem("absensi_lat", userLat.toString());
-            sessionStorage.setItem("absensi_lng", userLng.toString());
-            if (accuracy != null) {
-              sessionStorage.setItem("absensi_accuracy", accuracy.toString());
-            }
-            setScanState("SUCCESS");
-          } else {
-            setErrorMsg("Pastikan Anda berada di area sekitar sekolah.");
-            setScanState("FAIL");
-          }
-        } catch (err) {
-          console.error("Gagal memeriksa lokasi:", err);
-          setErrorMsg("Terjadi kesalahan saat memverifikasi lokasi.");
-          setScanState("FAIL");
-        }
-      },
-      (error) => {
-        console.error("Gagal mendapatkan lokasi GPS:", error);
-        setErrorMsg("Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi.");
+      if (!result.success) {
+        setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
         setScanState("FAIL");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 10000,
+        return;
       }
-    );
+
+      if (result.isValid) {
+        // Simpan koordinat asli guru untuk dikirim ke database nanti
+        sessionStorage.setItem("absensi_lat", userLat.toString());
+        sessionStorage.setItem("absensi_lng", userLng.toString());
+        if (accuracy != null) {
+          sessionStorage.setItem("absensi_accuracy", accuracy.toString());
+        }
+        setScanState("SUCCESS");
+      } else {
+        setErrorMsg("Pastikan Anda berada di area sekitar sekolah.");
+        setScanState("FAIL");
+      }
+    } catch (err: any) {
+      console.error("Gagal memeriksa lokasi GPS:", err);
+      setErrorMsg(
+        err?.message ||
+          "Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi."
+      );
+      setScanState("FAIL");
+    }
   };
 
   const handleRetake = () => {
@@ -109,7 +102,14 @@ export default function LokasiPage() {
           <div className="w-full bg-white border border-slate-200 rounded-[20px] shadow-sm flex items-center justify-center py-8">
             <div className="w-full mx-4 bg-[#eaf5f0] border border-[#d1e8de] rounded-[16px] flex flex-col items-center justify-center gap-4 py-10">
               {scanState === "SCANNING" ? (
-                <div className="w-14 h-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                <>
+                  <div className="w-14 h-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                  <p className="text-xs font-semibold text-blue-700 animate-pulse text-center px-4">
+                    {gpsAccuracy !== null
+                      ? `Mengunci satelit GPS (Akurasi: ±${gpsAccuracy}m)...`
+                      : "Menghubungkan ke sensor GPS..."}
+                  </p>
+                </>
               ) : (
                 <div className="text-blue-600">
                   <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
@@ -133,7 +133,7 @@ export default function LokasiPage() {
               onClick={handleScan}
               disabled={scanState === "SCANNING"}
             >
-              {scanState === "SCANNING" ? "Memindai..." : "Scan Lokasi"}
+              {scanState === "SCANNING" ? "Memindai Sinyal GPS..." : "Scan Lokasi"}
             </Button>
           </div>
         </>
