@@ -344,6 +344,11 @@ export async function importExcelData(data: ParsedData) {
     // TAHAP 3: GURU KBM NON-PTK (HONORER / PENGGANTI)
     // ==========================================
 
+    let ghostGurusInsertedCount = 0;
+    let ghostAkunsInsertedCount = 0;
+    const reactivatedGhostGuruIds = new Set<string>();
+    const reactivatedGhostAkunIds = new Set<string>();
+
     const missingGuruNamesSet = new Set<string>();
     for (const j of data.jadwals) {
       const namaGuruDiLegenda = data.legendaGuru[j.guruKode];
@@ -354,13 +359,19 @@ export async function importExcelData(data: ParsedData) {
         missingGuruNamesSet.add(namaGuruDiLegenda);
       } else if (matchedDbGuru.status !== "aktif") {
         // Guru KBM sudah ada di DB tapi berstatus nonaktif, aktifkan kembali
-        matchedDbGuru.status = "aktif";
-        await supabase.from("guru").update({ status: "aktif" }).eq("id", matchedDbGuru.id);
+        if (!reactivatedGhostGuruIds.has(matchedDbGuru.id)) {
+          reactivatedGhostGuruIds.add(matchedDbGuru.id);
+          matchedDbGuru.status = "aktif";
+          await supabase.from("guru").update({ status: "aktif" }).eq("id", matchedDbGuru.id);
+        }
 
         const existingAkun = existingAkunByGuruId.get(matchedDbGuru.id);
         if (existingAkun && typeof existingAkun === "object" && existingAkun.status !== "aktif") {
-          existingAkun.status = "aktif";
-          await supabase.from("akun").update({ status: "aktif" }).eq("id", existingAkun.id);
+          if (existingAkun.id && !reactivatedGhostAkunIds.has(existingAkun.id)) {
+            reactivatedGhostAkunIds.add(existingAkun.id);
+            existingAkun.status = "aktif";
+            await supabase.from("akun").update({ status: "aktif" }).eq("id", existingAkun.id);
+          }
         }
       }
     }
@@ -388,6 +399,7 @@ export async function importExcelData(data: ParsedData) {
       if (ghostErr) {
         console.error("Gagal batch insert guru luar PTK:", ghostErr);
       } else if (insertedGhostGurus) {
+        ghostGurusInsertedCount = insertedGhostGurus.length;
         const ghostAkunsToInsert: any[] = [];
         for (const g of insertedGhostGurus) {
           dbGuruList.push(g);
@@ -414,8 +426,11 @@ export async function importExcelData(data: ParsedData) {
           const { error: ghostAkunErr } = await supabase
             .from("akun")
             .insert(ghostAkunsToInsert);
-          if (ghostAkunErr)
+          if (ghostAkunErr) {
             console.error("Gagal batch insert akun guru luar PTK:", ghostAkunErr);
+          } else {
+            ghostAkunsInsertedCount = ghostAkunsToInsert.length;
+          }
         }
       }
     }
@@ -542,10 +557,10 @@ export async function importExcelData(data: ParsedData) {
     return {
       success: true,
       stats: {
-        gurusInserted: gurusToInsert.length,
-        gurusUpdated: gurusToUpdate.length,
-        akunsInserted: akunsToInsert.length,
-        akunsUpdated: akunsToUpdate.length,
+        gurusInserted: gurusToInsert.length + ghostGurusInsertedCount,
+        gurusUpdated: gurusToUpdate.length + reactivatedGhostGuruIds.size,
+        akunsInserted: akunsToInsert.length + ghostAkunsInsertedCount,
+        akunsUpdated: akunsToUpdate.length + reactivatedGhostAkunIds.size,
         kelasesInserted: kelasesToInsert.length,
         jadwalsInserted: jadwalsToInsert.length,
         jadwalsUpdated: jadwalsToUpdate.length,

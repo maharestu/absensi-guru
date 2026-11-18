@@ -139,22 +139,24 @@ export default function ImportDataPage() {
       </div>
 
       {/* ── SYARAT FORMAT FILE (MICRO-PILLS) ── */}
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-slate-400 font-semibold uppercase tracking-wider text-[11px] mr-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+        <span className="text-slate-400 font-semibold uppercase tracking-wider text-[11px] shrink-0">
           Format File:
         </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
-          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-          <span>.xlsx / .xls</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          <span>Sheet 1: <strong>Data Guru</strong></span>
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-          <span>Sheet 2: <strong>Jadwal KBM</strong></span>
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>.xlsx / .xls</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+            <span>Sheet 1: <strong>Data Guru</strong></span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 font-medium text-slate-700 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+            <span>Sheet 2: <strong>Jadwal KBM</strong></span>
+          </span>
+        </div>
       </div>
 
       {/* ── UNIFIED UPLOAD AREA ── */}
@@ -266,13 +268,13 @@ export default function ImportDataPage() {
                 {importStats && (
                   <div className="pt-1.5 flex flex-wrap gap-2 text-xs font-semibold text-emerald-900">
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
-                      Guru: +{importStats.gurusInserted} baru, {importStats.gurusUpdated} diperbarui
+                      Guru: +{importStats.gurusInserted} baru
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
                       Kelas: +{importStats.kelasesInserted} baru
                     </span>
                     <span className="px-2.5 py-1 rounded-lg bg-emerald-100">
-                      Jadwal: +{importStats.jadwalsInserted} baru, {importStats.jadwalsUpdated} diperbarui
+                      Jadwal: +{importStats.jadwalsInserted} baru
                     </span>
                   </div>
                 )}
