@@ -71,7 +71,18 @@ export function getAccurateCurrentPosition(
       }
       isDone = true;
       cleanup();
-      reject(err);
+
+      let message = "Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi.";
+      if (err?.code === 1) {
+        message = "Izin akses lokasi ditolak. Silakan izinkan browser mengakses lokasi perangkat Anda.";
+      } else if (err?.code === 2) {
+        message = "Sinyal GPS tidak ditemukan. Pastikan GPS HP aktif dan Anda berada di area terbuka.";
+      } else if (err?.code === 3) {
+        message = "Waktu pencarian lokasi habis (timeout). Silakan coba lagi.";
+      } else if (err?.message && typeof err.message === "string") {
+        message = err.message;
+      }
+      reject(new Error(message));
     };
 
     // Jendela waktu penguncian sinyal satelit (maksimal maxWaitMs)
@@ -107,6 +118,11 @@ export function getAccurateCurrentPosition(
           }
         },
         (err) => {
+          if (err && err.code === 1) {
+            // Permission denied -> langsung gagalkan tanpa menunggu timeout
+            finishWithError(err);
+            return;
+          }
           // Jika terjadi error sementara namun sudah ada sampel koordinat terbaik, gunakan itu
           if (bestPosition) {
             finishWith(bestPosition);

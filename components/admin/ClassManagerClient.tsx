@@ -12,6 +12,7 @@ import { DeleteSingleModal } from "./ui/DeleteSingleModal";
 import { DeleteAllModal, RelationAuditResult } from "./ui/DeleteAllModal";
 import { ClassA4PrintTemplate } from "./ClassA4PrintTemplate";
 import { getLogoBase64 } from "@/actions/logo";
+import { getAccurateCurrentPosition } from "@/lib/client-geo";
 
 export default function ClassManagerClient() {
 
@@ -288,26 +289,24 @@ export default function ClassManagerClient() {
     setLocSuccess("");
   };
 
-  const handleDetectCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocError("GPS / Geolocation tidak didukung oleh browser Anda.");
-      return;
-    }
+  const handleDetectCurrentLocation = async () => {
     setIsLocDetecting(true);
     setLocError("");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocLat(pos.coords.latitude.toFixed(6));
-        setLocLng(pos.coords.longitude.toFixed(6));
-        setIsLocDetecting(false);
-      },
-      (err) => {
-        console.error("GPS error:", err);
-        setLocError("Gagal mengambil titik GPS. Pastikan izin lokasi browser aktif.");
-        setIsLocDetecting(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+    setLocSuccess("");
+    try {
+      const pos = await getAccurateCurrentPosition({
+        desiredAccuracyMeter: 15,
+        maxWaitMs: 3500,
+      });
+      setLocLat(pos.latitude.toFixed(6));
+      setLocLng(pos.longitude.toFixed(6));
+      setLocSuccess(`Koordinat terdeteksi (Akurasi: ±${Math.round(pos.accuracy)}m). Klik 'Simpan Lokasi' untuk menyimpan.`);
+    } catch (err: any) {
+      console.error("GPS error:", err);
+      setLocError(err?.message || "Gagal mengambil titik GPS. Pastikan izin lokasi browser aktif.");
+    } finally {
+      setIsLocDetecting(false);
+    }
   };
 
   const handleSaveLocation = async (e: React.FormEvent) => {

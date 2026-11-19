@@ -11,6 +11,7 @@ import {
   type PengaturanSistem,
   type HariLibur,
 } from "@/actions/pengaturan";
+import { getAccurateCurrentPosition } from "@/lib/client-geo";
 import { ClockBadges } from "./ui/ClockBadges";
 
 // ── Tipe Props ────────────────────────────────────────────────
@@ -654,35 +655,30 @@ function LokasiTab({ initialData }: { initialData: { latitude: number; longitude
   const [isPending, startTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
 
-  const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setStatus({ type: "error", msg: "Browser Anda tidak mendukung deteksi lokasi (Geolocation)." });
-      return;
-    }
+  const handleGetCurrentLocation = async () => {
     setIsLocating(true);
     setStatus(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setIsLocating(false);
-        const userLat = pos.coords.latitude.toFixed(6);
-        const userLng = pos.coords.longitude.toFixed(6);
-        setLat(userLat);
-        setLng(userLng);
-        setStatus({
-          type: "success",
-          msg: `Koordinat GPS berhasil diambil (${userLat}, ${userLng}). Jangan lupa klik 'Simpan Lokasi'.`,
-        });
-      },
-      (err) => {
-        setIsLocating(false);
-        let errorMsg = "Gagal mengambil lokasi GPS.";
-        if (err.code === 1) errorMsg = "Izin akses lokasi ditolak oleh browser/perangkat.";
-        else if (err.code === 2) errorMsg = "Posisi GPS tidak ditemukan. Pastikan GPS HP aktif.";
-        else if (err.code === 3) errorMsg = "Permintaan deteksi lokasi timeout.";
-        setStatus({ type: "error", msg: errorMsg });
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    try {
+      const pos = await getAccurateCurrentPosition({
+        desiredAccuracyMeter: 15,
+        maxWaitMs: 3500,
+      });
+      setIsLocating(false);
+      const userLat = pos.latitude.toFixed(6);
+      const userLng = pos.longitude.toFixed(6);
+      setLat(userLat);
+      setLng(userLng);
+      setStatus({
+        type: "success",
+        msg: `Koordinat GPS berhasil diambil (${userLat}, ${userLng}, Akurasi ±${Math.round(pos.accuracy)}m). Jangan lupa klik 'Simpan Lokasi'.`,
+      });
+    } catch (err: any) {
+      setIsLocating(false);
+      setStatus({
+        type: "error",
+        msg: err?.message || "Gagal mengambil lokasi GPS. Pastikan izin lokasi browser aktif.",
+      });
+    }
   };
 
   const handleSave = () => {

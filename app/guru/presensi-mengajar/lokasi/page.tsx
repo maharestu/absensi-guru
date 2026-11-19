@@ -8,6 +8,7 @@ import FullScreenLoader from "@/components/ui/full-screen-loader";
 import { verifikasiLokasiMengajar } from "@/actions/presensi";
 import { getJadwalById } from "@/actions/jadwal";
 import { JadwalWithDetail } from "@/types/schema";
+import { getAccurateCurrentPosition } from "@/lib/client-geo";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "FAIL";
 
@@ -23,6 +24,7 @@ function LokasiMengajarContent() {
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [namaKelas, setNamaKelas] = useState<string>("");
   const [radiusToleransi, setRadiusToleransi] = useState<number>(10);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -56,7 +58,7 @@ function LokasiMengajarContent() {
     };
   }, [jadwalId]);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!jadwalId) {
       setErrorMsg("ID Jadwal tidak ditemukan. Silakan scan ulang QR kelas.");
       setScanState("FAIL");
@@ -65,63 +67,54 @@ function LokasiMengajarContent() {
 
     setScanState("SCANNING");
     setErrorMsg("");
+    setGpsAccuracy(null);
 
-    if (!navigator.geolocation) {
-      setErrorMsg("Geolokasi tidak didukung oleh browser Anda.");
-      setScanState("FAIL");
-      return;
-    }
+    try {
+      // Ambil posisi dengan stabilisasi sinyal satelit (maksimal tunggu 3.5 detik atau akurasi <= 25m)
+      const position = await getAccurateCurrentPosition({
+        desiredAccuracyMeter: 25,
+        maxWaitMs: 3500,
+        onProgress: (acc) => setGpsAccuracy(acc),
+      });
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const userLat = position.coords.latitude;
-          const userLng = position.coords.longitude;
-          const accuracy = position.coords.accuracy;
+      const userLat = position.latitude;
+      const userLng = position.longitude;
+      const accuracy = position.accuracy;
 
-          // Verifikasi lokasi mengajar (prioritas: lokasi kelas spesifik, fallback: lokasi sekolah)
-          const result = await verifikasiLokasiMengajar(jadwalId, userLat, userLng, accuracy);
+      // Verifikasi lokasi mengajar (prioritas: lokasi kelas spesifik, fallback: lokasi sekolah)
+      const result = await verifikasiLokasiMengajar(jadwalId, userLat, userLng, accuracy);
 
-          if (!result.success) {
-            setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
-            setScanState("FAIL");
-            return;
-          }
-
-          if (result.isValid) {
-            // Simpan koordinat dan status validasi lokasi untuk sesi mengajar
-            sessionStorage.setItem("absensi_mengajar_lat", userLat.toString());
-            sessionStorage.setItem("absensi_mengajar_lng", userLng.toString());
-            if (accuracy != null) {
-              sessionStorage.setItem("absensi_mengajar_accuracy", accuracy.toString());
-            }
-            sessionStorage.setItem("absensi_mengajar_location_valid", "true");
-            if (result.namaKelas) setNamaKelas(result.namaKelas);
-            if (result.radiusMeter) setRadiusToleransi(result.radiusMeter);
-            setScanState("SUCCESS");
-          } else {
-            setErrorMsg(result.error || `Pastikan Anda berada di ruang ${namaKelas || "kelas"}.`);
-            if (result.namaKelas) setNamaKelas(result.namaKelas);
-            if (result.radiusMeter) setRadiusToleransi(result.radiusMeter);
-            setScanState("FAIL");
-          }
-        } catch (err) {
-          console.error("Gagal memeriksa lokasi mengajar:", err);
-          setErrorMsg("Terjadi kesalahan saat memverifikasi lokasi.");
-          setScanState("FAIL");
-        }
-      },
-      (error) => {
-        console.error("Gagal mendapatkan lokasi GPS:", error);
-        setErrorMsg("Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi.");
+      if (!result.success) {
+        setErrorMsg(result.error || "Gagal memverifikasi lokasi dengan server.");
         setScanState("FAIL");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 10000,
+        return;
       }
-    );
+
+      if (result.isValid) {
+        // Simpan koordinat dan status validasi lokasi untuk sesi mengajar
+        sessionStorage.setItem("absensi_mengajar_lat", userLat.toString());
+        sessionStorage.setItem("absensi_mengajar_lng", userLng.toString());
+        if (accuracy != null) {
+          sessionStorage.setItem("absensi_mengajar_accuracy", accuracy.toString());
+        }
+        sessionStorage.setItem("absensi_mengajar_location_valid", "true");
+        if (result.namaKelas) setNamaKelas(result.namaKelas);
+        if (result.radiusMeter) setRadiusToleransi(result.radiusMeter);
+        setScanState("SUCCESS");
+      } else {
+        setErrorMsg(result.error || `Pastikan Anda berada di ruang ${namaKelas || "kelas"}.`);
+        if (result.namaKelas) setNamaKelas(result.namaKelas);
+        if (result.radiusMeter) setRadiusToleransi(result.radiusMeter);
+        setScanState("FAIL");
+      }
+    } catch (err: any) {
+      console.error("Gagal memeriksa lokasi GPS mengajar:", err);
+      setErrorMsg(
+        err?.message ||
+          "Gagal mendapatkan lokasi. Pastikan GPS aktif dan izinkan browser mengakses lokasi."
+      );
+      setScanState("FAIL");
+    }
   };
 
   const handleRetake = () => {
@@ -174,7 +167,14 @@ function LokasiMengajarContent() {
           <div className="w-full bg-white border border-slate-200 rounded-[20px] shadow-sm flex items-center justify-center py-8">
             <div className="w-full mx-4 bg-[#eaf5f0] border border-[#d1e8de] rounded-[16px] flex flex-col items-center justify-center gap-4 py-10">
               {scanState === "SCANNING" ? (
-                <div className="w-14 h-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                <>
+                  <div className="w-14 h-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                  <p className="text-xs font-semibold text-blue-700 animate-pulse text-center px-4">
+                    {gpsAccuracy !== null
+                      ? `Mengunci satelit GPS (Akurasi: ±${gpsAccuracy}m)...`
+                      : "Menghubungkan ke sensor GPS..."}
+                  </p>
+                </>
               ) : (
                 <div className="text-blue-600">
                   <svg width="52" height="52" viewBox="0 0 24 24" fill="none">
@@ -203,7 +203,7 @@ function LokasiMengajarContent() {
               onClick={handleScan}
               disabled={scanState === "SCANNING"}
             >
-              {scanState === "SCANNING" ? "Memindai Lokasi..." : "Scan Lokasi"}
+              {scanState === "SCANNING" ? "Memindai Sinyal GPS..." : "Scan Lokasi"}
             </Button>
           </div>
         </>
